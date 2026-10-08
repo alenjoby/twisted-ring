@@ -278,4 +278,23 @@ export class Character {
     }
     this.updateLaser();
   }
+
+  dispose() {
+    this.scene.remove(this.group);
+    if (this.mixer) {
+      this.mixer.stopAllAction();
+    }
+    this.group.traverse((child) => {
+      if (child.isMesh) {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach(m => m.dispose());
+          } else {
+            child.material.dispose();
+          }
+        }
+      }
+    });
+  }
 }

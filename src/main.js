@@ -284,13 +284,9 @@ const supabaseManager = new SupabaseManager({
   onPlayerMoved: (data) => {
     const p = players.get(data.id);
     if (p && !p.isLocal) {
-      // Smooth interpolation for remote player
+      // Set target vectors for smooth lerp interpolation in animate loop
       p.targetPos = new THREE.Vector3(data.x, data.y, data.z);
       p.targetRotY = data.rotY;
-      p.group.position.set(data.x, data.y, data.z);
-      p.rotationY = data.rotY;
-      p.group.rotation.y = data.rotY;
-      p.updateLaser();
     }
   },
   onRoundSync: (data) => {
@@ -870,8 +866,26 @@ function animate() {
     }
   }
 
-  // STRICT BOUNDARY ENFORCEMENT (Rigid Body Sliding Wall)
+  // STRICT BOUNDARY ENFORCEMENT & REMOTE PLAYER SMOOTHING
   players.forEach(p => {
+    if (!p.isLocal && p.targetPos && p.isAlive) {
+      const dist = p.group.position.distanceTo(p.targetPos);
+      if (dist > 0.04) {
+        p.group.position.lerp(p.targetPos, 0.28);
+        p.playAction('run', 0.12);
+      } else {
+        p.playAction('idle', 0.18);
+      }
+      if (p.targetRotY !== undefined) {
+        let diff = p.targetRotY - p.rotationY;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        p.rotationY += diff * 12.0 * delta;
+        p.group.rotation.y = p.rotationY;
+      }
+      p.updateLaser();
+    }
+
     if (arena) arena.clampPosition(p.group.position);
     p.update(delta);
   });
