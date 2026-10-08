@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Default / fallback configuration
-const DEFAULT_URL = import.meta.env.VITE_SUPABASE_URL || localStorage.getItem('supabase_url') || 'https://mock.supabase.co';
-const DEFAULT_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || localStorage.getItem('supabase_anon_key') || 'mock-key';
+// Default / fallback configuration (Supports both Vite and Vercel Next.js integration variables)
+const DEFAULT_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || localStorage.getItem('supabase_url') || 'https://mock.supabase.co';
+const DEFAULT_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || localStorage.getItem('supabase_anon_key') || 'mock-key';
 
 export class SupabaseManager {
   constructor({ onPlayerJoined, onPlayerLeft, onPlayerMoved, onRoundSync, onReveal, onHit, onRoomStateChange }) {
