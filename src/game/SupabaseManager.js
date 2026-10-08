@@ -150,12 +150,9 @@ export class SupabaseManager {
             }
           });
         })
-        .on('presence', { event: 'leave' }, ({ leftPresences }) => {
-          leftPresences.forEach(p => {
-            if (p.id === this.myPlayerInfo?.id) return;
-            this.connectedPlayers.delete(p.id);
-            if (this.onPlayerLeft) this.onPlayerLeft(p.id);
-          });
+        .on('presence', { event: 'leave' }, () => {
+          // Note: channel.track() emits a transient leave+join pair during ready state updates.
+          // True player departures are authoritatively handled in 'sync' above to prevent false disconnects.
         });
 
       // 2. Broadcast Events (Movement, Aim, Shooting, Round Sync, Ready, Force Start, Lock, Verdict, Settings)
@@ -212,6 +209,18 @@ export class SupabaseManager {
           if (!this.connectedPlayers.has(data.id)) {
             this.connectedPlayers.set(data.id, data);
             if (this.onPlayerJoined) this.onPlayerJoined(data);
+            this.syncLocalRoomState();
+          }
+          // Respond back to newcomer so they receive our presence immediately
+          this.localBc.postMessage({
+            type: 'player-present',
+            data: this.myPlayerInfo
+          });
+        } else if (type === 'player-present') {
+          if (!this.connectedPlayers.has(data.id)) {
+            this.connectedPlayers.set(data.id, data);
+            if (this.onPlayerJoined) this.onPlayerJoined(data);
+            this.syncLocalRoomState();
           }
         } else if (type === 'player-moved') {
           if (this.onPlayerMoved) this.onPlayerMoved(data);
@@ -304,12 +313,14 @@ export class SupabaseManager {
 
   // Throttled movement broadcast (20Hz)
   broadcastMovement(pos, rotY) {
+    if (!this.myPlayerInfo) return;
     const now = performance.now();
     if (now - this.lastMoveTime < this.moveThrottleMs) return;
     this.lastMoveTime = now;
 
     const payload = {
       id: this.myPlayerInfo.id,
+      name: this.myPlayerInfo.name,
       x: Math.round(pos.x * 100) / 100,
       y: Math.round(pos.y * 100) / 100,
       z: Math.round(pos.z * 100) / 100,

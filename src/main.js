@@ -218,11 +218,33 @@ function initGameAfterLoading() {
   updateScoreboard();
 }
 
+function openFriendsHub() {
+  const hub = document.getElementById('friends-hub-modal');
+  if (hub) {
+    hub.classList.remove('hidden');
+    hub.classList.add('active');
+  }
+}
+
+function closeFriendsHub() {
+  const hub = document.getElementById('friends-hub-modal');
+  if (hub) {
+    hub.classList.add('hidden');
+    hub.classList.remove('active');
+  }
+}
+
 function deployPlayerSkyDrop() {
   document.getElementById('welcome-screen')?.classList.add('hidden');
   document.getElementById('mode-select-screen')?.classList.add('hidden');
-  document.getElementById('friends-hub-modal')?.classList.add('hidden');
+  closeFriendsHub();
+  document.getElementById('lobby-modal')?.classList.remove('active');
   document.getElementById('ui-overlay')?.classList.remove('hidden');
+
+  if (document.activeElement && document.activeElement.blur) {
+    document.activeElement.blur();
+  }
+  window.focus();
 
   const myIdx = getPlayerSpawnIndex(myId);
   const spawnPos = getRadialSpawnPosition(myIdx, Math.max(5, players.size));
@@ -256,7 +278,7 @@ function deployPlayerSkyDrop() {
 }
 
 function addRemotePlayer(id, name, pos = null) {
-  if (players.has(id)) return;
+  if (players.has(id)) return players.get(id);
   const operatorColors = [0xff2a5f, 0xffaa00, 0x00f0ff, 0xaa00ff, 0x00ff88];
   const color = operatorColors[players.size % operatorColors.length];
 
@@ -272,6 +294,7 @@ function addRemotePlayer(id, name, pos = null) {
   const spawnIndex = getPlayerSpawnIndex(id);
   const spawnPos = pos || getRadialSpawnPosition(spawnIndex, Math.max(5, players.size + 1));
   p.group.position.copy(spawnPos);
+  p.targetPos = spawnPos.clone();
   p.lookAtTarget(new THREE.Vector3(0, 0, 0));
   p.isBot = false;
   p.isHost = (id === currentHostId);
@@ -290,12 +313,11 @@ function isModalActive() {
   const modeSelect = document.getElementById('mode-select-screen');
   if (modeSelect && !modeSelect.classList.contains('hidden')) return true;
   const friendsHub = document.getElementById('friends-hub-modal');
-  if (friendsHub && !friendsHub.classList.contains('hidden')) return true;
+  if (friendsHub && !friendsHub.classList.contains('hidden') && friendsHub.classList.contains('active')) return true;
   const lobby = document.getElementById('lobby-modal');
-  if (lobby && lobby.classList.contains('active')) return true;
+  if (lobby && lobby.classList.contains('active') && !lobby.classList.contains('hidden')) return true;
   const winner = document.getElementById('winner-modal');
   if (winner && !winner.classList.contains('hidden')) return true;
-  if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT')) return true;
   return false;
 }
 
@@ -316,6 +338,9 @@ function removeRemotePlayer(id) {
 const keys = { w: false, a: false, s: false, d: false };
 
 window.addEventListener('keydown', (e) => {
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) {
+    return;
+  }
   if (isModalActive()) return;
   audioSystem.init();
   const k = e.key.toLowerCase();
@@ -336,11 +361,20 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => {
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) {
+    return;
+  }
   const k = e.key.toLowerCase();
   if (k === 'w' || k === 'arrowup') keys.w = false;
   if (k === 'a' || k === 'arrowleft') keys.a = false;
   if (k === 's' || k === 'arrowdown') keys.s = false;
   if (k === 'd' || k === 'arrowright') keys.d = false;
+});
+
+renderer.domElement.addEventListener('pointerdown', () => {
+  if (document.activeElement && document.activeElement.blur) {
+    document.activeElement.blur();
+  }
 });
 
 window.addEventListener('mousemove', (e) => {
@@ -388,7 +422,11 @@ const supabaseManager = new SupabaseManager({
     }
   },
   onPlayerMoved: (data) => {
-    const p = players.get(data.id);
+    if (!data || !data.id || data.id === myId) return;
+    let p = players.get(data.id);
+    if (!p) {
+      p = addRemotePlayer(data.id, data.name || 'Operator', new THREE.Vector3(data.x, data.y, data.z));
+    }
     if (p && !p.isLocal) {
       p.targetPos = new THREE.Vector3(data.x, data.y, data.z);
       p.targetRotY = data.rotY;
@@ -409,10 +447,10 @@ const supabaseManager = new SupabaseManager({
   onRoundSync: (data) => {
     if (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END' || currentPhase === 'SHRINK') {
       currentRound = data.round || currentRound;
-      document.getElementById('friends-hub-modal')?.classList.add('hidden');
+      closeFriendsHub();
       document.getElementById('welcome-screen')?.classList.add('hidden');
       document.getElementById('mode-select-screen')?.classList.add('hidden');
-      deployPlayerSkyDrop();
+      document.getElementById('ui-overlay')?.classList.remove('hidden');
       startRound(false);
     }
   },
@@ -908,14 +946,14 @@ function launchFriendsSquadMatch() {
   if (!isLocalHost) return;
   audioSystem.init();
   supabaseManager.broadcastForceStart();
-  document.getElementById('friends-hub-modal')?.classList.add('hidden');
+  closeFriendsHub();
   deployPlayerSkyDrop();
   startRound(true);
 }
 
 function handleRemoteSquadLaunch() {
   audioSystem.init();
-  document.getElementById('friends-hub-modal')?.classList.add('hidden');
+  closeFriendsHub();
   document.getElementById('welcome-screen')?.classList.add('hidden');
   document.getElementById('mode-select-screen')?.classList.add('hidden');
   deployPlayerSkyDrop();
@@ -945,9 +983,12 @@ function checkAllPlayersReady(playersList) {
         clearInterval(readyCountdownInterval);
         readyCountdownInterval = null;
         document.getElementById('lobby-modal')?.classList.remove('active');
-        document.getElementById('friends-hub-modal')?.classList.add('hidden');
+        closeFriendsHub();
+        deployPlayerSkyDrop();
         if (isLocalHost) {
           startRound(true);
+        } else {
+          startRound(false);
         }
       }
     }, 1000);
@@ -1094,7 +1135,7 @@ document.getElementById('btn-enter-game')?.addEventListener('click', () => {
   if (inviteRoomCode) {
     currentRoomId = `custom_${inviteRoomCode}`;
     document.getElementById('welcome-screen')?.classList.add('hidden');
-    document.getElementById('friends-hub-modal')?.classList.remove('hidden');
+    openFriendsHub();
     const codeEl = document.getElementById('squad-code-val');
     if (codeEl) codeEl.innerText = inviteRoomCode;
     const titleEl = document.getElementById('squad-room-title');
@@ -1162,7 +1203,7 @@ document.getElementById('btn-confirm-create-squad')?.addEventListener('click', (
   currentRoomId = `custom_${code}`;
 
   document.getElementById('mode-select-screen')?.classList.add('hidden');
-  document.getElementById('friends-hub-modal')?.classList.remove('hidden');
+  openFriendsHub();
 
   const titleEl = document.getElementById('squad-room-title');
   if (titleEl) titleEl.innerText = squadName.toUpperCase();
@@ -1197,7 +1238,7 @@ document.getElementById('btn-confirm-join-squad')?.addEventListener('click', () 
 
   currentRoomId = `custom_${code}`;
   document.getElementById('mode-select-screen')?.classList.add('hidden');
-  document.getElementById('friends-hub-modal')?.classList.remove('hidden');
+  openFriendsHub();
 
   const titleEl = document.getElementById('squad-room-title');
   if (titleEl) titleEl.innerText = `SQUAD ${code}`;
@@ -1232,7 +1273,7 @@ document.getElementById('btn-friends-copy-link')?.addEventListener('click', () =
 
 document.getElementById('btn-friends-leave')?.addEventListener('click', () => {
   supabaseManager.leaveRoom();
-  document.getElementById('friends-hub-modal')?.classList.add('hidden');
+  closeFriendsHub();
   document.getElementById('mode-select-screen')?.classList.remove('hidden');
   showBanner('LEFT SQUAD FREQUENCY', 1600);
 });
@@ -1263,6 +1304,78 @@ document.getElementById('btn-lobby')?.addEventListener('click', () => {
 
 document.getElementById('btn-close-lobby')?.addEventListener('click', () => {
   lobbyModal.classList.remove('active');
+});
+
+document.getElementById('btn-quick-play')?.addEventListener('click', () => {
+  audioSystem.init();
+  lobbyModal.classList.remove('active');
+  currentRoomId = 'sector_1';
+  isLocalReady = false;
+  updateReadyButtonUI();
+  supabaseManager.joinRoom(currentRoomId, {
+    id: myId,
+    name: playerName,
+    color: 0xffcc00,
+    isReady: false,
+    position: localPlayer.group.position
+  });
+  deployPlayerSkyDrop();
+  showBanner('SWITCHED TO PUBLIC SECTOR 1', 2000);
+});
+
+document.getElementById('btn-create-private')?.addEventListener('click', () => {
+  audioSystem.init();
+  lobbyModal.classList.remove('active');
+  const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+  currentRoomId = `custom_${code}`;
+  openFriendsHub();
+  const titleEl = document.getElementById('squad-room-title');
+  if (titleEl) titleEl.innerText = 'ALPHA DOGS';
+  const codeEl = document.getElementById('squad-code-val');
+  if (codeEl) codeEl.innerText = code;
+  isLocalReady = false;
+  updateReadyButtonUI();
+  supabaseManager.joinRoom(currentRoomId, {
+    id: myId,
+    name: playerName,
+    color: 0xffcc00,
+    isReady: false,
+    position: localPlayer.group.position
+  });
+  showBanner(`PRIVATE SQUAD ESTABLISHED: ${code}`, 2000);
+});
+
+document.getElementById('btn-join-private')?.addEventListener('click', () => {
+  audioSystem.init();
+  const input = document.getElementById('room-code-input');
+  const code = input ? input.value.trim().toUpperCase() : '';
+  if (!code) return;
+  lobbyModal.classList.remove('active');
+  currentRoomId = `custom_${code}`;
+  openFriendsHub();
+  const titleEl = document.getElementById('squad-room-title');
+  if (titleEl) titleEl.innerText = `SQUAD ${code}`;
+  const codeEl = document.getElementById('squad-code-val');
+  if (codeEl) codeEl.innerText = code;
+  isLocalReady = false;
+  updateReadyButtonUI();
+  supabaseManager.joinRoom(currentRoomId, {
+    id: myId,
+    name: playerName,
+    color: 0xffcc00,
+    isReady: false,
+    position: localPlayer.group.position
+  });
+  showBanner(`JOINING SQUAD: ${code}`, 2000);
+});
+
+document.getElementById('btn-leave-room')?.addEventListener('click', () => {
+  supabaseManager.leaveRoom();
+  lobbyModal.classList.remove('active');
+  closeFriendsHub();
+  document.getElementById('ui-overlay')?.classList.add('hidden');
+  document.getElementById('mode-select-screen')?.classList.remove('hidden');
+  showBanner('LEFT MULTIPLAYER ROOM', 1600);
 });
 
 document.getElementById('btn-save-name')?.addEventListener('click', () => {
@@ -1309,8 +1422,8 @@ function animate() {
     keys.d = false;
   }
 
-  // Local Player Movement & Aiming locking
-  const isInputLocked = modalOpen || (currentPhase === 'RECON') || (currentPhase === 'INPUT_FREEZE') || (currentPhase === 'REVEAL') || (currentPhase === 'VICTORY');
+  // Local Player Movement & Aiming locking (Free during RECON, LOBBY, and STEALTH)
+  const isInputLocked = modalOpen || (currentPhase === 'INPUT_FREEZE') || (currentPhase === 'REVEAL') || (currentPhase === 'VICTORY');
   if (localPlayer && localPlayer.isAlive && !isInputLocked) {
     const moveInput = new THREE.Vector3(0, 0, 0);
     if (keys.w) moveInput.z -= 1;
@@ -1366,8 +1479,10 @@ function animate() {
   players.forEach(p => {
     if (!p.isLocal && p.targetPos && p.isAlive) {
       const dist = p.group.position.distanceTo(p.targetPos);
-      if (dist > 0.04) {
-        p.group.position.lerp(p.targetPos, 0.28);
+      if (dist > 6.0) {
+        p.group.position.copy(p.targetPos);
+      } else if (dist > 0.04) {
+        p.group.position.lerp(p.targetPos, Math.min(1, 14.0 * delta));
         p.playAction('run', 0.12);
       } else {
         p.playAction('idle', 0.18);

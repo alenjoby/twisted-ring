@@ -201,6 +201,7 @@ body, html {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
+  display: none !important;
 }
 
 @keyframes fadeInScale {
@@ -1102,7 +1103,11 @@ body, html {
 }
 
 .modal-backdrop.active {
-  display: flex;
+  display: flex !important;
+}
+
+.modal-backdrop.hidden {
+  display: none !important;
 }
 
 .modal-box {
