@@ -89,8 +89,8 @@ scene.add(hemiLight);
 const sunLight = new THREE.DirectionalLight(0xffffff, 2.8);
 sunLight.position.set(10, 24, 12);
 sunLight.castShadow = true;
-sunLight.shadow.mapSize.width = 2048;
-sunLight.shadow.mapSize.height = 2048;
+sunLight.shadow.mapSize.width = 1024;
+sunLight.shadow.mapSize.height = 1024;
 sunLight.shadow.camera.near = 0.5;
 sunLight.shadow.camera.far = 50;
 sunLight.shadow.camera.left = -18;
@@ -229,8 +229,10 @@ function initGameAfterLoading() {
   localPlayer.group.position.copy(spawnPos);
   localPlayer.lookAtTarget(new THREE.Vector3(0, 0, 0));
   localPlayer.setLaserActive(false);
+  localPlayer.setVisible(false);
   players.set(myId, localPlayer);
   createNameTag(localPlayer);
+  if (localPlayer.htmlTag) localPlayer.htmlTag.classList.add('hidden');
   window.localPlayer = localPlayer;
 
   // Pre-fill Welcome screen input
@@ -280,6 +282,8 @@ function deployPlayerSkyDrop() {
   const myIdx = getPlayerSpawnIndex(myId);
   const spawnPos = getRadialSpawnPosition(myIdx, Math.max(5, players.size));
   if (localPlayer) {
+    localPlayer.setVisible(true);
+    if (localPlayer.htmlTag) localPlayer.htmlTag.classList.remove('hidden');
     localPlayer.group.position.copy(spawnPos);
     localPlayer.lookAtTarget(new THREE.Vector3(0, 0, 0));
     localPlayer.animateSkyDrop(() => {
@@ -338,7 +342,50 @@ function addRemotePlayer(id, name, pos = null) {
   return p;
 }
 
+const practiceBots = [];
+
+function spawnPracticeBots(count = 2) {
+  clearPracticeBots();
+  const botNames = ['TARGET_VIPER', 'TARGET_PHANTOM'];
+  const botColors = [0x00f0ff, 0xff0055];
+  for (let i = 0; i < count; i++) {
+    const botId = `bot_${i + 1}`;
+    const p = new Character({
+      scene,
+      id: botId,
+      name: botNames[i] || `BOT_${i + 1}`,
+      isLocal: false,
+      color: botColors[i] || 0x00f0ff,
+      assetManager
+    });
+    p.isBot = true;
+    p.isHost = false;
+    p.isReady = true;
+    const spawnPos = getRadialSpawnPosition(i + 1, count + 1);
+    p.group.position.copy(spawnPos);
+    p.targetPos = spawnPos.clone();
+    p.lookAtTarget(new THREE.Vector3(0, 0, 0));
+    p.setLaserActive(false);
+    players.set(botId, p);
+    createNameTag(p);
+    updateNameTag(p);
+    practiceBots.push(p);
+  }
+  updateScoreboard();
+}
+
+function clearPracticeBots() {
+  while (practiceBots.length > 0) {
+    const bot = practiceBots.pop();
+    if (players.has(bot.id)) {
+      removeRemotePlayer(bot.id);
+    }
+  }
+}
+
 function isModalActive() {
+  const loader = document.getElementById('loading-screen');
+  if (loader && !loader.classList.contains('hidden')) return true;
   const welcome = document.getElementById('welcome-screen');
   if (welcome && !welcome.classList.contains('hidden')) return true;
   const modeSelect = document.getElementById('mode-select-screen');
@@ -417,15 +464,89 @@ window.addEventListener('mousemove', (e) => {
   raycaster.ray.intersectPlane(raycastPlane, aimPoint);
 });
 
-// Touch controls for mobile
+// Virtual Touch Joystick Implementation for Mobile
+const joystickZone = document.getElementById('touch-joystick-zone');
+const joystickThumb = document.getElementById('touch-joystick-thumb');
+let joystickTouchId = null;
+let joystickCenter = { x: 0, y: 0 };
+const JOYSTICK_MAX_RADIUS = 38;
+
+function updateJoystick(clientX, clientY) {
+  const dx = clientX - joystickCenter.x;
+  const dy = clientY - joystickCenter.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const clampedDist = Math.min(dist, JOYSTICK_MAX_RADIUS);
+  const angle = Math.atan2(dy, dx);
+  const thumbX = Math.cos(angle) * clampedDist;
+  const thumbY = Math.sin(angle) * clampedDist;
+  if (joystickThumb) {
+    joystickThumb.style.transform = `translate(${thumbX}px, ${thumbY}px)`;
+  }
+
+  const normX = dx / JOYSTICK_MAX_RADIUS;
+  const normY = dy / JOYSTICK_MAX_RADIUS;
+
+  keys.w = normY < -0.28;
+  keys.s = normY > 0.28;
+  keys.a = normX < -0.28;
+  keys.d = normX > 0.28;
+}
+
+if (joystickZone) {
+  joystickZone.addEventListener('touchstart', (e) => {
+    if (isModalActive()) return;
+    if (e.changedTouches.length > 0) {
+      const touch = e.changedTouches[0];
+      joystickTouchId = touch.identifier;
+      const rect = joystickZone.getBoundingClientRect();
+      joystickCenter.x = rect.left + rect.width / 2;
+      joystickCenter.y = rect.top + rect.height / 2;
+      updateJoystick(touch.clientX, touch.clientY);
+    }
+  }, { passive: true });
+
+  window.addEventListener('touchmove', (e) => {
+    if (joystickTouchId === null) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i];
+      if (touch.identifier === joystickTouchId) {
+        updateJoystick(touch.clientX, touch.clientY);
+        break;
+      }
+    }
+  }, { passive: true });
+
+  const endJoystick = (e) => {
+    if (joystickTouchId === null) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === joystickTouchId) {
+        joystickTouchId = null;
+        if (joystickThumb) joystickThumb.style.transform = 'translate(0px, 0px)';
+        keys.w = false;
+        keys.a = false;
+        keys.s = false;
+        keys.d = false;
+        break;
+      }
+    }
+  };
+
+  window.addEventListener('touchend', endJoystick);
+  window.addEventListener('touchcancel', endJoystick);
+}
+
+// Touch controls for mobile aiming (ignores joystick touch)
 window.addEventListener('touchmove', (e) => {
   if (isModalActive()) return;
-  if (e.touches.length > 0) {
-    const t = e.touches[0];
-    mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
-    raycaster.setFromCamera(mouse, camera);
-    raycaster.ray.intersectPlane(raycastPlane, aimPoint);
+  for (let i = 0; i < e.touches.length; i++) {
+    const t = e.touches[i];
+    if (t.identifier !== joystickTouchId) {
+      mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      raycaster.ray.intersectPlane(raycastPlane, aimPoint);
+      break;
+    }
   }
 }, { passive: true });
 
@@ -439,6 +560,9 @@ document.getElementById('btn-reset-cam')?.addEventListener('click', () => {
 const supabaseManager = new SupabaseManager({
   onPlayerJoined: (data) => {
     if (data.id === myId || players.has(data.id)) return;
+    if (practiceBots.length > 0) {
+      clearPracticeBots();
+    }
     addRemotePlayer(data.id, data.name || 'Operator', data.position);
     audioSystem.playPlayerJoined();
     showBanner(`${esc((data.name || 'OPERATOR').toUpperCase())} JOINED THE RING`, 1600);
@@ -487,6 +611,14 @@ const supabaseManager = new SupabaseManager({
       if (data.isReady) audioSystem.playReadyClick();
       else audioSystem.playUnreadyClick();
     }
+    const currentRoster = Array.from(players.values()).map(pl => ({
+      id: pl.id,
+      name: pl.name,
+      isReady: pl.isReady,
+      isHost: pl.isHost
+    }));
+    updateFriendsHubRoster({ count: players.size, max: CONFIG.maxPlayersPerRoom, isHost: isLocalHost, hostId: currentHostId, players: currentRoster });
+    updateRoomUI({ roomId: currentRoomId, count: players.size, max: CONFIG.maxPlayersPerRoom, isHost: isLocalHost, hostId: currentHostId, players: currentRoster });
   },
   onPlayerRenamed: (data) => {
     if (!data || data.id === myId) return;
@@ -643,7 +775,11 @@ document.getElementById('btn-spec-next')?.addEventListener('click', () => cycleS
 function startRound(broadcast = true, syncEpoch = null) {
   if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END' && currentPhase !== 'SHRINK') return;
   audioSystem.init();
-  deactivateSpectatorMode();
+  if (localPlayer && localPlayer.isAlive) {
+    deactivateSpectatorMode();
+  } else if (localPlayer && !localPlayer.isAlive) {
+    activateSpectatorMode();
+  }
   document.getElementById('lobby-modal')?.classList.remove('active');
   document.getElementById('friends-hub-modal')?.classList.add('hidden');
   document.getElementById('ui-overlay')?.classList.remove('hidden');
@@ -701,6 +837,22 @@ function startRound(broadcast = true, syncEpoch = null) {
       }
     });
 
+    // Practice bots pick stealth destinations and aim targets
+    practiceBots.forEach(bot => {
+      if (bot.isAlive) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = (arenaRadius - 2.2) * Math.sqrt(0.15 + 0.85 * Math.random());
+        bot.targetPos.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+        const candidates = Array.from(players.values()).filter(p => p.id !== bot.id && p.isAlive);
+        const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+        if (chosen) {
+          bot.botAimPoint = chosen.group.position.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.4, 0, (Math.random() - 0.5) * 1.4));
+        } else {
+          bot.botAimPoint = new THREE.Vector3(0, 0, 0);
+        }
+      }
+    });
+
     const stealthEndTarget = serverStart + reconDuration + stealthDuration;
     const initialRemaining = Math.max(1, Math.ceil((stealthEndTarget - Date.now()) / 1000));
     countdownTime = initialRemaining;
@@ -749,6 +901,21 @@ function freezeAndBroadcastLock() {
       rotY: localPlayer.rotationY
     });
   }
+
+  // Freeze practice bots and record their lock coordinates
+  practiceBots.forEach(bot => {
+    if (bot.isAlive) {
+      if (bot.botAimPoint) {
+        bot.lookAtTarget(bot.botAimPoint);
+      }
+      lockedPlayerCoords.set(bot.id, {
+        x: bot.group.position.x,
+        y: bot.group.position.y,
+        z: bot.group.position.z,
+        rotY: bot.rotationY
+      });
+    }
+  });
 
   // Brief freeze window before simultaneous laser blast
   setTimeout(() => {
@@ -812,6 +979,9 @@ function evaluateHostVerdict() {
       ray = shooter.getLaserRay();
     }
 
+    let closestTarget = null;
+    let minProj = Infinity;
+
     alivePlayers.forEach(target => {
       if (shooter.id === target.id) return;
 
@@ -827,12 +997,17 @@ function evaluateHostVerdict() {
         const closestPoint = ray.origin.clone().add(ray.direction.clone().multiplyScalar(proj));
         const dist = closestPoint.distanceTo(targetPos);
 
-        // Hitbox radius 0.72m
-        if (dist <= 0.72) {
-          hitList.push({ shooterId: shooter.id, targetId: target.id });
+        // Hitbox radius 0.72m - only strike the closest obstacle/player along the ray
+        if (dist <= 0.72 && proj < minProj) {
+          minProj = proj;
+          closestTarget = target;
         }
       }
     });
+
+    if (closestTarget) {
+      hitList.push({ shooterId: shooter.id, targetId: closestTarget.id });
+    }
   });
 
   const eliminatedIds = [...new Set(hitList.map(h => h.targetId))];
@@ -975,8 +1150,10 @@ function presentWinner(winner) {
   winner.targetRotY = Math.PI;
 
   if (winner.fbxModel) {
-    winner.originalScale = winner.fbxModel.scale.x;
-    winner.fbxModel.scale.setScalar(winner.originalScale * 1.45);
+    if (!winner.baseScale) {
+      winner.baseScale = winner.originalScale || winner.fbxModel.scale.x;
+    }
+    winner.fbxModel.scale.setScalar(winner.baseScale * 1.45);
   }
 
   // Position camera directly in front of champion to give full unobstructed view of the dance
@@ -1018,7 +1195,9 @@ function resetGame() {
 
   // Restore player scales & disable lasers
   players.forEach(p => {
-    if (p.originalScale && p.fbxModel) {
+    if (p.baseScale && p.fbxModel) {
+      p.fbxModel.scale.setScalar(p.baseScale);
+    } else if (p.originalScale && p.fbxModel) {
       p.fbxModel.scale.setScalar(p.originalScale);
     }
     p.setLaserActive(false);
@@ -1129,6 +1308,9 @@ function updateReadyButtonUI() {
 function launchFriendsSquadMatch() {
   if (!isLocalHost) return;
   audioSystem.init();
+  if (players.size === 1 && practiceBots.length === 0) {
+    spawnPracticeBots(2);
+  }
   supabaseManager.broadcastForceStart();
   closeFriendsHub();
   deployPlayerSkyDrop();
@@ -1145,31 +1327,27 @@ function handleRemoteSquadLaunch() {
 }
 
 function checkAllPlayersReady(playersList) {
-  if (!playersList || playersList.length < 2) {
-    if (readyCountdownInterval) {
-      clearInterval(readyCountdownInterval);
-      readyCountdownInterval = null;
-      clockPhaseLabel.innerText = 'PREPARATION';
-      clockGuidanceText.innerText = 'NEED AT LEAST 2 PLAYERS TO START';
-      showBanner('WAITING FOR MORE OPERATORS', 1500);
-    }
-    return;
-  }
+  const count = playersList ? playersList.length : 1;
+  const isSolo = (count === 1);
+
   if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END') return;
 
-  const allReady = playersList.every(p => p.isReady === true);
+  const allReady = isSolo 
+    ? isLocalReady 
+    : (playersList && playersList.every(p => p.isReady === true));
 
   if (allReady && !readyCountdownInterval) {
     let launchCount = 3;
+    const modeLabel = isSolo ? 'TRAINING SIMULATION' : 'ALL OPERATORS READY';
     clockPhaseLabel.innerText = 'LAUNCH IMMINENT';
-    clockGuidanceText.innerText = `ALL OPERATORS READY // STARTING IN ${launchCount}S`;
-    showBanner(`ALL OPERATORS READY // STARTING IN ${launchCount}S`, 1100);
+    clockGuidanceText.innerText = `${modeLabel} // STARTING IN ${launchCount}S`;
+    showBanner(`${modeLabel} // STARTING IN ${launchCount}S`, 1100);
     audioSystem.playCountdownTick(false);
 
     readyCountdownInterval = setInterval(() => {
       launchCount--;
       if (launchCount > 0) {
-        clockGuidanceText.innerText = `ALL OPERATORS READY // STARTING IN ${launchCount}S`;
+        clockGuidanceText.innerText = `${modeLabel} // STARTING IN ${launchCount}S`;
         showBanner(`STARTING IN ${launchCount}S`, 950);
         audioSystem.playCountdownTick(false);
       } else {
@@ -1178,6 +1356,9 @@ function checkAllPlayersReady(playersList) {
         document.getElementById('lobby-modal')?.classList.remove('active');
         closeFriendsHub();
         deployPlayerSkyDrop();
+        if (isSolo && practiceBots.length === 0) {
+          spawnPracticeBots(2);
+        }
         if (isLocalHost) {
           startRound(true);
         } else {
@@ -1262,6 +1443,13 @@ function updateRoomUI(state) {
     showBanner('YOU ARE NOW THE SQUAD HOST', 2000);
     if (currentPhase === 'INPUT_FREEZE' || currentPhase === 'REVEAL') {
       evaluateHostVerdict();
+    } else if (currentPhase === 'SHRINK') {
+      setTimeout(() => {
+        if (isLocalHost && currentPhase === 'SHRINK') {
+          currentPhase = 'LOBBY';
+          startRound(true);
+        }
+      }, 1500);
     }
   }
 
@@ -1604,9 +1792,12 @@ document.getElementById('btn-save-name')?.addEventListener('click', () => {
 
 // Winner Play Again
 document.getElementById('btn-play-again')?.addEventListener('click', () => {
-  resetGame();
   if (isLocalHost) {
+    resetGame();
     supabaseManager.broadcastGameReset();
+  } else {
+    supabaseManager.requestGameReset();
+    showBanner('REQUESTED NEXT MATCH FROM HOST...', 2000);
   }
 });
 

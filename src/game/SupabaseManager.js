@@ -134,7 +134,7 @@ export class SupabaseManager {
     if (this.myPlayerInfo && !this.myPlayerInfo.joinedAt) {
       this.myPlayerInfo.joinedAt = Date.now();
     }
-    if (this.channel) {
+    if (this.channel || this.localBc) {
       await this.leaveRoom();
     }
 
@@ -233,6 +233,10 @@ export class SupabaseManager {
           if (this.onHit) this.onHit(payload);
         })
         .on('broadcast', { event: 'player-ready' }, ({ payload }) => {
+          if (payload && payload.id) {
+            const p = this.connectedPlayers.get(payload.id);
+            if (p) p.isReady = payload.isReady;
+          }
           if (this.onPlayerReady) this.onPlayerReady(payload);
         })
         .on('broadcast', { event: 'force-start' }, ({ payload }) => {
@@ -252,6 +256,12 @@ export class SupabaseManager {
         })
         .on('broadcast', { event: 'game-reset' }, ({ payload }) => {
           if (this.onGameReset) this.onGameReset(payload);
+        })
+        .on('broadcast', { event: 'request-game-reset' }, () => {
+          if (this.isHost) {
+            this.broadcastGameReset();
+            if (this.onGameReset) this.onGameReset({ senderId: this.myPlayerInfo?.id });
+          }
         })
         .on('broadcast', { event: 'phase-lock' }, ({ payload }) => {
           if (this.onPhaseLock) this.onPhaseLock(payload);
@@ -335,6 +345,11 @@ export class SupabaseManager {
           this.syncLocalRoomState();
         } else if (type === 'game-reset') {
           if (this.onGameReset) this.onGameReset(data);
+        } else if (type === 'request-game-reset') {
+          if (this.isHost) {
+            this.broadcastGameReset();
+            if (this.onGameReset) this.onGameReset({ senderId: this.myPlayerInfo?.id });
+          }
         } else if (type === 'phase-lock') {
           if (this.onPhaseLock) this.onPhaseLock(data);
         } else if (type === 'ping') {
@@ -609,6 +624,22 @@ export class SupabaseManager {
     } else if (this.localBc) {
       this.localBc.postMessage({
         type: 'game-reset',
+        data: payload
+      });
+    }
+  }
+
+  requestGameReset() {
+    const payload = { senderId: this.myPlayerInfo?.id };
+    if (this.channel && this.isConfigured) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'request-game-reset',
+        payload
+      });
+    } else if (this.localBc) {
+      this.localBc.postMessage({
+        type: 'request-game-reset',
         data: payload
       });
     }
