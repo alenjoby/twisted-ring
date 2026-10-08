@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>TWISTED RING // PREDICTION TACTICAL</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <!-- 3D Canvas Mount -->
+  <div id="canvas-container"></div>
+  <div id="name-tags-container"></div>
+
+  <!-- Pre-Game Loading Screen -->
+  <div id="loading-screen">
+    <div class="loader-branding">
+      <div class="loader-tag">TACTICAL SIMULATION INITIALIZING</div>
+      <div class="loader-title">TWISTED RING</div>
+    </div>
+    <div class="loader-bar-wrap">
+      <div id="loader-progress-bar" class="loader-bar-fill"></div>
+    </div>
+    <div class="loader-status">
+      <span id="loader-status-text">CACHING ASSETS & RIGS...</span>
+      <span id="loader-pct-text">0%</span>
+    </div>
+  </div>
+
+  <!-- In-Game HUD -->
+  <div id="ui-overlay">
+    <!-- Top Header Navigation -->
+    <header class="hud-header">
+      <!-- Squad Status Card (Left) -->
+      <div class="hud-roster-panel">
+        <div class="roster-meta">
+          <span class="roster-label">OPERATORS</span>
+          <span id="roster-round-pill" class="roster-round-pill">ROUND 01</span>
+        </div>
+        <div id="scoreboard-list" class="roster-items">
+          <!-- Dynamically Injected -->
+        </div>
+      </div>
+
+      <!-- Center Combat Clock -->
+      <div class="hud-clock-center">
+        <div class="clock-bracket-frame">
+          <span id="clock-phase-label" class="clock-phase-label">PREPARATION</span>
+          <div class="clock-number-row">
+            <span id="timer-digits" class="clock-number">05</span>
+            <span class="clock-sec">S</span>
+          </div>
+        </div>
+        <div class="clock-guidance-pill">
+          <span id="clock-guidance-text">OPPONENTS CONCEALED // LOCK AIM</span>
+        </div>
+      </div>
+
+      <!-- Top Right Action Controls -->
+      <div class="hud-actions-right">
+        <button id="btn-start" class="hud-btn hud-btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          START MATCH
+        </button>
+        <button id="btn-lobby" class="hud-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          LOBBY / ROOMS
+        </button>
+        <button id="btn-sound" class="hud-btn hud-btn-icon" title="Toggle Sound">
+          <svg id="sound-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Top Event Banner -->
+    <div id="event-banner">SIMULTANEOUS ENGAGEMENT</div>
+
+    <!-- Bottom Controls & Navigation -->
+    <footer class="hud-footer">
+      <div class="hud-hint-pill">
+        <div class="hint-group">
+          <span class="key-tag">W</span>
+          <span class="key-tag">A</span>
+          <span class="key-tag">S</span>
+          <span class="key-tag">D</span>
+          <span>MOVE</span>
+        </div>
+        <div class="hint-group">
+          <span class="key-tag">LEFT CLICK</span>
+          <span>AIM LASER</span>
+        </div>
+        <div class="hint-group">
+          <span class="key-tag">RIGHT DRAG</span>
+          <span>ROTATE CAMERA</span>
+        </div>
+        <div class="hint-group">
+          <span class="key-tag">SCROLL</span>
+          <span>ZOOM IN/OUT</span>
+        </div>
+        <div class="hint-group">
+          <span class="key-tag">SPACE</span>
+          <span>START</span>
+        </div>
+      </div>
+
+      <div id="btn-reset-cam" class="camera-mode-badge">
+        <span>RESET CAMERA</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- MULTIPLAYER LOBBY MODAL (Supabase Realtime) -->
+  <div id="lobby-modal" class="modal-backdrop">
+    <div class="modal-box lobby-box">
+      <div class="modal-tag">MULTIPLAYER OPERATOR NETWORK</div>
+      <div class="modal-title">TACTICAL LOBBY</div>
+      <div class="modal-desc">Match with online players or create a private room for friends (Max 5 Players per ring).</div>
+      
+      <div class="form-group">
+        <label>Operator Name</label>
+        <div class="name-input-row">
+          <input type="text" id="player-name-input" maxlength="15" placeholder="Enter your call-sign..." />
+          <button id="btn-save-name" class="hud-btn hud-btn-primary">SAVE</button>
+        </div>
+      </div>
+
+      <div class="lobby-divider"><span>DEPLOYMENT MODES</span></div>
+
+      <div class="lobby-modes-grid">
+        <!-- Quick Play / Public Matchmaking -->
+        <div class="mode-card">
+          <div class="mode-header">
+            <span class="mode-badge">PUBLIC MATCH</span>
+            <span class="mode-limit">MAX 5 / RING</span>
+          </div>
+          <div class="mode-title">QUICK PLAY</div>
+          <div class="mode-desc">Auto-join an active public room or create a new public sector if full.</div>
+          <button id="btn-quick-play" class="hud-btn hud-btn-primary mode-action-btn">
+            FIND MATCH
+          </button>
+        </div>
+
+        <!-- Private Room With Friends -->
+        <div class="mode-card">
+          <div class="mode-header">
+            <span class="mode-badge">PRIVATE</span>
+            <span class="mode-limit">FRIENDS ONLY</span>
+          </div>
+          <div class="mode-title">CUSTOM ROOM</div>
+          <div class="mode-desc">Host or join via secure 5-digit room code with your friends.</div>
+          <div class="private-actions">
+            <button id="btn-create-private" class="hud-btn mode-action-btn">
+              CREATE ROOM
+            </button>
+            <div class="join-room-row">
+              <input type="text" id="room-code-input" maxlength="6" placeholder="ROOM CODE" />
+              <button id="btn-join-private" class="hud-btn hud-btn-primary">JOIN</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Current Room Info Bar -->
+      <div id="current-room-bar" class="current-room-bar hidden">
+        <div class="room-info-meta">
+          <span class="room-status-dot"></span>
+          <span id="room-name-display">CONNECTED: PUBLIC SECTOR 1</span>
+          <span id="room-players-count" class="room-count-badge">1/5 PLAYERS</span>
+        </div>
+        <div class="room-actions-row">
+          <button id="btn-copy-link" class="hud-btn">COPY INVITE LINK</button>
+          <button id="btn-leave-room" class="hud-btn">LEAVE</button>
+        </div>
+      </div>
+
+      <div class="modal-footer-row">
+        <button id="btn-close-lobby" class="hud-btn">RETURN TO ARENA</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WINNER PODIUM PRESENTATION MODAL -->
+  <div id="winner-modal" class="modal-backdrop">
+    <div class="modal-box winner-box">
+      <div class="winner-trophy-badge">VICTORY ROYALE</div>
+      <div id="winner-name-display" class="winner-title">DOGGESH WINS</div>
+      <div class="winner-sub">LAST OPERATOR STANDING IN THE RING</div>
+      
+      <div class="winner-stats-grid">
+        <div class="winner-stat-card">
+          <span class="stat-label">MATCH SCORE</span>
+          <span id="winner-score-val" class="stat-value">300 PTS</span>
+        </div>
+        <div class="winner-stat-card">
+          <span class="stat-label">ROUNDS WON</span>
+          <span id="winner-rounds-val" class="stat-value">3</span>
+        </div>
+      </div>
+
+      <button id="btn-play-again" class="hud-btn hud-btn-primary winner-btn">
+        CONTINUE / NEXT MATCH
+      </button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
