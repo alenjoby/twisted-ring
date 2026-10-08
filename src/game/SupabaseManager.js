@@ -5,7 +5,7 @@ const DEFAULT_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PU
 const DEFAULT_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || localStorage.getItem('supabase_anon_key') || 'mock-key';
 
 export class SupabaseManager {
-  constructor({ onPlayerJoined, onPlayerLeft, onPlayerMoved, onRoundSync, onReveal, onHit, onRoomStateChange, onPlayerReady, onForceStart }) {
+  constructor({ onPlayerJoined, onPlayerLeft, onPlayerMoved, onRoundSync, onReveal, onHit, onRoomStateChange, onPlayerReady, onForceStart, onLockPacket, onRoundVerdict, onRoomSettings }) {
     this.onPlayerJoined = onPlayerJoined;
     this.onPlayerLeft = onPlayerLeft;
     this.onPlayerMoved = onPlayerMoved;
@@ -15,6 +15,9 @@ export class SupabaseManager {
     this.onRoomStateChange = onRoomStateChange;
     this.onPlayerReady = onPlayerReady;
     this.onForceStart = onForceStart;
+    this.onLockPacket = onLockPacket;
+    this.onRoundVerdict = onRoundVerdict;
+    this.onRoomSettings = onRoomSettings;
 
     this.client = null;
     this.channel = null;
@@ -154,7 +157,7 @@ export class SupabaseManager {
           });
         });
 
-      // 2. Broadcast Events (Movement, Aim, Shooting, Round Sync, Ready, Force Start)
+      // 2. Broadcast Events (Movement, Aim, Shooting, Round Sync, Ready, Force Start, Lock, Verdict, Settings)
       this.channel
         .on('broadcast', { event: 'player-moved' }, ({ payload }) => {
           if (this.onPlayerMoved) this.onPlayerMoved(payload);
@@ -173,6 +176,15 @@ export class SupabaseManager {
         })
         .on('broadcast', { event: 'force-start' }, ({ payload }) => {
           if (this.onForceStart) this.onForceStart(payload);
+        })
+        .on('broadcast', { event: 'lock-packet' }, ({ payload }) => {
+          if (this.onLockPacket) this.onLockPacket(payload);
+        })
+        .on('broadcast', { event: 'round-verdict' }, ({ payload }) => {
+          if (this.onRoundVerdict) this.onRoundVerdict(payload);
+        })
+        .on('broadcast', { event: 'room-settings' }, ({ payload }) => {
+          if (this.onRoomSettings) this.onRoomSettings(payload);
         });
 
       // Subscribe and track presence
@@ -213,6 +225,12 @@ export class SupabaseManager {
           this.syncLocalRoomState();
         } else if (type === 'force-start') {
           if (this.onForceStart) this.onForceStart(data);
+        } else if (type === 'lock-packet') {
+          if (this.onLockPacket) this.onLockPacket(data);
+        } else if (type === 'round-verdict') {
+          if (this.onRoundVerdict) this.onRoundVerdict(data);
+        } else if (type === 'room-settings') {
+          if (this.onRoomSettings) this.onRoomSettings(data);
         } else if (type === 'player-left') {
           this.connectedPlayers.delete(data.id);
           if (this.onPlayerLeft) this.onPlayerLeft(data.id);
@@ -353,6 +371,51 @@ export class SupabaseManager {
       this.localBc.postMessage({
         type: 'force-start',
         data: payload
+      });
+    }
+  }
+
+  broadcastLockPacket(payload) {
+    if (this.channel && this.isConfigured) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'lock-packet',
+        payload
+      });
+    } else if (this.localBc) {
+      this.localBc.postMessage({
+        type: 'lock-packet',
+        data: payload
+      });
+    }
+  }
+
+  broadcastRoundVerdict(payload) {
+    if (this.channel && this.isConfigured) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'round-verdict',
+        payload
+      });
+    } else if (this.localBc) {
+      this.localBc.postMessage({
+        type: 'round-verdict',
+        data: payload
+      });
+    }
+  }
+
+  broadcastRoomSettings(settings) {
+    if (this.channel && this.isConfigured) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'room-settings',
+        payload: settings
+      });
+    } else if (this.localBc) {
+      this.localBc.postMessage({
+        type: 'room-settings',
+        data: settings
       });
     }
   }

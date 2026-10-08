@@ -284,11 +284,24 @@ export class Character {
     if (this.readyAura) this.readyAura.visible = this.isReady;
   }
 
+  setVisible(visible) {
+    this.isVisible = !!visible;
+    this.group.visible = this.isVisible;
+    if (this.laserBeam) this.laserBeam.visible = this.isVisible && this.isAlive;
+    if (this.laserDot) this.laserDot.visible = this.isVisible && this.isAlive;
+    if (this.readyAura) this.readyAura.visible = this.isVisible && this.isAlive && this.isReady;
+  }
+
   setStealth(isInStealth) {
     if (this.isLocal) {
       this.group.visible = true;
       if (this.laserBeam) this.laserBeam.visible = true;
     } else {
+      if (isInStealth) {
+        this.createGhostSilhouette();
+      } else {
+        this.removeGhostSilhouette();
+      }
       this.group.visible = !isInStealth;
       if (this.laserBeam) this.laserBeam.visible = !isInStealth;
       if (this.laserDot) this.laserDot.visible = !isInStealth;
@@ -297,7 +310,102 @@ export class Character {
     this.isVisible = this.group.visible;
   }
 
+  createGhostSilhouette() {
+    this.removeGhostSilhouette();
+    if (!this.fbxModel) return;
+    try {
+      this.ghostMesh = cloneSkeleton(this.fbxModel);
+      const holoMat = new THREE.MeshBasicMaterial({
+        color: 0x00f0ff,
+        transparent: true,
+        opacity: 0.38,
+        wireframe: true,
+        depthWrite: false
+      });
+      this.ghostMesh.traverse((child) => {
+        if (child.isMesh) {
+          child.material = holoMat;
+          child.castShadow = false;
+          child.receiveShadow = false;
+        }
+      });
+      this.ghostMesh.position.copy(this.group.position);
+      this.ghostMesh.rotation.copy(this.group.rotation);
+      this.ghostMesh.scale.copy(this.fbxModel.scale);
+      this.scene.add(this.ghostMesh);
+    } catch (e) {
+      console.warn('Ghost silhouette fallback', e);
+    }
+  }
+
+  removeGhostSilhouette() {
+    if (this.ghostMesh) {
+      this.scene.remove(this.ghostMesh);
+      this.ghostMesh.traverse((child) => {
+        if (child.isMesh && child.material) {
+          if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+          else child.material.dispose();
+        }
+      });
+      this.ghostMesh = null;
+    }
+  }
+
+  animateSkyDrop(onComplete) {
+    this.group.position.y = 12.0;
+    this.skyDrop = {
+      active: true,
+      progress: 0,
+      duration: 0.85,
+      startY: 12.0,
+      targetY: 0.0,
+      onComplete
+    };
+  }
+
+  createLandingShockwave() {
+    const shockGeo = new THREE.RingGeometry(0.3, 0.45, 32);
+    shockGeo.rotateX(Math.PI / 2);
+    const shockMat = new THREE.MeshBasicMaterial({
+      color: 0x00f0ff,
+      transparent: true,
+      opacity: 0.9,
+      side: THREE.DoubleSide
+    });
+    const shockRing = new THREE.Mesh(shockGeo, shockMat);
+    shockRing.position.set(this.group.position.x, 0.03, this.group.position.z);
+    this.scene.add(shockRing);
+
+    let t = 0;
+    const shockInterval = setInterval(() => {
+      t += 0.05;
+      const scale = 1 + t * 4;
+      shockRing.scale.set(scale, scale, scale);
+      shockMat.opacity = Math.max(0, 0.9 * (1 - t));
+      if (t >= 1) {
+        clearInterval(shockInterval);
+        this.scene.remove(shockRing);
+        shockGeo.dispose();
+        shockMat.dispose();
+      }
+    }, 16);
+  }
+
   update(delta) {
+    if (this.skyDrop && this.skyDrop.active) {
+      this.skyDrop.progress += delta / this.skyDrop.duration;
+      if (this.skyDrop.progress >= 1) {
+        this.skyDrop.progress = 1;
+        this.skyDrop.active = false;
+        this.group.position.y = this.skyDrop.targetY;
+        this.createLandingShockwave();
+        if (this.skyDrop.onComplete) this.skyDrop.onComplete();
+      } else {
+        const p = this.skyDrop.progress * this.skyDrop.progress;
+        this.group.position.y = THREE.MathUtils.lerp(this.skyDrop.startY, this.skyDrop.targetY, p);
+      }
+    }
+
     if (this.mixer) {
       this.mixer.update(delta);
     }
@@ -305,6 +413,7 @@ export class Character {
   }
 
   dispose() {
+    this.removeGhostSilhouette();
     this.scene.remove(this.group);
     if (this.mixer) {
       this.mixer.stopAllAction();

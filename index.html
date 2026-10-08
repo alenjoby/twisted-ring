@@ -26,8 +26,213 @@
     </div>
   </div>
 
+  <!-- SCREEN 1: TITLE & WELCOME SCREEN -->
+  <div id="welcome-screen" class="title-cinematic-screen">
+    <div class="welcome-center-box">
+      <div class="welcome-header">
+        <div class="welcome-tag">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polygon points="12 8 8 12 12 16 16 12 12 8"/></svg>
+          TACTICAL PREDICTION ARENA // ONLINE
+        </div>
+        <h1 class="welcome-title">TWISTED RING</h1>
+        <div class="welcome-desc">Outsmart opponents through blind movement and simultaneous laser fire.</div>
+      </div>
+
+      <div class="welcome-form-card">
+        <div class="welcome-input-group">
+          <label class="welcome-label">OPERATOR CALL-SIGN</label>
+          <div class="welcome-input-row">
+            <input type="text" id="welcome-name-input" maxlength="15" placeholder="ENTER YOUR CALL-SIGN" />
+          </div>
+        </div>
+
+        <button id="btn-enter-game" class="hud-btn hud-btn-primary welcome-enter-btn">
+          <span>ENTER BATTLEGROUND</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+
+      <div class="welcome-footer-meta">
+        <span class="meta-item">VER. 2.4 ONLINE</span>
+        <span class="meta-dot"></span>
+        <span class="meta-item">UP TO 5 OPERATORS</span>
+        <span class="meta-dot"></span>
+        <span class="meta-item">SIMULTANEOUS ENGAGEMENT</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: DEPLOYMENT MODE SELECTOR -->
+  <div id="mode-select-screen" class="title-cinematic-screen hidden">
+    <div class="mode-select-box">
+      <div class="mode-select-header">
+        <div class="mode-select-tag">MISSION SECTOR DIRECTORY</div>
+        <h2 class="mode-select-title">SELECT DEPLOYMENT MODE</h2>
+        <div class="mode-select-desc">Select quick matchmaking or establish a private squad frequency.</div>
+      </div>
+
+      <div class="deployment-cards-grid">
+        <!-- Option A: PUBLIC MATCH -->
+        <div class="deployment-card public-card">
+          <div class="card-top-row">
+            <span class="deploy-badge badge-public">PUBLIC SECTOR</span>
+            <span class="deploy-capacity">1–5 PLAYERS</span>
+          </div>
+          <h3 class="deploy-card-title">PUBLIC MATCH</h3>
+          <p class="deploy-card-desc">Instantly drop into an active battleground with online operators. Quick-play matchmaking.</p>
+          <div class="deploy-card-features">
+            <div class="feature-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Instant Sky-Drop Spawn</span>
+            </div>
+            <div class="feature-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Auto-Fill Matchmaking</span>
+            </div>
+          </div>
+          <button id="btn-deploy-public" class="hud-btn hud-btn-primary deploy-action-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            DEPLOY TO ARENA
+          </button>
+        </div>
+
+        <!-- Option B: FRIENDS MODE (CUSTOM ROOM) -->
+        <div class="deployment-card private-card">
+          <div class="card-top-row">
+            <span class="deploy-badge badge-private">FRIENDS MODE</span>
+            <span class="deploy-capacity">PRIVATE SQUAD</span>
+          </div>
+          <h3 class="deploy-card-title">CUSTOM SQUAD</h3>
+          <p class="deploy-card-desc">Create a private frequency with custom lobby settings or join a squad with a 5-digit code.</p>
+          
+          <div class="squad-tabs-nav">
+            <button id="tab-create-squad" class="squad-tab active">CREATE ROOM</button>
+            <button id="tab-join-squad" class="squad-tab">JOIN CODE</button>
+          </div>
+
+          <!-- Create Squad Panel -->
+          <div id="panel-create-squad" class="squad-panel active">
+            <div class="squad-field">
+              <label>Lobby / Squad Name</label>
+              <input type="text" id="create-squad-name" maxlength="15" placeholder="E.G. DOG SQUAD" value="ALPHA DOGS" />
+            </div>
+            <div class="squad-options-row">
+              <div class="squad-field flex-1">
+                <label>Round Timer</label>
+                <select id="create-timer-select">
+                  <option value="4">4 SECONDS (FAST)</option>
+                  <option value="5" selected>5 SECONDS (TACTICAL)</option>
+                  <option value="7">7 SECONDS (STRATEGIC)</option>
+                </select>
+              </div>
+              <div class="squad-field flex-1">
+                <label>Max Squad</label>
+                <select id="create-max-players-select">
+                  <option value="2">2 PLAYERS (DUEL)</option>
+                  <option value="3">3 PLAYERS</option>
+                  <option value="4">4 PLAYERS</option>
+                  <option value="5" selected>5 PLAYERS (MAX)</option>
+                </select>
+              </div>
+            </div>
+            <button id="btn-confirm-create-squad" class="hud-btn hud-btn-primary deploy-action-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              CREATE PRIVATE ROOM
+            </button>
+          </div>
+
+          <!-- Join Squad Panel -->
+          <div id="panel-join-squad" class="squad-panel hidden">
+            <div class="squad-field">
+              <label>Room Access Code</label>
+              <input type="text" id="join-squad-code-input" maxlength="6" placeholder="ENTER 5-DIGIT CODE" />
+            </div>
+            <button id="btn-confirm-join-squad" class="hud-btn hud-btn-primary deploy-action-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+              JOIN SQUAD FREQUENCY
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="mode-select-footer">
+        <button id="btn-back-to-welcome" class="hud-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          BACK
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 3: FRIENDS MODE SQUAD HUB (Host Controls & Roster) -->
+  <div id="friends-hub-modal" class="modal-backdrop hidden">
+    <div class="modal-box friends-hub-box">
+      <div class="friends-hub-header">
+        <div>
+          <div class="modal-tag">PRIVATE SQUAD FREQUENCY</div>
+          <div id="squad-room-title" class="modal-title">ALPHA DOGS</div>
+        </div>
+        <div class="room-code-chip">
+          <span class="code-label">ROOM CODE:</span>
+          <span id="squad-code-val" class="code-val">XYZ12</span>
+        </div>
+      </div>
+
+      <div class="squad-status-strip">
+        <div class="status-item">
+          <span class="status-lbl">OPERATORS</span>
+          <span id="squad-player-count-val" class="status-val">1/5</span>
+        </div>
+        <div class="status-sep"></div>
+        <div class="status-item">
+          <span class="status-lbl">TIMER</span>
+          <span id="squad-timer-val" class="status-val">5S</span>
+        </div>
+        <div class="status-sep"></div>
+        <div class="status-item">
+          <span class="status-lbl">HOST STATUS</span>
+          <span id="squad-host-status-val" class="status-val text-gold">YOU ARE HOST</span>
+        </div>
+      </div>
+
+      <div class="squad-roster-box">
+        <div class="roster-section-title">CONNECTED SQUAD ROSTER</div>
+        <div id="friends-roster-grid" class="lobby-players-grid">
+          <!-- Dynamic injected player cards -->
+        </div>
+      </div>
+
+      <div class="friends-hub-actions">
+        <!-- Ready toggle for all players -->
+        <button id="btn-friends-ready" class="hud-btn hud-btn-ready flex-1">
+          <span class="ready-dot"></span>
+          <span id="friends-ready-btn-text">READY UP</span>
+        </button>
+
+        <!-- Exclusive Host Launch Match Button -->
+        <button id="btn-friends-host-launch" class="hud-btn hud-btn-primary flex-1 hidden">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          LAUNCH MATCH
+        </button>
+
+        <button id="btn-friends-copy-link" class="hud-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          COPY LINK
+        </button>
+        <button id="btn-friends-leave" class="hud-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          LEAVE
+        </button>
+      </div>
+
+      <div id="friends-waiting-notice" class="friends-waiting-notice">
+        WAITING FOR SQUAD HOST TO LAUNCH MATCH...
+      </div>
+    </div>
+  </div>
+
   <!-- In-Game HUD -->
-  <div id="ui-overlay">
+  <div id="ui-overlay" class="hidden">
     <!-- Top Header Navigation -->
     <header class="hud-header">
       <!-- Squad Status Card (Left) -->

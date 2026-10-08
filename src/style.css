@@ -210,6 +210,485 @@ body, html {
 }
 
 /* ==========================================================================
+   ONBOARDING & WELCOME SCREENS
+   ========================================================================== */
+.title-cinematic-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, rgba(14, 18, 28, 0.72) 0%, rgba(6, 8, 12, 0.94) 100%);
+  backdrop-filter: blur(8px);
+  padding: 24px;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.title-cinematic-screen.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@keyframes fadeInScale {
+  0% { transform: scale(0.95); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* SCREEN 1: WELCOME CENTER BOX */
+.welcome-center-box {
+  max-width: 480px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 24px;
+  animation: fadeInScale 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.welcome-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.welcome-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--accent-lime);
+  background: rgba(255, 204, 0, 0.12);
+  border: 1px solid rgba(255, 204, 0, 0.35);
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.welcome-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #fff;
+  text-shadow: 0 0 35px rgba(255, 204, 0, 0.45);
+}
+
+.welcome-desc {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  max-width: 400px;
+}
+
+.welcome-form-card {
+  width: 100%;
+  background: rgba(18, 22, 32, 0.88);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+}
+
+.welcome-input-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.welcome-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--text-dark);
+  text-transform: uppercase;
+}
+
+.welcome-input-row {
+  width: 100%;
+}
+
+.welcome-input-row input {
+  width: 100%;
+  background: rgba(8, 10, 16, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  color: #fff;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 12px 16px;
+  text-transform: uppercase;
+  text-align: center;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.welcome-input-row input:focus {
+  border-color: var(--accent-lime);
+  box-shadow: 0 0 16px rgba(255, 204, 0, 0.25);
+}
+
+.welcome-enter-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 14px 24px;
+  font-size: 14px;
+  letter-spacing: 1.5px;
+}
+
+.welcome-footer-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  color: var(--text-dark);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.meta-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* SCREEN 2: MODE SELECTOR */
+.mode-select-box {
+  max-width: 860px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  animation: fadeInScale 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.mode-select-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.mode-select-tag {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--accent-lime);
+  text-transform: uppercase;
+}
+
+.mode-select-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #fff;
+}
+
+.mode-select-desc {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.deployment-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 20px;
+  width: 100%;
+}
+
+.deployment-card {
+  background: rgba(18, 22, 32, 0.88);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+  transition: border-color 0.25s ease;
+}
+
+.deployment-card:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.card-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.deploy-badge {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.badge-public {
+  background: rgba(0, 240, 255, 0.15);
+  color: #00f0ff;
+  border: 1px solid rgba(0, 240, 255, 0.4);
+}
+
+.badge-private {
+  background: rgba(255, 204, 0, 0.15);
+  color: #ffcc00;
+  border: 1px solid rgba(255, 204, 0, 0.4);
+}
+
+.deploy-capacity {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.deploy-card-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.deploy-card-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.deploy-card-features {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #d0d0d0;
+}
+
+.feature-item svg {
+  color: #00ff88;
+}
+
+.deploy-action-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 12px 18px;
+  font-size: 13px;
+  margin-top: auto;
+}
+
+.squad-tabs-nav {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+}
+
+.squad-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.squad-tab.active {
+  color: var(--accent-lime);
+  background: rgba(255, 204, 0, 0.14);
+}
+
+.squad-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.squad-panel.hidden {
+  display: none !important;
+}
+
+.squad-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.squad-field label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-dark);
+  text-transform: uppercase;
+}
+
+.squad-field input, .squad-field select {
+  width: 100%;
+  background: rgba(8, 10, 16, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 12px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.squad-field input:focus, .squad-field select:focus {
+  border-color: var(--accent-lime);
+}
+
+.squad-options-row {
+  display: flex;
+  gap: 10px;
+}
+
+.mode-select-footer {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+/* SCREEN 3: FRIENDS SQUAD HUB MODAL */
+.friends-hub-box {
+  max-width: 640px;
+  width: 100%;
+}
+
+.friends-hub-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.room-code-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 204, 0, 0.12);
+  border: 1px solid rgba(255, 204, 0, 0.4);
+  padding: 6px 14px;
+  border-radius: 8px;
+}
+
+.code-label {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.code-val {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--accent-lime);
+  letter-spacing: 2px;
+}
+
+.squad-status-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: rgba(10, 13, 20, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin: 14px 0;
+}
+
+.status-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.status-lbl {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-dark);
+}
+
+.status-val {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.status-sep {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.text-gold {
+  color: var(--accent-lime) !important;
+}
+
+.squad-roster-box {
+  background: rgba(10, 13, 20, 0.6);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.friends-hub-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.friends-waiting-notice {
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  color: #ffaa00;
+  text-align: center;
+  margin-top: 10px;
+  letter-spacing: 0.5px;
+}
+
+/* ==========================================================================
    IN-GAME HUD (INSPIRED BY MECHA RXC-09 AAA UI)
    ========================================================================== */
 #ui-overlay {

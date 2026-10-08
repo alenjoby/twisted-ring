@@ -179,10 +179,30 @@ function updateNameTag(player) {
   }
 }
 
+function getRadialSpawnPosition(index, total = 5) {
+  const radius = 4.8;
+  const count = Math.max(1, total);
+  const angle = (index / count) * Math.PI * 2;
+  return new THREE.Vector3(
+    Math.cos(angle) * radius,
+    0,
+    Math.sin(angle) * radius
+  );
+}
+
+function getPlayerSpawnIndex(id) {
+  const allIds = [myId, ...Array.from(players.keys()).filter(k => k !== myId)].sort();
+  const idx = allIds.indexOf(id);
+  return idx >= 0 ? idx : 0;
+}
+
+let inviteRoomCode = null;
+
 function initGameAfterLoading() {
   arena = new Arena(scene, arenaRadius);
 
-  // Initialize Local Player with pre-cached assets (NO DEMO BOTS!)
+  // Initialize Local Player with pre-cached assets (Radial pod 0)
+  const spawnPos = getRadialSpawnPosition(0, 5);
   localPlayer = new Character({
     scene,
     id: myId,
@@ -191,28 +211,62 @@ function initGameAfterLoading() {
     color: 0xffcc00,
     assetManager
   });
-  localPlayer.group.position.set(-2.8, 0, 0);
+  localPlayer.group.position.copy(spawnPos);
+  localPlayer.lookAtTarget(new THREE.Vector3(0, 0, 0));
   players.set(myId, localPlayer);
   createNameTag(localPlayer);
   window.localPlayer = localPlayer;
 
+  // Pre-fill Welcome screen input
+  const welcomeInput = document.getElementById('welcome-name-input');
+  if (welcomeInput) welcomeInput.value = playerName;
+
   // Check URL query for private invite link (?room=XYZ)
   const urlParams = new URLSearchParams(window.location.search);
-  const inviteRoom = urlParams.get('room');
-  if (inviteRoom) {
-    currentRoomId = `custom_${inviteRoom.toUpperCase()}`;
-    showBanner(`JOINED INVITE ROOM: ${inviteRoom.toUpperCase()}`, 2500);
+  inviteRoomCode = urlParams.get('room');
+  if (inviteRoomCode) {
+    inviteRoomCode = inviteRoomCode.toUpperCase();
+    showBanner(`INVITED TO SQUAD: ${inviteRoomCode}`, 3000);
   }
 
-  // Connect to Supabase Realtime Room
-  supabaseManager.joinRoom(currentRoomId, {
-    id: myId,
-    name: playerName,
-    color: 0xffcc00,
-    position: localPlayer.group.position
-  });
-
   updateScoreboard();
+}
+
+function deployPlayerSkyDrop() {
+  document.getElementById('welcome-screen')?.classList.add('hidden');
+  document.getElementById('mode-select-screen')?.classList.add('hidden');
+  document.getElementById('friends-hub-modal')?.classList.add('hidden');
+  document.getElementById('ui-overlay')?.classList.remove('hidden');
+
+  const myIdx = getPlayerSpawnIndex(myId);
+  const spawnPos = getRadialSpawnPosition(myIdx, Math.max(5, players.size));
+  if (localPlayer) {
+    localPlayer.group.position.copy(spawnPos);
+    localPlayer.lookAtTarget(new THREE.Vector3(0, 0, 0));
+    localPlayer.animateSkyDrop(() => {
+      audioSystem.playHitImpact();
+      showBanner('DEPLOYED TO ARENA // READY UP TO ENGAGE', 2000);
+    });
+  }
+
+  // Camera swoop
+  camera.position.set(0, 22, 26);
+  controls.target.set(0, 0, 0);
+  controls.update();
+
+  let t = 0;
+  const camInterval = setInterval(() => {
+    t += 0.04;
+    camera.position.lerp(defaultCamPos, 0.12);
+    controls.target.lerp(defaultTarget, 0.12);
+    controls.update();
+    if (t >= 1) {
+      clearInterval(camInterval);
+      camera.position.copy(defaultCamPos);
+      controls.target.copy(defaultTarget);
+      controls.update();
+    }
+  }, 16);
 }
 
 function addRemotePlayer(id, name, pos = null) {
@@ -229,8 +283,8 @@ function addRemotePlayer(id, name, pos = null) {
     assetManager
   });
 
-  const angle = (players.size / 5) * Math.PI * 2;
-  const spawnPos = pos || new THREE.Vector3(Math.cos(angle) * 4.5, 0, Math.sin(angle) * 4.5);
+  const spawnIndex = getPlayerSpawnIndex(id);
+  const spawnPos = pos || getRadialSpawnPosition(spawnIndex, Math.max(5, players.size + 1));
   p.group.position.copy(spawnPos);
   p.lookAtTarget(new THREE.Vector3(0, 0, 0));
   p.isBot = false;
@@ -333,7 +387,6 @@ const supabaseManager = new SupabaseManager({
   onPlayerMoved: (data) => {
     const p = players.get(data.id);
     if (p && !p.isLocal) {
-      // Set target vectors for smooth lerp interpolation in animate loop
       p.targetPos = new THREE.Vector3(data.x, data.y, data.z);
       p.targetRotY = data.rotY;
     }
@@ -351,16 +404,39 @@ const supabaseManager = new SupabaseManager({
     handleRemoteForceStart(data);
   },
   onRoundSync: (data) => {
-    if (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END') {
+    if (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END' || currentPhase === 'SHRINK') {
       currentRound = data.round || currentRound;
       startRound(false);
     }
   },
   onReveal: () => {
-    executeReveal(false);
+    executeReveal();
+  },
+  onLockPacket: (data) => {
+    const p = players.get(data.id);
+    if (p && !p.isLocal) {
+      p.group.position.set(data.x, data.y, data.z);
+      p.rotationY = data.rotY;
+      p.group.rotation.y = data.rotY;
+      p.updateLaser();
+    }
+  },
+  onRoundVerdict: (verdict) => {
+    if (!isLocalHost) {
+      applyRoundVerdict(verdict);
+    }
+  },
+  onRoomSettings: (settings) => {
+    if (settings.roundTime) CONFIG.countdownSeconds = settings.roundTime;
+    if (settings.maxSquad) CONFIG.maxPlayersPerRoom = settings.maxSquad;
+    if (settings.squadName) {
+      const title = document.getElementById('squad-room-title');
+      if (title) title.innerText = settings.squadName.toUpperCase();
+    }
   },
   onRoomStateChange: (state) => {
     updateRoomUI(state);
+    updateFriendsHubRoster(state);
   }
 });
 
@@ -372,6 +448,7 @@ const clockGuidanceText = document.getElementById('clock-guidance-text');
 const roundPillEl = document.getElementById('roster-round-pill');
 
 function showBanner(text, duration = 1800) {
+  if (!bannerEl) return;
   bannerEl.innerText = text;
   bannerEl.classList.add('active');
   setTimeout(() => bannerEl.classList.remove('active'), duration);
@@ -416,52 +493,87 @@ document.getElementById('btn-spec-prev')?.addEventListener('click', () => cycleS
 document.getElementById('btn-spec-next')?.addEventListener('click', () => cycleSpectatorTarget(1));
 
 function startRound(broadcast = true) {
-  if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END') return;
+  if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END' && currentPhase !== 'SHRINK') return;
   audioSystem.init();
   deactivateSpectatorMode();
   document.getElementById('lobby-modal')?.classList.remove('active');
+  document.getElementById('friends-hub-modal')?.classList.add('hidden');
+  document.getElementById('ui-overlay')?.classList.remove('hidden');
 
-  currentPhase = 'STEALTH';
-  countdownTime = CONFIG.countdownSeconds;
+  // PHASE 1: RECON (1.5 seconds) - All players visible to observe trajectories
+  currentPhase = 'RECON';
   roundPillEl.innerText = `ROUND 0${currentRound}`;
-  clockPhaseLabel.innerText = 'PREDICTION LOCK';
-  clockGuidanceText.innerText = 'OPPONENTS CONCEALED // LOCK AIM';
+  clockPhaseLabel.innerText = 'RECONNAISSANCE';
+  clockGuidanceText.innerText = 'OBSERVE OPERATOR POSITIONS // PREPARE AIM';
+  showBanner('RECONNAISSANCE PHASE', 1400);
 
-  // Conceal opponents
+  // Reveal all alive players so everyone sees where everyone is
   players.forEach(p => {
-    if (p.isAlive) p.setStealth(true);
+    if (p.isAlive) p.setStealth(false);
   });
-
-  showBanner('PREDICTION LOCKDOWN', 1100);
 
   if (broadcast) {
     supabaseManager.broadcastRoundStart(currentRound);
   }
 
-  const interval = setInterval(() => {
-    countdownTime--;
-    timerEl.innerText = countdownTime.toString().padStart(2, '0');
-    audioSystem.playCountdownTick(countdownTime === 0);
+  // After 1.5s recon phase, enter PREDICTION LOCK
+  setTimeout(() => {
+    if (currentPhase !== 'RECON') return;
+    currentPhase = 'STEALTH';
+    countdownTime = CONFIG.countdownSeconds;
+    clockPhaseLabel.innerText = 'PREDICTION LOCK';
+    clockGuidanceText.innerText = 'OPPONENTS CONCEALED // GHOST SILHOUETTES MARKED';
+    showBanner('PREDICTION LOCKDOWN', 1200);
 
-    if (countdownTime <= 0) {
-      clearInterval(interval);
-      executeReveal(true);
-    }
-  }, 1000);
+    // Conceal opponents and generate ghost silhouettes at their positions
+    players.forEach(p => {
+      if (p.isAlive) p.setStealth(true);
+    });
+
+    const interval = setInterval(() => {
+      countdownTime--;
+      timerEl.innerText = countdownTime.toString().padStart(2, '0');
+      audioSystem.playCountdownTick(countdownTime === 0);
+
+      if (countdownTime <= 0) {
+        clearInterval(interval);
+        freezeAndBroadcastLock();
+      }
+    }, 1000);
+  }, 1500);
 }
 
-function executeReveal(broadcast = true) {
+function freezeAndBroadcastLock() {
+  currentPhase = 'INPUT_FREEZE';
+  clockPhaseLabel.innerText = 'TRAJECTORY LOCK';
+  clockGuidanceText.innerText = 'INPUTS FROZEN // FIRING SIMULTANEOUSLY';
+
+  // Broadcast lock-packet with frozen coordinates
+  if (localPlayer) {
+    supabaseManager.broadcastLockPacket({
+      id: myId,
+      round: currentRound,
+      x: localPlayer.group.position.x,
+      y: localPlayer.group.position.y,
+      z: localPlayer.group.position.z,
+      rotY: localPlayer.rotationY
+    });
+  }
+
+  // Brief freeze window before simultaneous laser blast
+  setTimeout(() => {
+    executeReveal();
+  }, 320);
+}
+
+function executeReveal() {
   if (currentPhase === 'REVEAL') return;
   currentPhase = 'REVEAL';
   clockPhaseLabel.innerText = 'SIMULTANEOUS FIRE';
   clockGuidanceText.innerText = 'ALL OPERATORS REVEALED';
-  showBanner('SIMULTANEOUS FIRE', 2000);
+  showBanner('SIMULTANEOUS FIRE', 1800);
 
-  if (broadcast) {
-    supabaseManager.broadcastReveal({ round: currentRound });
-  }
-
-  // 1. Reveal all alive players & fire weapon
+  // 1. Reveal all alive players & fire weapons (ghost silhouettes removed by setStealth(false))
   players.forEach(p => {
     if (p.isAlive) {
       p.setStealth(false);
@@ -471,7 +583,15 @@ function executeReveal(broadcast = true) {
 
   audioSystem.playLaserShot();
 
-  // 2. Raycast Simultaneous Hit Detection
+  // 2. ONLY THE HOST EVALUATES HITS (AUTHORITATIVE REFEREE)
+  if (isLocalHost) {
+    setTimeout(() => {
+      evaluateHostVerdict();
+    }, 280);
+  }
+}
+
+function evaluateHostVerdict() {
   const hitList = [];
   const alivePlayers = Array.from(players.values()).filter(p => p.isAlive);
 
@@ -489,88 +609,105 @@ function executeReveal(broadcast = true) {
         const closestPoint = ray.origin.clone().add(ray.direction.clone().multiplyScalar(proj));
         const dist = closestPoint.distanceTo(targetPos);
 
-        // Precise hitbox: 0.72m
+        // Hitbox diameter 0.72m
         if (dist <= 0.72) {
-          hitList.push({ shooter, target });
+          hitList.push({ shooterId: shooter.id, targetId: target.id });
         }
       }
     });
   });
 
-  // 3. Process Hits & Knockouts (Supports Mutual Trade Kills & Multi-Kills!)
-  setTimeout(() => {
-    let someoneDied = false;
-    const killedTargets = new Set();
+  const eliminatedIds = [...new Set(hitList.map(h => h.targetId))];
+  const survivors = alivePlayers.filter(p => !eliminatedIds.includes(p.id));
+  const isGameOver = survivors.length <= 1;
+  const winnerId = isGameOver ? (survivors[0] ? survivors[0].id : myId) : null;
 
-    hitList.forEach(({ shooter, target }) => {
-      killedTargets.add(target);
-      shooter.score += 100;
-    });
-
-    killedTargets.forEach(target => {
-      if (target.isAlive) {
-        target.die();
-        someoneDied = true;
-        audioSystem.playHitImpact();
-      }
-    });
-
-    updateScoreboard();
-
-    // If local player was eliminated, activate spectator mode to follow living survivors
-    if (localPlayer && !localPlayer.isAlive) {
-      activateSpectatorMode();
+  let newRingRadius = arenaRadius;
+  if (eliminatedIds.length > 0) {
+    newRingRadius = Math.max(3.8, arenaRadius - CONFIG.shrinkPerRound);
+  } else {
+    consecutiveStalemates++;
+    if (consecutiveStalemates >= 2) {
+      newRingRadius = Math.max(3.8, arenaRadius - CONFIG.shrinkPerRound);
     }
+  }
 
-    // 4. Shrink Ring & Check Next Round
-    setTimeout(() => {
-      handlePostRound(someoneDied);
-    }, 2400);
-  }, 320);
+  const verdict = {
+    round: currentRound,
+    eliminatedIds,
+    hits: hitList,
+    ringRadius: newRingRadius,
+    isGameOver,
+    winnerId,
+    survivors: survivors.map(s => s.id)
+  };
+
+  // Broadcast authoritative verdict to all connected peers
+  supabaseManager.broadcastRoundVerdict(verdict);
+  applyRoundVerdict(verdict);
 }
 
-function handlePostRound(someoneDied) {
-  const survivors = Array.from(players.values()).filter(p => p.isAlive);
+function applyRoundVerdict(verdict) {
+  // Score awards
+  if (verdict.hits) {
+    verdict.hits.forEach(({ shooterId }) => {
+      const shooter = players.get(shooterId);
+      if (shooter) shooter.score += 100;
+    });
+  }
 
-  if (survivors.length <= 1) {
-    deactivateSpectatorMode();
-    const winner = survivors[0] || localPlayer;
-    presentWinner(winner);
-  } else {
-    currentPhase = 'SHRINK';
-    
-    if (someoneDied) {
-      consecutiveStalemates = 0;
-      // Shrink arena
-      arenaRadius = Math.max(3.8, arenaRadius - CONFIG.shrinkPerRound);
+  let someoneDied = false;
+  verdict.eliminatedIds.forEach(targetId => {
+    const target = players.get(targetId);
+    if (target && target.isAlive) {
+      target.die();
+      someoneDied = true;
+      audioSystem.playHitImpact();
+    }
+  });
+
+  updateScoreboard();
+
+  // If local player was eliminated, activate spectator mode
+  if (localPlayer && !localPlayer.isAlive) {
+    activateSpectatorMode();
+  }
+
+  // After animation delay, process game over or next round shrink
+  setTimeout(() => {
+    if (verdict.isGameOver) {
+      deactivateSpectatorMode();
+      const winner = players.get(verdict.winnerId) || localPlayer;
+      presentWinner(winner);
+    } else {
+      currentPhase = 'SHRINK';
+      arenaRadius = verdict.ringRadius;
       if (arena) arena.shrinkTo(arenaRadius);
       audioSystem.playRingShrink();
 
-      clockPhaseLabel.innerText = `PERIMETER COLLAPSE`;
-      clockGuidanceText.innerText = `RING CONTRACTED TO ${arenaRadius.toFixed(1)}M`;
-      showBanner(`PERIMETER COLLAPSING`, 1800);
-    } else {
-      consecutiveStalemates++;
-      if (consecutiveStalemates >= 2) {
-        arenaRadius = Math.max(3.8, arenaRadius - CONFIG.shrinkPerRound);
-        if (arena) arena.shrinkTo(arenaRadius);
-        audioSystem.playRingShrink();
-        clockPhaseLabel.innerText = `PERIMETER OVERLOAD`;
-        clockGuidanceText.innerText = `STALEMATE PENALTY // RING SHRUNK TO ${arenaRadius.toFixed(1)}M`;
-        showBanner(`PERIMETER OVERLOAD // RING COLLAPSING`, 2200);
+      if (someoneDied) {
+        consecutiveStalemates = 0;
+        clockPhaseLabel.innerText = 'PERIMETER COLLAPSE';
+        clockGuidanceText.innerText = `RING CONTRACTED TO ${arenaRadius.toFixed(1)}M`;
+        showBanner('PERIMETER COLLAPSING', 1800);
       } else {
-        clockPhaseLabel.innerText = `STALEMATE`;
-        clockGuidanceText.innerText = `NO CASUALTIES // RING REMAINS STABLE`;
-        showBanner(`STALEMATE // NO CASUALTIES`, 1800);
+        clockPhaseLabel.innerText = 'STALEMATE';
+        clockGuidanceText.innerText = `RING POSITION: ${arenaRadius.toFixed(1)}M`;
+        showBanner('STALEMATE // NO CASUALTIES', 1800);
       }
-    }
 
-    currentRound++;
-    setTimeout(() => {
-      currentPhase = 'LOBBY';
-      startRound();
-    }, 3000);
-  }
+      currentRound = verdict.round + 1;
+      roundPillEl.innerText = `ROUND 0${currentRound}`;
+
+      // Only the host triggers the next round start
+      setTimeout(() => {
+        if (isLocalHost) {
+          currentPhase = 'LOBBY';
+          startRound(true);
+        }
+      }, 3000);
+    }
+  }, 2200);
 }
 
 // WINNER PODIUM CELEBRATION PRESENTATION
@@ -597,12 +734,12 @@ function presentWinner(winner) {
     winner.fbxModel.scale.setScalar(winner.originalScale * 1.45);
   }
 
-  // Position camera directly in front of champion to give full view of the dance
+  // Position camera directly in front of champion to give full unobstructed view of the dance
   camera.position.set(0, 1.9, 4.4);
   controls.target.set(0, 1.2, 0);
   controls.update();
 
-  // Play Victory Fanfare and Twerk / Celebration Dance
+  // Play Victory Fanfare and Celebration Dance
   audioSystem.playVictoryFanfare();
   winner.playAction('dance', 0.2);
 
@@ -611,7 +748,7 @@ function presentWinner(winner) {
   ringSpot.target.position.set(0, 1.2, 0);
   ringSpot.intensity = 6.0;
 
-  // Show Cinematic Victory Overlay (Leaves center 100% visible!)
+  // Show Cinematic Victory Overlay (Leaves center 85% completely unobstructed!)
   const modal = document.getElementById('winner-modal');
   const nameDisplay = document.getElementById('winner-name-display');
   const scoreVal = document.getElementById('winner-score-val');
@@ -654,12 +791,13 @@ function resetGame() {
   arenaRadius = CONFIG.initialArenaRadius;
   if (arena) arena.shrinkTo(arenaRadius);
 
-  let angle = 0;
+  let i = 0;
   players.forEach(p => {
-    const spawnPos = new THREE.Vector3(Math.cos(angle) * 4.6, 0, Math.sin(angle) * 4.6);
+    const spawnPos = getRadialSpawnPosition(i, Math.max(1, players.size));
     p.revive(spawnPos);
+    p.lookAtTarget(new THREE.Vector3(0, 0, 0));
     p.setVisible(true);
-    angle += (Math.PI * 2) / Math.max(1, players.size);
+    i++;
   });
 
   currentPhase = 'LOBBY';
@@ -729,17 +867,23 @@ function updateReadyButtonUI() {
   const topBtnText = document.getElementById('ready-btn-text');
   const lobbyBtn = document.getElementById('btn-lobby-ready');
   const lobbyBtnText = document.getElementById('lobby-ready-text');
+  const friendsReadyBtn = document.getElementById('btn-friends-ready');
+  const friendsReadyText = document.getElementById('friends-ready-btn-text');
 
   if (isLocalReady) {
     topBtn?.classList.add('is-ready');
     if (topBtnText) topBtnText.innerText = 'READY (WAITING)';
     lobbyBtn?.classList.add('is-ready');
     if (lobbyBtnText) lobbyBtnText.innerText = 'READY (WAITING)';
+    friendsReadyBtn?.classList.add('is-ready');
+    if (friendsReadyText) friendsReadyText.innerText = 'READY (WAITING)';
   } else {
     topBtn?.classList.remove('is-ready');
     if (topBtnText) topBtnText.innerText = 'READY UP';
     lobbyBtn?.classList.remove('is-ready');
     if (lobbyBtnText) lobbyBtnText.innerText = 'READY UP';
+    friendsReadyBtn?.classList.remove('is-ready');
+    if (friendsReadyText) friendsReadyText.innerText = 'READY UP';
   }
 }
 
@@ -751,9 +895,13 @@ function initiateForceStart() {
   startForceStartCountdown();
 }
 
-function handleRemoteForceStart(data) {
+function handleRemoteForceStart() {
   audioSystem.init();
   audioSystem.playForceStartWarning();
+  document.getElementById('friends-hub-modal')?.classList.add('hidden');
+  document.getElementById('welcome-screen')?.classList.add('hidden');
+  document.getElementById('mode-select-screen')?.classList.add('hidden');
+  deployPlayerSkyDrop();
   startForceStartCountdown();
 }
 
@@ -781,7 +929,10 @@ function startForceStartCountdown() {
       clearInterval(forceStartCountdownInterval);
       forceStartCountdownInterval = null;
       document.getElementById('lobby-modal')?.classList.remove('active');
-      startRound(true);
+      document.getElementById('friends-hub-modal')?.classList.add('hidden');
+      if (isLocalHost) {
+        startRound(true);
+      }
     }
   }, 1000);
 }
@@ -791,7 +942,6 @@ function checkAllPlayersReady(playersList) {
   if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END') return;
   if (forceStartCountdownInterval) return;
 
-  // Check if every player in room is ready
   const allReady = playersList.every(p => p.isReady === true);
 
   if (allReady && !readyCountdownInterval) {
@@ -811,7 +961,10 @@ function checkAllPlayersReady(playersList) {
         clearInterval(readyCountdownInterval);
         readyCountdownInterval = null;
         document.getElementById('lobby-modal')?.classList.remove('active');
-        startRound(true);
+        document.getElementById('friends-hub-modal')?.classList.add('hidden');
+        if (isLocalHost) {
+          startRound(true);
+        }
       }
     }, 1000);
   } else if (!allReady && readyCountdownInterval) {
@@ -820,6 +973,62 @@ function checkAllPlayersReady(playersList) {
     clockPhaseLabel.innerText = 'PREPARATION';
     clockGuidanceText.innerText = 'CLICK READY UP TO START MATCH';
     showBanner('LAUNCH CANCELLED // WAITING FOR PLAYERS', 1500);
+  }
+}
+
+function updateFriendsHubRoster(state) {
+  const rosterGrid = document.getElementById('friends-roster-grid');
+  const countVal = document.getElementById('squad-player-count-val');
+  const hostVal = document.getElementById('squad-host-status-val');
+  const launchBtn = document.getElementById('btn-friends-host-launch');
+  const waitingNotice = document.getElementById('friends-waiting-notice');
+
+  if (countVal) countVal.innerText = `${state.count}/${CONFIG.maxPlayersPerRoom}`;
+  if (hostVal) {
+    if (state.isHost) {
+      hostVal.innerText = 'YOU ARE HOST';
+      hostVal.className = 'status-val text-gold';
+    } else {
+      hostVal.innerText = 'SQUAD MEMBER';
+      hostVal.className = 'status-val';
+    }
+  }
+
+  if (launchBtn) {
+    if (state.isHost) {
+      launchBtn.classList.remove('hidden');
+      if (waitingNotice) waitingNotice.classList.add('hidden');
+    } else {
+      launchBtn.classList.add('hidden');
+      if (waitingNotice) waitingNotice.classList.remove('hidden');
+    }
+  }
+
+  if (rosterGrid && state.players) {
+    rosterGrid.innerHTML = '';
+    state.players.forEach(p => {
+      const card = document.createElement('div');
+      card.className = `lobby-player-card ${p.id === myId ? 'is-local' : ''}`;
+      const isReady = p.isReady === true;
+      const isPHost = (p.id === state.hostId);
+
+      card.innerHTML = `
+        <div class="player-card-name">
+          <span>${p.name.toUpperCase()} ${p.id === myId ? '(YOU)' : ''}</span>
+          ${isPHost ? `
+            <span class="player-host-tag">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              HOST
+            </span>
+          ` : ''}
+        </div>
+        <div class="player-card-status ${isReady ? 'status-ready' : 'status-waiting'}">
+          <span class="status-indicator"></span>
+          <span>${isReady ? 'READY' : 'PREPARING'}</span>
+        </div>
+      `;
+      rosterGrid.appendChild(card);
+    });
   }
 }
 
@@ -838,7 +1047,6 @@ function updateRoomUI(state) {
     updateNameTag(localPlayer);
   }
 
-  // Show Force Start button exclusively for Host when >= 2 players in room
   const canForceStart = isLocalHost && state.count >= 2 && (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END');
   if (topStartBtn) {
     if (canForceStart) topStartBtn.classList.remove('hidden');
@@ -851,13 +1059,12 @@ function updateRoomUI(state) {
 
   const isPrivate = state.roomId.startsWith('custom_');
   const displayTitle = isPrivate 
-    ? `CUSTOM ROOM: ${state.roomId.replace('custom_', '')}` 
+    ? `CUSTOM SQUAD: ${state.roomId.replace('custom_', '')}` 
     : `PUBLIC SECTOR: ${state.roomId.toUpperCase()}`;
 
   if (roomNameEl) roomNameEl.innerText = `CONNECTED: ${displayTitle}`;
   if (roomCountEl) roomCountEl.innerText = `${state.count}/5 PLAYERS`;
 
-  // Render live cards in the lobby waiting room (NO EMOJIS, CLEAN SVG ICONS)
   if (playersListEl && state.players) {
     playersListEl.innerHTML = '';
     state.players.forEach(p => {
@@ -866,7 +1073,6 @@ function updateRoomUI(state) {
       const isReady = p.isReady === true;
       const isPPlayerHost = (p.id === currentHostId);
 
-      // Sync character instance properties & 3D name tag
       const char = players.get(p.id);
       if (char) {
         char.isHost = isPPlayerHost;
@@ -876,7 +1082,7 @@ function updateRoomUI(state) {
 
       card.innerHTML = `
         <div class="player-card-name">
-          <span>${p.name} ${p.id === myId ? '(YOU)' : ''}</span>
+          <span>${p.name.toUpperCase()} ${p.id === myId ? '(YOU)' : ''}</span>
           ${isPPlayerHost ? `
             <span class="player-host-tag">
               <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -893,14 +1099,182 @@ function updateRoomUI(state) {
     });
   }
 
-  // Real-time check if all players are ready
   checkAllPlayersReady(state.players);
 }
 
-// --- BUTTON & MODAL LISTENERS ---
+// --- BUTTON & SCREEN LISTENERS ---
+
+// 1. Welcome Screen
+document.getElementById('btn-enter-game')?.addEventListener('click', () => {
+  const input = document.getElementById('welcome-name-input');
+  const val = input ? input.value.trim() : '';
+  if (val) {
+    playerName = val;
+    localStorage.setItem('twisted_player_name', playerName);
+    if (localPlayer) {
+      localPlayer.name = playerName;
+      updateNameTag(localPlayer);
+      updateScoreboard();
+    }
+  }
+  audioSystem.init();
+  audioSystem.playReadyClick();
+
+  if (inviteRoomCode) {
+    currentRoomId = `custom_${inviteRoomCode}`;
+    document.getElementById('welcome-screen')?.classList.add('hidden');
+    document.getElementById('friends-hub-modal')?.classList.remove('hidden');
+    const codeEl = document.getElementById('squad-code-val');
+    if (codeEl) codeEl.innerText = inviteRoomCode;
+    const titleEl = document.getElementById('squad-room-title');
+    if (titleEl) titleEl.innerText = `SQUAD ${inviteRoomCode}`;
+    supabaseManager.joinRoom(currentRoomId, {
+      id: myId,
+      name: playerName,
+      color: 0xffcc00,
+      position: localPlayer.group.position
+    });
+    showBanner(`JOINED INVITE SQUAD: ${inviteRoomCode}`, 2500);
+  } else {
+    document.getElementById('welcome-screen')?.classList.add('hidden');
+    document.getElementById('mode-select-screen')?.classList.remove('hidden');
+  }
+});
+
+// 2. Mode Select Screen
+document.getElementById('btn-back-to-welcome')?.addEventListener('click', () => {
+  document.getElementById('mode-select-screen')?.classList.add('hidden');
+  document.getElementById('welcome-screen')?.classList.remove('hidden');
+});
+
+document.getElementById('tab-create-squad')?.addEventListener('click', () => {
+  document.getElementById('tab-create-squad')?.classList.add('active');
+  document.getElementById('tab-join-squad')?.classList.remove('active');
+  document.getElementById('panel-create-squad')?.classList.remove('hidden');
+  document.getElementById('panel-join-squad')?.classList.add('hidden');
+});
+
+document.getElementById('tab-join-squad')?.addEventListener('click', () => {
+  document.getElementById('tab-join-squad')?.classList.add('active');
+  document.getElementById('tab-create-squad')?.classList.remove('active');
+  document.getElementById('panel-join-squad')?.classList.remove('hidden');
+  document.getElementById('panel-create-squad')?.classList.add('hidden');
+});
+
+// Deploy to Public Quick-Match
+document.getElementById('btn-deploy-public')?.addEventListener('click', () => {
+  audioSystem.init();
+  currentRoomId = 'sector_1';
+  isLocalReady = false;
+  updateReadyButtonUI();
+  supabaseManager.joinRoom(currentRoomId, {
+    id: myId,
+    name: playerName,
+    color: 0xffcc00,
+    isReady: false,
+    position: localPlayer.group.position
+  });
+  deployPlayerSkyDrop();
+  showBanner('PUBLIC SECTOR 1 DEPLOYMENT', 2000);
+});
+
+// Confirm Create Private Squad
+document.getElementById('btn-confirm-create-squad')?.addEventListener('click', () => {
+  audioSystem.init();
+  const squadName = document.getElementById('create-squad-name')?.value.trim() || 'ALPHA DOGS';
+  const roundTime = parseInt(document.getElementById('create-timer-select')?.value) || 5;
+  const maxPlayers = parseInt(document.getElementById('create-max-players-select')?.value) || 5;
+  CONFIG.countdownSeconds = roundTime;
+  CONFIG.maxPlayersPerRoom = maxPlayers;
+
+  const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+  currentRoomId = `custom_${code}`;
+
+  document.getElementById('mode-select-screen')?.classList.add('hidden');
+  document.getElementById('friends-hub-modal')?.classList.remove('hidden');
+
+  const titleEl = document.getElementById('squad-room-title');
+  if (titleEl) titleEl.innerText = squadName.toUpperCase();
+  const codeEl = document.getElementById('squad-code-val');
+  if (codeEl) codeEl.innerText = code;
+  const timerVal = document.getElementById('squad-timer-val');
+  if (timerVal) timerVal.innerText = `${roundTime}S`;
+
+  isLocalReady = false;
+  updateReadyButtonUI();
+
+  supabaseManager.joinRoom(currentRoomId, {
+    id: myId,
+    name: playerName,
+    color: 0xffcc00,
+    isReady: false,
+    position: localPlayer.group.position
+  });
+
+  setTimeout(() => {
+    supabaseManager.broadcastRoomSettings({ squadName, roundTime, maxSquad: maxPlayers });
+  }, 500);
+
+  showBanner(`PRIVATE SQUAD ESTABLISHED: ${code}`, 2500);
+});
+
+// Confirm Join Private Squad with Code
+document.getElementById('btn-confirm-join-squad')?.addEventListener('click', () => {
+  audioSystem.init();
+  const code = document.getElementById('join-squad-code-input')?.value.trim().toUpperCase();
+  if (!code) return;
+
+  currentRoomId = `custom_${code}`;
+  document.getElementById('mode-select-screen')?.classList.add('hidden');
+  document.getElementById('friends-hub-modal')?.classList.remove('hidden');
+
+  const titleEl = document.getElementById('squad-room-title');
+  if (titleEl) titleEl.innerText = `SQUAD ${code}`;
+  const codeEl = document.getElementById('squad-code-val');
+  if (codeEl) codeEl.innerText = code;
+
+  isLocalReady = false;
+  updateReadyButtonUI();
+
+  supabaseManager.joinRoom(currentRoomId, {
+    id: myId,
+    name: playerName,
+    color: 0xffcc00,
+    isReady: false,
+    position: localPlayer.group.position
+  });
+
+  showBanner(`JOINING SQUAD: ${code}`, 2000);
+});
+
+// 3. Friends Squad Hub
+document.getElementById('btn-friends-ready')?.addEventListener('click', toggleReady);
+
+document.getElementById('btn-friends-host-launch')?.addEventListener('click', () => {
+  if (!isLocalHost) return;
+  document.getElementById('friends-hub-modal')?.classList.add('hidden');
+  deployPlayerSkyDrop();
+  initiateForceStart();
+});
+
+document.getElementById('btn-friends-copy-link')?.addEventListener('click', () => {
+  const code = currentRoomId.startsWith('custom_') ? currentRoomId.replace('custom_', '') : currentRoomId;
+  const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${code}`;
+  navigator.clipboard.writeText(inviteUrl).then(() => {
+    showBanner('SQUAD INVITE LINK COPIED', 2000);
+  });
+});
+
+document.getElementById('btn-friends-leave')?.addEventListener('click', () => {
+  supabaseManager.leaveRoom();
+  document.getElementById('friends-hub-modal')?.classList.add('hidden');
+  document.getElementById('mode-select-screen')?.classList.remove('hidden');
+  showBanner('LEFT SQUAD FREQUENCY', 1600);
+});
+
+// 4. In-Game HUD Controls
 document.getElementById('btn-ready-toggle')?.addEventListener('click', toggleReady);
 document.getElementById('btn-lobby-ready')?.addEventListener('click', toggleReady);
-
 document.getElementById('btn-start')?.addEventListener('click', initiateForceStart);
 document.getElementById('btn-lobby-force-start')?.addEventListener('click', initiateForceStart);
 
@@ -912,16 +1286,6 @@ document.getElementById('btn-sound')?.addEventListener('click', () => {
     icon.innerHTML = `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>`;
   } else {
     icon.innerHTML = `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>`;
-  }
-});
-
-// Key listener for 'R' to toggle Ready
-window.addEventListener('keydown', (e) => {
-  if (e.key.toLowerCase() === 'r' && (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END')) {
-    // Only toggle if not typing in input
-    if (document.activeElement.tagName !== 'INPUT') {
-      toggleReady();
-    }
   }
 });
 
@@ -945,9 +1309,7 @@ document.getElementById('btn-save-name')?.addEventListener('click', () => {
     localStorage.setItem('twisted_player_name', newName);
     if (localPlayer) {
       localPlayer.name = newName;
-      if (localPlayer.htmlTag) {
-        localPlayer.htmlTag.querySelector('span').innerText = newName.toUpperCase();
-      }
+      updateNameTag(localPlayer);
       updateScoreboard();
     }
     supabaseManager.setPlayerInfo({
@@ -959,75 +1321,6 @@ document.getElementById('btn-save-name')?.addEventListener('click', () => {
     });
     showBanner(`CALL-SIGN UPDATED: ${newName.toUpperCase()}`, 1600);
   }
-});
-
-// Quick Play (Public Matchmaking, capped at 5)
-document.getElementById('btn-quick-play')?.addEventListener('click', () => {
-  currentRoomId = 'sector_1';
-  isLocalReady = false;
-  updateReadyButtonUI();
-  supabaseManager.joinRoom(currentRoomId, {
-    id: myId,
-    name: playerName,
-    color: 0xffcc00,
-    isReady: false,
-    position: localPlayer.group.position
-  });
-  lobbyModal.classList.remove('active');
-  showBanner(`MATCHMAKING: CONNECTED TO SECTOR 1`, 2000);
-});
-
-// Create Private Room (5-character code for friends)
-document.getElementById('btn-create-private')?.addEventListener('click', () => {
-  const code = Math.random().toString(36).substring(2, 7).toUpperCase();
-  currentRoomId = `custom_${code}`;
-  isLocalReady = false;
-  updateReadyButtonUI();
-  supabaseManager.joinRoom(currentRoomId, {
-    id: myId,
-    name: playerName,
-    color: 0xffcc00,
-    isReady: false,
-    position: localPlayer.group.position
-  });
-  lobbyModal.classList.remove('active');
-  showBanner(`PRIVATE ROOM CREATED: ${code}`, 3000);
-});
-
-// Join Private Room with Code
-document.getElementById('btn-join-private')?.addEventListener('click', () => {
-  const code = document.getElementById('room-code-input').value.trim().toUpperCase();
-  if (code) {
-    currentRoomId = `custom_${code}`;
-    isLocalReady = false;
-    updateReadyButtonUI();
-    supabaseManager.joinRoom(currentRoomId, {
-      id: myId,
-      name: playerName,
-      color: 0xffcc00,
-      isReady: false,
-      position: localPlayer.group.position
-    });
-    lobbyModal.classList.remove('active');
-    showBanner(`JOINED ROOM: ${code}`, 2500);
-  }
-});
-
-// Copy Invite Link
-document.getElementById('btn-copy-link')?.addEventListener('click', () => {
-  const isPrivate = currentRoomId.startsWith('custom_');
-  const code = isPrivate ? currentRoomId.replace('custom_', '') : currentRoomId;
-  const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${code}`;
-  navigator.clipboard.writeText(inviteUrl).then(() => {
-    showBanner('INVITE LINK COPIED TO CLIPBOARD', 2000);
-  });
-});
-
-// Leave Room
-document.getElementById('btn-leave-room')?.addEventListener('click', () => {
-  supabaseManager.leaveRoom();
-  document.getElementById('current-room-bar')?.classList.add('hidden');
-  showBanner('DISCONNECTED FROM ROOM', 1600);
 });
 
 // Winner Play Again
@@ -1044,7 +1337,8 @@ function animate() {
   const delta = clock.getDelta();
 
   // Local Player Movement
-  if (localPlayer && localPlayer.isAlive) {
+  const isInputLocked = (currentPhase === 'INPUT_FREEZE' || currentPhase === 'REVEAL' || currentPhase === 'VICTORY');
+  if (localPlayer && localPlayer.isAlive && !isInputLocked) {
     const moveInput = new THREE.Vector3(0, 0, 0);
     if (keys.w) moveInput.z -= 1;
     if (keys.s) moveInput.z += 1;
@@ -1085,11 +1379,13 @@ function animate() {
       supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY);
     } else if (localPlayer.currentActionName === 'run') {
       localPlayer.playAction('idle', 0.18);
-      // Face aim point when idle
       localPlayer.lookAtTarget(aimPoint);
     } else {
-      // Continuously track mouse aim when idle
       localPlayer.lookAtTarget(aimPoint);
+    }
+  } else if (localPlayer && isInputLocked && localPlayer.isAlive) {
+    if (localPlayer.currentActionName === 'run') {
+      localPlayer.playAction('idle', 0.12);
     }
   }
 
