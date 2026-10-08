@@ -78,6 +78,23 @@
     <!-- Top Event Banner -->
     <div id="event-banner">SIMULTANEOUS ENGAGEMENT</div>
 
+    <!-- Spectator Drone Bar (Active When Local Player is Eliminated) -->
+    <div id="spectator-bar" class="spectator-bar hidden">
+      <button id="btn-spec-prev" class="spec-nav-btn" title="Previous Survivor">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="spec-meta">
+        <span class="spec-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          SPECTATING
+        </span>
+        <span id="spec-target-name" class="spec-name">OPERATOR</span>
+      </div>
+      <button id="btn-spec-next" class="spec-nav-btn" title="Next Survivor">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+
     <!-- Bottom Controls & Navigation -->
     <footer class="hud-footer">
       <div class="hud-hint-pill">
@@ -150,8 +167,18 @@
             <span class="ready-dot"></span>
             <span id="lobby-ready-text">READY UP</span>
           </button>
-          <button id="btn-copy-link" class="hud-btn">COPY LINK</button>
-          <button id="btn-leave-room" class="hud-btn">LEAVE</button>
+          <button id="btn-lobby-force-start" class="hud-btn hud-btn-primary hidden">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            FORCE START
+          </button>
+          <button id="btn-copy-link" class="hud-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            COPY LINK
+          </button>
+          <button id="btn-leave-room" class="hud-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            LEAVE
+          </button>
         </div>
       </div>
 
@@ -201,7 +228,10 @@
   <div id="winner-modal" class="victory-cinematic-overlay hidden">
     <!-- Top Floating Victory Header -->
     <div class="victory-header-banner">
-      <div class="victory-trophy-pill">VICTORY ROYALE</div>
+      <div class="victory-trophy-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 9V2h12v7a6 6 0 0 1-6 6 6 6 0 0 1-6-6z"/><path d="M6 4H3a2 2 0 0 0-2 2v1a4 4 0 0 0 4 4h1"/><path d="M18 4h3a2 2 0 0 1 2 2v1a4 4 0 0 1-4 4h-1"/><path d="M12 15v5"/><path d="M8 20h8"/></svg>
+        VICTORY ROYALE
+      </div>
       <div id="winner-name-display" class="victory-champion-title">DOGGESH WINS</div>
       <div class="victory-subtitle">CHAMPION OF THE TWISTED RING</div>
     </div>
@@ -217,6 +247,11 @@
         <div class="chip-item">
           <span class="chip-label">ROUNDS WON</span>
           <span id="winner-rounds-val" class="chip-val">3</span>
+        </div>
+        <div class="chip-sep"></div>
+        <div class="chip-item">
+          <span class="chip-label">ACCOLADE</span>
+          <span id="winner-accolade-val" class="chip-val chip-accolade">DEADSHOT OPERATOR</span>
         </div>
       </div>
 

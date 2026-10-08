@@ -89,6 +89,53 @@ body, html {
   background: #ffcc00;
 }
 
+.name-tag-host-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255, 204, 0, 0.22);
+  border: 1px solid rgba(255, 204, 0, 0.55);
+  color: #ffcc00;
+  font-family: 'Fira Code', monospace;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+}
+
+.name-tag-host-badge.hidden {
+  display: none !important;
+}
+
+.name-tag-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.name-tag-ready-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: 'Fira Code', monospace;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  background: rgba(255, 170, 0, 0.12);
+  color: #ffaa00;
+  border: 1px solid rgba(255, 170, 0, 0.35);
+  transition: all 0.2s ease;
+}
+
+.name-tag-ready-badge.is-ready {
+  background: rgba(0, 255, 136, 0.2);
+  color: #00ff88;
+  border-color: rgba(0, 255, 136, 0.5);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.35);
+}
+
 /* ==========================================================================
    PRE-GAME LOADING SCREEN
    ========================================================================== */
@@ -463,6 +510,78 @@ body, html {
   transform: translate(-50%, 0) scale(1);
 }
 
+/* --- SPECTATOR DRONE NAVIGATION BAR --- */
+.spectator-bar {
+  position: absolute;
+  top: 104px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(11, 14, 22, 0.92);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 204, 0, 0.35);
+  padding: 6px 16px;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 15px rgba(255, 204, 0, 0.15);
+  pointer-events: auto;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.spectator-bar.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, -10px);
+}
+
+.spec-nav-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.spec-nav-btn:hover {
+  background: var(--accent-lime);
+  color: #0c0e14;
+  border-color: var(--accent-lime);
+  transform: scale(1.1);
+}
+
+.spec-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spec-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #ffaa00;
+}
+
+.spec-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
 /* --- BOTTOM CONTROLS & CAMERA GUIDE --- */
 .hud-footer {
   display: flex;
@@ -815,6 +934,24 @@ body, html {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.player-host-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-family: 'Fira Code', monospace;
+  font-size: 8px;
+  font-weight: 800;
+  color: #ffcc00;
+  background: rgba(255, 204, 0, 0.2);
+  border: 1px solid rgba(255, 204, 0, 0.45);
+  padding: 1px 4px;
+  border-radius: 2px;
+  letter-spacing: 0.5px;
 }
 
 .player-card-status {
@@ -1001,6 +1138,13 @@ body, html {
   color: var(--accent-lime);
 }
 
+.chip-accolade {
+  font-size: 13px;
+  color: #00ff88;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+}
+
 .chip-sep {
   width: 1px;
   height: 24px;
@@ -1073,6 +1217,11 @@ body, html {
     top: 140px;
     font-size: 12px;
     padding: 6px 16px;
+  }
+  .spectator-bar {
+    top: 140px;
+    padding: 4px 10px;
+    gap: 8px;
   }
   .victory-champion-title {
     font-size: 24px;

@@ -5,7 +5,7 @@ const DEFAULT_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PU
 const DEFAULT_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || localStorage.getItem('supabase_anon_key') || 'mock-key';
 
 export class SupabaseManager {
-  constructor({ onPlayerJoined, onPlayerLeft, onPlayerMoved, onRoundSync, onReveal, onHit, onRoomStateChange, onPlayerReady }) {
+  constructor({ onPlayerJoined, onPlayerLeft, onPlayerMoved, onRoundSync, onReveal, onHit, onRoomStateChange, onPlayerReady, onForceStart }) {
     this.onPlayerJoined = onPlayerJoined;
     this.onPlayerLeft = onPlayerLeft;
     this.onPlayerMoved = onPlayerMoved;
@@ -14,11 +14,14 @@ export class SupabaseManager {
     this.onHit = onHit;
     this.onRoomStateChange = onRoomStateChange;
     this.onPlayerReady = onPlayerReady;
+    this.onForceStart = onForceStart;
 
     this.client = null;
     this.channel = null;
     this.roomId = null;
     this.myPlayerInfo = null;
+    this.hostId = null;
+    this.isHost = false;
     this.connectedPlayers = new Map();
     this.isConfigured = false;
     this.lastMoveTime = 0;
@@ -54,11 +57,17 @@ export class SupabaseManager {
   // Set local player info before connecting
   setPlayerInfo(info) {
     this.myPlayerInfo = info;
+    if (this.myPlayerInfo && !this.myPlayerInfo.joinedAt) {
+      this.myPlayerInfo.joinedAt = Date.now();
+    }
   }
 
   // Join a Room (Public or Private) with strict 5-player limit
   async joinRoom(roomId, playerInfo = null) {
     if (playerInfo) this.myPlayerInfo = playerInfo;
+    if (this.myPlayerInfo && !this.myPlayerInfo.joinedAt) {
+      this.myPlayerInfo.joinedAt = Date.now();
+    }
     if (this.channel) {
       await this.leaveRoom();
     }
@@ -89,6 +98,9 @@ export class SupabaseManager {
               if (p.id !== this.myPlayerInfo.id && !this.connectedPlayers.has(p.id)) {
                 this.connectedPlayers.set(p.id, p);
                 if (this.onPlayerJoined) this.onPlayerJoined(p);
+              } else if (p.id !== this.myPlayerInfo.id && this.connectedPlayers.has(p.id)) {
+                const existing = this.connectedPlayers.get(p.id);
+                Object.assign(existing, p);
               }
             }
           }
@@ -101,12 +113,29 @@ export class SupabaseManager {
             }
           }
 
+          // Deterministic Host Election: Sort by joinedAt ascending, tiebreak with id
+          activeList.sort((a, b) => {
+            const tA = a.joinedAt || 0;
+            const tB = b.joinedAt || 0;
+            if (tA !== tB) return tA - tB;
+            return (a.id || '').localeCompare(b.id || '');
+          });
+
+          this.hostId = activeList.length > 0 ? activeList[0].id : this.myPlayerInfo.id;
+          this.isHost = (this.myPlayerInfo.id === this.hostId);
+
+          activeList.forEach(p => {
+            p.isHost = (p.id === this.hostId);
+          });
+
           if (this.onRoomStateChange) {
             this.onRoomStateChange({
               roomId: this.roomId,
               count: activeList.length,
               max: 5,
-              players: activeList
+              players: activeList,
+              hostId: this.hostId,
+              isHost: this.isHost
             });
           }
         })
@@ -125,7 +154,7 @@ export class SupabaseManager {
           });
         });
 
-      // 2. Broadcast Events (Movement, Aim, Shooting, Round Sync, Ready)
+      // 2. Broadcast Events (Movement, Aim, Shooting, Round Sync, Ready, Force Start)
       this.channel
         .on('broadcast', { event: 'player-moved' }, ({ payload }) => {
           if (this.onPlayerMoved) this.onPlayerMoved(payload);
@@ -141,6 +170,9 @@ export class SupabaseManager {
         })
         .on('broadcast', { event: 'player-ready' }, ({ payload }) => {
           if (this.onPlayerReady) this.onPlayerReady(payload);
+        })
+        .on('broadcast', { event: 'force-start' }, ({ payload }) => {
+          if (this.onForceStart) this.onForceStart(payload);
         });
 
       // Subscribe and track presence
@@ -178,17 +210,13 @@ export class SupabaseManager {
           const p = this.connectedPlayers.get(data.id);
           if (p) p.isReady = data.isReady;
           if (this.onPlayerReady) this.onPlayerReady(data);
-          if (this.onRoomStateChange) {
-            this.onRoomStateChange({
-              roomId: this.roomId,
-              count: this.connectedPlayers.size + 1,
-              max: 5,
-              players: [this.myPlayerInfo, ...Array.from(this.connectedPlayers.values())]
-            });
-          }
+          this.syncLocalRoomState();
+        } else if (type === 'force-start') {
+          if (this.onForceStart) this.onForceStart(data);
         } else if (type === 'player-left') {
           this.connectedPlayers.delete(data.id);
           if (this.onPlayerLeft) this.onPlayerLeft(data.id);
+          this.syncLocalRoomState();
         }
       };
 
@@ -200,16 +228,37 @@ export class SupabaseManager {
         });
       }, 300);
 
-      if (this.onRoomStateChange) {
-        this.onRoomStateChange({
-          roomId: this.roomId,
-          count: this.connectedPlayers.size + 1,
-          max: 5,
-          players: [this.myPlayerInfo, ...Array.from(this.connectedPlayers.values())]
-        });
-      }
+      this.syncLocalRoomState();
     } catch (e) {
       console.warn('BroadcastChannel not supported', e);
+    }
+  }
+
+  syncLocalRoomState() {
+    const activeList = [this.myPlayerInfo, ...Array.from(this.connectedPlayers.values())];
+    activeList.sort((a, b) => {
+      const tA = a.joinedAt || 0;
+      const tB = b.joinedAt || 0;
+      if (tA !== tB) return tA - tB;
+      return (a.id || '').localeCompare(b.id || '');
+    });
+
+    this.hostId = activeList.length > 0 ? activeList[0].id : this.myPlayerInfo.id;
+    this.isHost = (this.myPlayerInfo.id === this.hostId);
+
+    activeList.forEach(p => {
+      p.isHost = (p.id === this.hostId);
+    });
+
+    if (this.onRoomStateChange) {
+      this.onRoomStateChange({
+        roomId: this.roomId,
+        count: activeList.length,
+        max: 5,
+        players: activeList,
+        hostId: this.hostId,
+        isHost: this.isHost
+      });
     }
   }
 
@@ -287,6 +336,22 @@ export class SupabaseManager {
     } else if (this.localBc) {
       this.localBc.postMessage({
         type: 'reveal-fire',
+        data: payload
+      });
+    }
+  }
+
+  broadcastForceStart() {
+    const payload = { initiator: this.myPlayerInfo.id, hostId: this.hostId };
+    if (this.channel && this.isConfigured) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'force-start',
+        payload
+      });
+    } else if (this.localBc) {
+      this.localBc.postMessage({
+        type: 'force-start',
         data: payload
       });
     }

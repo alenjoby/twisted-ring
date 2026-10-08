@@ -140,9 +140,43 @@ function createNameTag(player) {
   const container = document.getElementById('name-tags-container');
   const tag = document.createElement('div');
   tag.className = `floating-name-tag ${player.isLocal ? 'local' : ''}`;
-  tag.innerHTML = `<div class="name-tag-indicator"></div><span>${player.name.toUpperCase()}</span>`;
+  tag.innerHTML = `
+    <div class="name-tag-indicator"></div>
+    <span class="name-tag-host-badge ${player.isHost ? '' : 'hidden'}">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      HOST
+    </span>
+    <span class="name-tag-label">${player.name.toUpperCase()}</span>
+    <span class="name-tag-ready-badge ${player.isReady ? 'is-ready' : ''}">
+      ${player.isReady ? 'READY' : 'PREPARING'}
+    </span>
+  `;
   container.appendChild(tag);
   player.htmlTag = tag;
+}
+
+function updateNameTag(player) {
+  if (!player.htmlTag) return;
+  const hostBadge = player.htmlTag.querySelector('.name-tag-host-badge');
+  const label = player.htmlTag.querySelector('.name-tag-label');
+  const readyBadge = player.htmlTag.querySelector('.name-tag-ready-badge');
+
+  if (hostBadge) {
+    if (player.isHost) hostBadge.classList.remove('hidden');
+    else hostBadge.classList.add('hidden');
+  }
+  if (label) {
+    label.innerText = player.name.toUpperCase();
+  }
+  if (readyBadge) {
+    if (player.isReady) {
+      readyBadge.classList.add('is-ready');
+      readyBadge.innerText = 'READY';
+    } else {
+      readyBadge.classList.remove('is-ready');
+      readyBadge.innerText = 'PREPARING';
+    }
+  }
 }
 
 function initGameAfterLoading() {
@@ -200,9 +234,11 @@ function addRemotePlayer(id, name, pos = null) {
   p.group.position.copy(spawnPos);
   p.lookAtTarget(new THREE.Vector3(0, 0, 0));
   p.isBot = false;
+  p.isHost = (id === currentHostId);
 
   players.set(id, p);
   createNameTag(p);
+  updateNameTag(p);
   updateScoreboard();
   return p;
 }
@@ -229,8 +265,19 @@ window.addEventListener('keydown', (e) => {
   if (k === 'a' || k === 'arrowleft') keys.a = true;
   if (k === 's' || k === 'arrowdown') keys.s = true;
   if (k === 'd' || k === 'arrowright') keys.d = true;
+
+  if (k === 'r' && (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END')) {
+    toggleReady();
+  }
+
+  // Spectator mode arrow navigation
+  if (localPlayer && !localPlayer.isAlive && spectatingPlayerId) {
+    if (k === 'arrowleft') cycleSpectatorTarget(-1);
+    if (k === 'arrowright') cycleSpectatorTarget(1);
+  }
+
   if (e.code === 'Space' && (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END')) {
-    startRound();
+    if (isLocalHost) initiateForceStart();
   }
 });
 
@@ -272,12 +319,14 @@ const supabaseManager = new SupabaseManager({
   onPlayerJoined: (data) => {
     if (data.id === myId || players.has(data.id)) return;
     addRemotePlayer(data.id, data.name || 'Operator', data.position);
+    audioSystem.playPlayerJoined();
     showBanner(`${(data.name || 'OPERATOR').toUpperCase()} JOINED THE RING`, 1600);
   },
   onPlayerLeft: (id) => {
     const p = players.get(id);
     if (p) {
       showBanner(`${p.name.toUpperCase()} DISCONNECTED`, 1600);
+      audioSystem.playPlayerLeft();
       removeRemotePlayer(id);
     }
   },
@@ -288,6 +337,18 @@ const supabaseManager = new SupabaseManager({
       p.targetPos = new THREE.Vector3(data.x, data.y, data.z);
       p.targetRotY = data.rotY;
     }
+  },
+  onPlayerReady: (data) => {
+    const p = players.get(data.id);
+    if (p) {
+      p.setReady(data.isReady);
+      updateNameTag(p);
+      if (data.isReady) audioSystem.playReadyClick();
+      else audioSystem.playUnreadyClick();
+    }
+  },
+  onForceStart: (data) => {
+    handleRemoteForceStart(data);
   },
   onRoundSync: (data) => {
     if (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END') {
@@ -316,9 +377,49 @@ function showBanner(text, duration = 1800) {
   setTimeout(() => bannerEl.classList.remove('active'), duration);
 }
 
+let consecutiveStalemates = 0;
+let spectatingPlayerId = null;
+const spectatorBar = document.getElementById('spectator-bar');
+const specTargetName = document.getElementById('spec-target-name');
+
+function activateSpectatorMode() {
+  const livingSurvivors = Array.from(players.values()).filter(p => p.isAlive && p.id !== myId);
+  if (livingSurvivors.length === 0) return;
+
+  spectatingPlayerId = livingSurvivors[0].id;
+  if (spectatorBar) spectatorBar.classList.remove('hidden');
+  if (specTargetName) specTargetName.innerText = livingSurvivors[0].name.toUpperCase();
+}
+
+function deactivateSpectatorMode() {
+  spectatingPlayerId = null;
+  if (spectatorBar) spectatorBar.classList.add('hidden');
+}
+
+function cycleSpectatorTarget(direction = 1) {
+  const livingSurvivors = Array.from(players.values()).filter(p => p.isAlive && p.id !== myId);
+  if (livingSurvivors.length === 0) {
+    deactivateSpectatorMode();
+    return;
+  }
+
+  let currentIndex = livingSurvivors.findIndex(p => p.id === spectatingPlayerId);
+  if (currentIndex === -1) currentIndex = 0;
+
+  const nextIndex = (currentIndex + direction + livingSurvivors.length) % livingSurvivors.length;
+  const nextTarget = livingSurvivors[nextIndex];
+  spectatingPlayerId = nextTarget.id;
+  if (specTargetName) specTargetName.innerText = nextTarget.name.toUpperCase();
+}
+
+document.getElementById('btn-spec-prev')?.addEventListener('click', () => cycleSpectatorTarget(-1));
+document.getElementById('btn-spec-next')?.addEventListener('click', () => cycleSpectatorTarget(1));
+
 function startRound(broadcast = true) {
   if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END') return;
   audioSystem.init();
+  deactivateSpectatorMode();
+  document.getElementById('lobby-modal')?.classList.remove('active');
 
   currentPhase = 'STEALTH';
   countdownTime = CONFIG.countdownSeconds;
@@ -396,18 +497,30 @@ function executeReveal(broadcast = true) {
     });
   });
 
-  // 3. Process Hits & Knockouts
+  // 3. Process Hits & Knockouts (Supports Mutual Trade Kills & Multi-Kills!)
   setTimeout(() => {
     let someoneDied = false;
+    const killedTargets = new Set();
+
     hitList.forEach(({ shooter, target }) => {
+      killedTargets.add(target);
+      shooter.score += 100;
+    });
+
+    killedTargets.forEach(target => {
       if (target.isAlive) {
         target.die();
         someoneDied = true;
         audioSystem.playHitImpact();
-        shooter.score += 100;
       }
     });
+
     updateScoreboard();
+
+    // If local player was eliminated, activate spectator mode to follow living survivors
+    if (localPlayer && !localPlayer.isAlive) {
+      activateSpectatorMode();
+    }
 
     // 4. Shrink Ring & Check Next Round
     setTimeout(() => {
@@ -420,12 +533,14 @@ function handlePostRound(someoneDied) {
   const survivors = Array.from(players.values()).filter(p => p.isAlive);
 
   if (survivors.length <= 1) {
+    deactivateSpectatorMode();
     const winner = survivors[0] || localPlayer;
     presentWinner(winner);
   } else {
     currentPhase = 'SHRINK';
     
     if (someoneDied) {
+      consecutiveStalemates = 0;
       // Shrink arena
       arenaRadius = Math.max(3.8, arenaRadius - CONFIG.shrinkPerRound);
       if (arena) arena.shrinkTo(arenaRadius);
@@ -435,10 +550,19 @@ function handlePostRound(someoneDied) {
       clockGuidanceText.innerText = `RING CONTRACTED TO ${arenaRadius.toFixed(1)}M`;
       showBanner(`PERIMETER COLLAPSING`, 1800);
     } else {
-      // No one died, ring stays same size
-      clockPhaseLabel.innerText = `STALEMATE`;
-      clockGuidanceText.innerText = `NO CASUALTIES // RING REMAINS STABLE`;
-      showBanner(`STALEMATE // NO CASUALTIES`, 1800);
+      consecutiveStalemates++;
+      if (consecutiveStalemates >= 2) {
+        arenaRadius = Math.max(3.8, arenaRadius - CONFIG.shrinkPerRound);
+        if (arena) arena.shrinkTo(arenaRadius);
+        audioSystem.playRingShrink();
+        clockPhaseLabel.innerText = `PERIMETER OVERLOAD`;
+        clockGuidanceText.innerText = `STALEMATE PENALTY // RING SHRUNK TO ${arenaRadius.toFixed(1)}M`;
+        showBanner(`PERIMETER OVERLOAD // RING COLLAPSING`, 2200);
+      } else {
+        clockPhaseLabel.innerText = `STALEMATE`;
+        clockGuidanceText.innerText = `NO CASUALTIES // RING REMAINS STABLE`;
+        showBanner(`STALEMATE // NO CASUALTIES`, 1800);
+      }
     }
 
     currentRound++;
@@ -492,14 +616,21 @@ function presentWinner(winner) {
   const nameDisplay = document.getElementById('winner-name-display');
   const scoreVal = document.getElementById('winner-score-val');
   const roundsVal = document.getElementById('winner-rounds-val');
+  const accoladeVal = document.getElementById('winner-accolade-val');
 
   if (nameDisplay) nameDisplay.innerText = `${winner.name.toUpperCase()} WINS`;
   if (scoreVal) scoreVal.innerText = `${winner.score} PTS`;
   if (roundsVal) roundsVal.innerText = `${currentRound}`;
+  if (accoladeVal) {
+    if (winner.score >= 300) accoladeVal.innerText = 'DEADSHOT OPERATOR';
+    else if (currentRound <= 2) accoladeVal.innerText = 'SURVIVOR PRIME';
+    else accoladeVal.innerText = 'TACTICAL TITAN';
+  }
   if (modal) modal.classList.remove('hidden');
 }
 
 function resetGame() {
+  deactivateSpectatorMode();
   const winnerModal = document.getElementById('winner-modal');
   if (winnerModal) winnerModal.classList.add('hidden');
 
@@ -563,18 +694,33 @@ function updateScoreboard() {
 
 // --- READY SYSTEM & LIVE ROOM MANAGEMENT ---
 let isLocalReady = false;
+let isLocalHost = false;
+let currentHostId = null;
 let readyCountdownInterval = null;
+let forceStartCountdownInterval = null;
 
 function toggleReady() {
   audioSystem.init();
   isLocalReady = !isLocalReady;
+
+  if (isLocalReady) {
+    audioSystem.playReadyClick();
+  } else {
+    audioSystem.playUnreadyClick();
+  }
+
+  if (localPlayer) {
+    localPlayer.setReady(isLocalReady);
+    updateNameTag(localPlayer);
+  }
+
   supabaseManager.setReady(isLocalReady);
   updateReadyButtonUI();
 
   if (isLocalReady) {
-    showBanner('YOU ARE READY! WAITING FOR OTHERS...', 1800);
+    showBanner('OPERATOR READY // WAITING FOR SQUAD', 1600);
   } else {
-    showBanner('YOU ARE NOT READY', 1400);
+    showBanner('STATUS: PREPARING (NOT READY)', 1400);
   }
 }
 
@@ -597,9 +743,53 @@ function updateReadyButtonUI() {
   }
 }
 
-function checkAllPlayersReady(playersList) {
-  if (!playersList || playersList.length === 0) return;
+function initiateForceStart() {
+  if (!isLocalHost) return;
+  audioSystem.init();
+  audioSystem.playForceStartWarning();
+  supabaseManager.broadcastForceStart();
+  startForceStartCountdown();
+}
+
+function handleRemoteForceStart(data) {
+  audioSystem.init();
+  audioSystem.playForceStartWarning();
+  startForceStartCountdown();
+}
+
+function startForceStartCountdown() {
   if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END') return;
+  if (readyCountdownInterval) {
+    clearInterval(readyCountdownInterval);
+    readyCountdownInterval = null;
+  }
+  if (forceStartCountdownInterval) return;
+
+  let count = 5;
+  clockPhaseLabel.innerText = 'FORCE LAUNCH';
+  clockGuidanceText.innerText = `HOST OVERRIDE // STARTING IN ${count}S`;
+  showBanner(`HOST FORCE STARTED // LAUNCHING IN ${count}S`, 1400);
+  audioSystem.playCountdownTick(false);
+
+  forceStartCountdownInterval = setInterval(() => {
+    count--;
+    if (count > 0) {
+      clockGuidanceText.innerText = `HOST OVERRIDE // STARTING IN ${count}S`;
+      showBanner(`FORCE LAUNCH IN ${count}S`, 950);
+      audioSystem.playCountdownTick(false);
+    } else {
+      clearInterval(forceStartCountdownInterval);
+      forceStartCountdownInterval = null;
+      document.getElementById('lobby-modal')?.classList.remove('active');
+      startRound(true);
+    }
+  }, 1000);
+}
+
+function checkAllPlayersReady(playersList) {
+  if (!playersList || playersList.length < 2) return;
+  if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END') return;
+  if (forceStartCountdownInterval) return;
 
   // Check if every player in room is ready
   const allReady = playersList.every(p => p.isReady === true);
@@ -607,14 +797,14 @@ function checkAllPlayersReady(playersList) {
   if (allReady && !readyCountdownInterval) {
     let launchCount = 3;
     clockPhaseLabel.innerText = 'LAUNCH IMMINENT';
-    clockGuidanceText.innerText = `ALL PLAYERS READY // STARTING IN ${launchCount}S`;
-    showBanner(`ALL PLAYERS READY // STARTING IN ${launchCount}S`, 1100);
+    clockGuidanceText.innerText = `ALL OPERATORS READY // STARTING IN ${launchCount}S`;
+    showBanner(`ALL OPERATORS READY // STARTING IN ${launchCount}S`, 1100);
     audioSystem.playCountdownTick(false);
 
     readyCountdownInterval = setInterval(() => {
       launchCount--;
       if (launchCount > 0) {
-        clockGuidanceText.innerText = `ALL PLAYERS READY // STARTING IN ${launchCount}S`;
+        clockGuidanceText.innerText = `ALL OPERATORS READY // STARTING IN ${launchCount}S`;
         showBanner(`STARTING IN ${launchCount}S`, 950);
         audioSystem.playCountdownTick(false);
       } else {
@@ -637,6 +827,27 @@ function updateRoomUI(state) {
   const roomNameEl = document.getElementById('room-name-display');
   const roomCountEl = document.getElementById('room-players-count');
   const playersListEl = document.getElementById('lobby-players-list');
+  const topStartBtn = document.getElementById('btn-start');
+  const lobbyStartBtn = document.getElementById('btn-lobby-force-start');
+
+  isLocalHost = !!state.isHost;
+  currentHostId = state.hostId;
+
+  if (localPlayer) {
+    localPlayer.isHost = isLocalHost;
+    updateNameTag(localPlayer);
+  }
+
+  // Show Force Start button exclusively for Host when >= 2 players in room
+  const canForceStart = isLocalHost && state.count >= 2 && (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END');
+  if (topStartBtn) {
+    if (canForceStart) topStartBtn.classList.remove('hidden');
+    else topStartBtn.classList.add('hidden');
+  }
+  if (lobbyStartBtn) {
+    if (canForceStart) lobbyStartBtn.classList.remove('hidden');
+    else lobbyStartBtn.classList.add('hidden');
+  }
 
   const isPrivate = state.roomId.startsWith('custom_');
   const displayTitle = isPrivate 
@@ -646,18 +857,36 @@ function updateRoomUI(state) {
   if (roomNameEl) roomNameEl.innerText = `CONNECTED: ${displayTitle}`;
   if (roomCountEl) roomCountEl.innerText = `${state.count}/5 PLAYERS`;
 
-  // Render live cards in the lobby waiting room
+  // Render live cards in the lobby waiting room (NO EMOJIS, CLEAN SVG ICONS)
   if (playersListEl && state.players) {
     playersListEl.innerHTML = '';
     state.players.forEach(p => {
       const card = document.createElement('div');
       card.className = `lobby-player-card ${p.id === myId ? 'is-local' : ''}`;
       const isReady = p.isReady === true;
+      const isPPlayerHost = (p.id === currentHostId);
+
+      // Sync character instance properties & 3D name tag
+      const char = players.get(p.id);
+      if (char) {
+        char.isHost = isPPlayerHost;
+        char.setReady(isReady);
+        updateNameTag(char);
+      }
+
       card.innerHTML = `
-        <div class="player-card-name">${p.name} ${p.id === myId ? '(YOU)' : ''}</div>
+        <div class="player-card-name">
+          <span>${p.name} ${p.id === myId ? '(YOU)' : ''}</span>
+          ${isPPlayerHost ? `
+            <span class="player-host-tag">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              HOST
+            </span>
+          ` : ''}
+        </div>
         <div class="player-card-status ${isReady ? 'status-ready' : 'status-waiting'}">
           <span class="status-indicator"></span>
-          <span>${isReady ? 'READY' : 'WAITING'}</span>
+          <span>${isReady ? 'READY' : 'PREPARING'}</span>
         </div>
       `;
       playersListEl.appendChild(card);
@@ -672,10 +901,8 @@ function updateRoomUI(state) {
 document.getElementById('btn-ready-toggle')?.addEventListener('click', toggleReady);
 document.getElementById('btn-lobby-ready')?.addEventListener('click', toggleReady);
 
-document.getElementById('btn-start')?.addEventListener('click', () => {
-  audioSystem.init();
-  if (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END') startRound();
-});
+document.getElementById('btn-start')?.addEventListener('click', initiateForceStart);
+document.getElementById('btn-lobby-force-start')?.addEventListener('click', initiateForceStart);
 
 document.getElementById('btn-sound')?.addEventListener('click', () => {
   audioSystem.init();
@@ -913,6 +1140,16 @@ function animate() {
       }
     }
   });
+
+  // If eliminated and in spectator mode, smoothly follow the spectated survivor
+  if (spectatingPlayerId && localPlayer && !localPlayer.isAlive) {
+    const targetPlayer = players.get(spectatingPlayerId);
+    if (targetPlayer && targetPlayer.isAlive) {
+      controls.target.lerp(targetPlayer.group.position.clone().add(new THREE.Vector3(0, 1.2, 0)), 0.08);
+    } else {
+      cycleSpectatorTarget(1);
+    }
+  }
 
   // Update OrbitControls smoothly
   controls.update();

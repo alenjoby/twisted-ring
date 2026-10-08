@@ -18,6 +18,9 @@ export class Character {
     this.isVisible = true;
     this.score = 0;
     this.currentActionName = 'idle';
+    this.isHost = false;
+    this.isReady = false;
+    this.readyAura = null;
 
     this.group = new THREE.Group();
     this.scene.add(this.group);
@@ -151,7 +154,26 @@ export class Character {
   }
 
   initHUD() {
-    // HTML HUD is managed by main.js to avoid depth issues
+    // 3D Tactical ready ring aura projected on the floor under the character (Y = 0.02)
+    const auraGeo = new THREE.RingGeometry(0.55, 0.72, 32);
+    const auraMat = new THREE.MeshBasicMaterial({
+      color: 0x00ff88, // Tactical neon green
+      transparent: true,
+      opacity: 0.85,
+      side: THREE.DoubleSide
+    });
+    this.readyAura = new THREE.Mesh(auraGeo, auraMat);
+    this.readyAura.rotation.x = Math.PI / 2;
+    this.readyAura.position.y = 0.02;
+    this.readyAura.visible = false;
+    this.group.add(this.readyAura);
+  }
+
+  setReady(isReady) {
+    this.isReady = !!isReady;
+    if (this.readyAura) {
+      this.readyAura.visible = this.isReady && this.isAlive && this.isVisible;
+    }
   }
 
   playAction(name, duration = 0.16) {
@@ -250,6 +272,7 @@ export class Character {
     this.playAction('death', 0.1);
     if (this.laserBeam) this.laserBeam.visible = false;
     if (this.laserDot) this.laserDot.visible = false;
+    if (this.readyAura) this.readyAura.visible = false;
   }
 
   revive(spawnPos) {
@@ -258,6 +281,7 @@ export class Character {
     this.group.rotation.set(0, 0, 0);
     this.playAction('idle', 0.2);
     this.updateLaser();
+    if (this.readyAura) this.readyAura.visible = this.isReady;
   }
 
   setStealth(isInStealth) {
@@ -268,6 +292,7 @@ export class Character {
       this.group.visible = !isInStealth;
       if (this.laserBeam) this.laserBeam.visible = !isInStealth;
       if (this.laserDot) this.laserDot.visible = !isInStealth;
+      if (this.readyAura) this.readyAura.visible = !isInStealth && this.isReady;
     }
     this.isVisible = this.group.visible;
   }
