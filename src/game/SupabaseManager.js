@@ -5,7 +5,7 @@ const DEFAULT_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PU
 const DEFAULT_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || localStorage.getItem('supabase_anon_key') || 'mock-key';
 
 export class SupabaseManager {
-  constructor({ onPlayerJoined, onPlayerLeft, onPlayerMoved, onRoundSync, onReveal, onHit, onRoomStateChange }) {
+  constructor({ onPlayerJoined, onPlayerLeft, onPlayerMoved, onRoundSync, onReveal, onHit, onRoomStateChange, onPlayerReady }) {
     this.onPlayerJoined = onPlayerJoined;
     this.onPlayerLeft = onPlayerLeft;
     this.onPlayerMoved = onPlayerMoved;
@@ -13,6 +13,7 @@ export class SupabaseManager {
     this.onReveal = onReveal;
     this.onHit = onHit;
     this.onRoomStateChange = onRoomStateChange;
+    this.onPlayerReady = onPlayerReady;
 
     this.client = null;
     this.channel = null;
@@ -124,7 +125,7 @@ export class SupabaseManager {
           });
         });
 
-      // 2. Broadcast Events (Movement, Aim, Shooting, Round Sync)
+      // 2. Broadcast Events (Movement, Aim, Shooting, Round Sync, Ready)
       this.channel
         .on('broadcast', { event: 'player-moved' }, ({ payload }) => {
           if (this.onPlayerMoved) this.onPlayerMoved(payload);
@@ -137,6 +138,9 @@ export class SupabaseManager {
         })
         .on('broadcast', { event: 'player-hit' }, ({ payload }) => {
           if (this.onHit) this.onHit(payload);
+        })
+        .on('broadcast', { event: 'player-ready' }, ({ payload }) => {
+          if (this.onPlayerReady) this.onPlayerReady(payload);
         });
 
       // Subscribe and track presence
@@ -170,6 +174,18 @@ export class SupabaseManager {
           if (this.onRoundSync) this.onRoundSync(data);
         } else if (type === 'reveal-fire') {
           if (this.onReveal) this.onReveal(data);
+        } else if (type === 'player-ready') {
+          const p = this.connectedPlayers.get(data.id);
+          if (p) p.isReady = data.isReady;
+          if (this.onPlayerReady) this.onPlayerReady(data);
+          if (this.onRoomStateChange) {
+            this.onRoomStateChange({
+              roomId: this.roomId,
+              count: this.connectedPlayers.size + 1,
+              max: 5,
+              players: [this.myPlayerInfo, ...Array.from(this.connectedPlayers.values())]
+            });
+          }
         } else if (type === 'player-left') {
           this.connectedPlayers.delete(data.id);
           if (this.onPlayerLeft) this.onPlayerLeft(data.id);
@@ -194,6 +210,26 @@ export class SupabaseManager {
       }
     } catch (e) {
       console.warn('BroadcastChannel not supported', e);
+    }
+  }
+
+  // Toggle or set ready state for local player
+  async setReady(isReady) {
+    if (!this.myPlayerInfo) return;
+    this.myPlayerInfo.isReady = isReady;
+
+    if (this.channel && this.isConfigured) {
+      await this.channel.track(this.myPlayerInfo);
+      this.channel.send({
+        type: 'broadcast',
+        event: 'player-ready',
+        payload: { id: this.myPlayerInfo.id, isReady }
+      });
+    } else if (this.localBc) {
+      this.localBc.postMessage({
+        type: 'player-ready',
+        data: { id: this.myPlayerInfo.id, isReady }
+      });
     }
   }
 

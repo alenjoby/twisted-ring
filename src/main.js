@@ -467,8 +467,8 @@ function presentWinner(winner) {
     }
   });
 
-  // Pop up champion, scale up 1.45x and position in front of camera
-  winner.group.position.set(0, 0.2, 0);
+  // Center champion, elevate slightly and scale up 1.45x facing the camera
+  winner.group.position.set(0, 0, 0);
   winner.group.rotation.y = Math.PI;
   winner.rotationY = Math.PI;
 
@@ -477,9 +477,9 @@ function presentWinner(winner) {
     winner.fbxModel.scale.setScalar(winner.originalScale * 1.45);
   }
 
-  // Smoothly frame champion in camera
-  camera.position.set(0, 2.2, 5.2);
-  controls.target.set(0, 1.4, 0);
+  // Position camera directly in front of champion to give full view of the dance
+  camera.position.set(0, 1.9, 4.4);
+  controls.target.set(0, 1.2, 0);
   controls.update();
 
   // Play Victory Fanfare and Twerk / Celebration Dance
@@ -491,7 +491,7 @@ function presentWinner(winner) {
   ringSpot.target.position.set(0, 1.2, 0);
   ringSpot.intensity = 6.0;
 
-  // Show Winner Podium Modal
+  // Show Cinematic Victory Overlay (Leaves center 100% visible!)
   const modal = document.getElementById('winner-modal');
   const nameDisplay = document.getElementById('winner-name-display');
   const scoreVal = document.getElementById('winner-score-val');
@@ -500,12 +500,12 @@ function presentWinner(winner) {
   if (nameDisplay) nameDisplay.innerText = `${winner.name.toUpperCase()} WINS`;
   if (scoreVal) scoreVal.innerText = `${winner.score} PTS`;
   if (roundsVal) roundsVal.innerText = `${currentRound}`;
-  if (modal) modal.classList.add('active');
+  if (modal) modal.classList.remove('hidden');
 }
 
 function resetGame() {
   const winnerModal = document.getElementById('winner-modal');
-  if (winnerModal) winnerModal.classList.remove('active');
+  if (winnerModal) winnerModal.classList.add('hidden');
 
   // Restore camera & spotlight
   camera.position.copy(defaultCamPos);
@@ -539,7 +539,10 @@ function resetGame() {
   timerEl.innerText = '05';
   roundPillEl.innerText = 'ROUND 01';
   clockPhaseLabel.innerText = 'PREPARATION';
-  clockGuidanceText.innerText = 'START MATCH OR PRESS SPACE';
+  clockGuidanceText.innerText = 'CLICK READY UP TO START MATCH';
+  
+  isLocalReady = false;
+  updateReadyButtonUI();
   updateScoreboard();
 }
 
@@ -562,29 +565,123 @@ function updateScoreboard() {
   });
 }
 
-function updateRoomUI(state) {
-  const roomBar = document.getElementById('current-room-bar');
-  const roomNameEl = document.getElementById('room-name-display');
-  const roomCountEl = document.getElementById('room-players-count');
+// --- READY SYSTEM & LIVE ROOM MANAGEMENT ---
+let isLocalReady = false;
+let readyCountdownInterval = null;
 
-  if (roomBar && roomNameEl && roomCountEl) {
-    roomBar.classList.remove('hidden');
-    const isPrivate = state.roomId.startsWith('custom_');
-    const displayTitle = isPrivate 
-      ? `CUSTOM ROOM: ${state.roomId.replace('custom_', '')}` 
-      : `PUBLIC SECTOR: ${state.roomId.toUpperCase()}`;
-    roomNameEl.innerText = `CONNECTED: ${displayTitle}`;
-    roomCountEl.innerText = `${state.count}/5 PLAYERS`;
+function toggleReady() {
+  audioSystem.init();
+  isLocalReady = !isLocalReady;
+  supabaseManager.setReady(isLocalReady);
+  updateReadyButtonUI();
+
+  if (isLocalReady) {
+    showBanner('YOU ARE READY! WAITING FOR OTHERS...', 1800);
+  } else {
+    showBanner('YOU ARE NOT READY', 1400);
   }
 }
 
+function updateReadyButtonUI() {
+  const topBtn = document.getElementById('btn-ready-toggle');
+  const topBtnText = document.getElementById('ready-btn-text');
+  const lobbyBtn = document.getElementById('btn-lobby-ready');
+  const lobbyBtnText = document.getElementById('lobby-ready-text');
+
+  if (isLocalReady) {
+    topBtn?.classList.add('is-ready');
+    if (topBtnText) topBtnText.innerText = 'READY (WAITING)';
+    lobbyBtn?.classList.add('is-ready');
+    if (lobbyBtnText) lobbyBtnText.innerText = 'READY (WAITING)';
+  } else {
+    topBtn?.classList.remove('is-ready');
+    if (topBtnText) topBtnText.innerText = 'READY UP';
+    lobbyBtn?.classList.remove('is-ready');
+    if (lobbyBtnText) lobbyBtnText.innerText = 'READY UP';
+  }
+}
+
+function checkAllPlayersReady(playersList) {
+  if (!playersList || playersList.length === 0) return;
+  if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END') return;
+
+  // Check if every player in room is ready
+  const allReady = playersList.every(p => p.isReady === true);
+
+  if (allReady && !readyCountdownInterval) {
+    let launchCount = 3;
+    clockPhaseLabel.innerText = 'LAUNCH IMMINENT';
+    clockGuidanceText.innerText = `ALL PLAYERS READY // STARTING IN ${launchCount}S`;
+    showBanner(`ALL PLAYERS READY // STARTING IN ${launchCount}S`, 1100);
+    audioSystem.playCountdownTick(false);
+
+    readyCountdownInterval = setInterval(() => {
+      launchCount--;
+      if (launchCount > 0) {
+        clockGuidanceText.innerText = `ALL PLAYERS READY // STARTING IN ${launchCount}S`;
+        showBanner(`STARTING IN ${launchCount}S`, 950);
+        audioSystem.playCountdownTick(false);
+      } else {
+        clearInterval(readyCountdownInterval);
+        readyCountdownInterval = null;
+        document.getElementById('lobby-modal')?.classList.remove('active');
+        startRound(true);
+      }
+    }, 1000);
+  } else if (!allReady && readyCountdownInterval) {
+    clearInterval(readyCountdownInterval);
+    readyCountdownInterval = null;
+    clockPhaseLabel.innerText = 'PREPARATION';
+    clockGuidanceText.innerText = 'CLICK READY UP TO START MATCH';
+    showBanner('LAUNCH CANCELLED // WAITING FOR PLAYERS', 1500);
+  }
+}
+
+function updateRoomUI(state) {
+  const roomNameEl = document.getElementById('room-name-display');
+  const roomCountEl = document.getElementById('room-players-count');
+  const playersListEl = document.getElementById('lobby-players-list');
+
+  const isPrivate = state.roomId.startsWith('custom_');
+  const displayTitle = isPrivate 
+    ? `CUSTOM ROOM: ${state.roomId.replace('custom_', '')}` 
+    : `PUBLIC SECTOR: ${state.roomId.toUpperCase()}`;
+
+  if (roomNameEl) roomNameEl.innerText = `CONNECTED: ${displayTitle}`;
+  if (roomCountEl) roomCountEl.innerText = `${state.count}/5 PLAYERS`;
+
+  // Render live cards in the lobby waiting room
+  if (playersListEl && state.players) {
+    playersListEl.innerHTML = '';
+    state.players.forEach(p => {
+      const card = document.createElement('div');
+      card.className = `lobby-player-card ${p.id === myId ? 'is-local' : ''}`;
+      const isReady = p.isReady === true;
+      card.innerHTML = `
+        <div class="player-card-name">${p.name} ${p.id === myId ? '(YOU)' : ''}</div>
+        <div class="player-card-status ${isReady ? 'status-ready' : 'status-waiting'}">
+          <span class="status-indicator"></span>
+          <span>${isReady ? 'READY' : 'WAITING'}</span>
+        </div>
+      `;
+      playersListEl.appendChild(card);
+    });
+  }
+
+  // Real-time check if all players are ready
+  checkAllPlayersReady(state.players);
+}
+
 // --- BUTTON & MODAL LISTENERS ---
-document.getElementById('btn-start').addEventListener('click', () => {
+document.getElementById('btn-ready-toggle')?.addEventListener('click', toggleReady);
+document.getElementById('btn-lobby-ready')?.addEventListener('click', toggleReady);
+
+document.getElementById('btn-start')?.addEventListener('click', () => {
   audioSystem.init();
   if (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END') startRound();
 });
 
-document.getElementById('btn-sound').addEventListener('click', () => {
+document.getElementById('btn-sound')?.addEventListener('click', () => {
   audioSystem.init();
   audioSystem.enabled = !audioSystem.enabled;
   const icon = document.getElementById('sound-icon');
@@ -595,20 +692,30 @@ document.getElementById('btn-sound').addEventListener('click', () => {
   }
 });
 
+// Key listener for 'R' to toggle Ready
+window.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'r' && (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END')) {
+    // Only toggle if not typing in input
+    if (document.activeElement.tagName !== 'INPUT') {
+      toggleReady();
+    }
+  }
+});
+
 // Lobby Modal Listeners
 const lobbyModal = document.getElementById('lobby-modal');
 const nameInput = document.getElementById('player-name-input');
 if (nameInput) nameInput.value = playerName;
 
-document.getElementById('btn-lobby').addEventListener('click', () => {
+document.getElementById('btn-lobby')?.addEventListener('click', () => {
   lobbyModal.classList.add('active');
 });
 
-document.getElementById('btn-close-lobby').addEventListener('click', () => {
+document.getElementById('btn-close-lobby')?.addEventListener('click', () => {
   lobbyModal.classList.remove('active');
 });
 
-document.getElementById('btn-save-name').addEventListener('click', () => {
+document.getElementById('btn-save-name')?.addEventListener('click', () => {
   const newName = nameInput.value.trim();
   if (newName) {
     playerName = newName;
@@ -620,17 +727,27 @@ document.getElementById('btn-save-name').addEventListener('click', () => {
       }
       updateScoreboard();
     }
+    supabaseManager.setPlayerInfo({
+      id: myId,
+      name: newName,
+      color: 0xffcc00,
+      isReady: isLocalReady,
+      position: localPlayer.group.position
+    });
     showBanner(`CALL-SIGN UPDATED: ${newName.toUpperCase()}`, 1600);
   }
 });
 
 // Quick Play (Public Matchmaking, capped at 5)
-document.getElementById('btn-quick-play').addEventListener('click', () => {
+document.getElementById('btn-quick-play')?.addEventListener('click', () => {
   currentRoomId = 'sector_1';
+  isLocalReady = false;
+  updateReadyButtonUI();
   supabaseManager.joinRoom(currentRoomId, {
     id: myId,
     name: playerName,
     color: 0xffcc00,
+    isReady: false,
     position: localPlayer.group.position
   });
   lobbyModal.classList.remove('active');
@@ -638,13 +755,16 @@ document.getElementById('btn-quick-play').addEventListener('click', () => {
 });
 
 // Create Private Room (5-character code for friends)
-document.getElementById('btn-create-private').addEventListener('click', () => {
+document.getElementById('btn-create-private')?.addEventListener('click', () => {
   const code = Math.random().toString(36).substring(2, 7).toUpperCase();
   currentRoomId = `custom_${code}`;
+  isLocalReady = false;
+  updateReadyButtonUI();
   supabaseManager.joinRoom(currentRoomId, {
     id: myId,
     name: playerName,
     color: 0xffcc00,
+    isReady: false,
     position: localPlayer.group.position
   });
   lobbyModal.classList.remove('active');
@@ -652,14 +772,17 @@ document.getElementById('btn-create-private').addEventListener('click', () => {
 });
 
 // Join Private Room with Code
-document.getElementById('btn-join-private').addEventListener('click', () => {
+document.getElementById('btn-join-private')?.addEventListener('click', () => {
   const code = document.getElementById('room-code-input').value.trim().toUpperCase();
   if (code) {
     currentRoomId = `custom_${code}`;
+    isLocalReady = false;
+    updateReadyButtonUI();
     supabaseManager.joinRoom(currentRoomId, {
       id: myId,
       name: playerName,
       color: 0xffcc00,
+      isReady: false,
       position: localPlayer.group.position
     });
     lobbyModal.classList.remove('active');
@@ -668,7 +791,7 @@ document.getElementById('btn-join-private').addEventListener('click', () => {
 });
 
 // Copy Invite Link
-document.getElementById('btn-copy-link').addEventListener('click', () => {
+document.getElementById('btn-copy-link')?.addEventListener('click', () => {
   const isPrivate = currentRoomId.startsWith('custom_');
   const code = isPrivate ? currentRoomId.replace('custom_', '') : currentRoomId;
   const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${code}`;
@@ -678,14 +801,14 @@ document.getElementById('btn-copy-link').addEventListener('click', () => {
 });
 
 // Leave Room
-document.getElementById('btn-leave-room').addEventListener('click', () => {
+document.getElementById('btn-leave-room')?.addEventListener('click', () => {
   supabaseManager.leaveRoom();
-  document.getElementById('current-room-bar').classList.add('hidden');
+  document.getElementById('current-room-bar')?.classList.add('hidden');
   showBanner('DISCONNECTED FROM ROOM', 1600);
 });
 
 // Winner Play Again
-document.getElementById('btn-play-again').addEventListener('click', () => {
+document.getElementById('btn-play-again')?.addEventListener('click', () => {
   resetGame();
 });
 

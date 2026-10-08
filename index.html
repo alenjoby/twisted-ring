@@ -57,13 +57,17 @@
 
       <!-- Top Right Action Controls -->
       <div class="hud-actions-right">
-        <button id="btn-start" class="hud-btn hud-btn-primary">
+        <button id="btn-ready-toggle" class="hud-btn hud-btn-ready">
+          <span class="ready-dot"></span>
+          <span id="ready-btn-text">READY UP</span>
+        </button>
+        <button id="btn-start" class="hud-btn hud-btn-primary hidden">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          START MATCH
+          FORCE START
         </button>
         <button id="btn-lobby" class="hud-btn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          LOBBY / ROOMS
+          ROOMS / LOBBY
         </button>
         <button id="btn-sound" class="hud-btn hud-btn-icon" title="Toggle Sound">
           <svg id="sound-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
@@ -97,8 +101,8 @@
           <span>ZOOM IN/OUT</span>
         </div>
         <div class="hint-group">
-          <span class="key-tag">SPACE</span>
-          <span>START</span>
+          <span class="key-tag">R</span>
+          <span>READY</span>
         </div>
       </div>
 
@@ -123,7 +127,35 @@
         </div>
       </div>
 
-      <div class="lobby-divider"><span>DEPLOYMENT MODES</span></div>
+      <!-- Current Room & Live Players Waiting Room -->
+      <div id="current-room-bar" class="current-room-bar">
+        <div class="room-top-header">
+          <div class="room-info-meta">
+            <span class="room-status-dot"></span>
+            <span id="room-name-display">CONNECTED: PUBLIC SECTOR 1</span>
+          </div>
+          <span id="room-players-count" class="room-count-badge">1/5 PLAYERS</span>
+        </div>
+
+        <!-- Live Roster of Connected Players in Room -->
+        <div class="room-roster-section">
+          <div class="roster-section-title">ACTIVE OPERATORS IN ROOM</div>
+          <div id="lobby-players-list" class="lobby-players-grid">
+            <!-- Dynamic injected player cards -->
+          </div>
+        </div>
+
+        <div class="room-actions-row">
+          <button id="btn-lobby-ready" class="hud-btn hud-btn-ready flex-1">
+            <span class="ready-dot"></span>
+            <span id="lobby-ready-text">READY UP</span>
+          </button>
+          <button id="btn-copy-link" class="hud-btn">COPY LINK</button>
+          <button id="btn-leave-room" class="hud-btn">LEAVE</button>
+        </div>
+      </div>
+
+      <div class="lobby-divider"><span>CHANGE ROOM / DEPLOYMENT</span></div>
 
       <div class="lobby-modes-grid">
         <!-- Quick Play / Public Matchmaking -->
@@ -135,7 +167,7 @@
           <div class="mode-title">QUICK PLAY</div>
           <div class="mode-desc">Auto-join an active public room or create a new public sector if full.</div>
           <button id="btn-quick-play" class="hud-btn hud-btn-primary mode-action-btn">
-            FIND MATCH
+            SWITCH TO PUBLIC
           </button>
         </div>
 
@@ -149,7 +181,7 @@
           <div class="mode-desc">Host or join via secure 5-digit room code with your friends.</div>
           <div class="private-actions">
             <button id="btn-create-private" class="hud-btn mode-action-btn">
-              CREATE ROOM
+              CREATE NEW CODE
             </button>
             <div class="join-room-row">
               <input type="text" id="room-code-input" maxlength="6" placeholder="ROOM CODE" />
@@ -159,44 +191,37 @@
         </div>
       </div>
 
-      <!-- Current Room Info Bar -->
-      <div id="current-room-bar" class="current-room-bar hidden">
-        <div class="room-info-meta">
-          <span class="room-status-dot"></span>
-          <span id="room-name-display">CONNECTED: PUBLIC SECTOR 1</span>
-          <span id="room-players-count" class="room-count-badge">1/5 PLAYERS</span>
-        </div>
-        <div class="room-actions-row">
-          <button id="btn-copy-link" class="hud-btn">COPY INVITE LINK</button>
-          <button id="btn-leave-room" class="hud-btn">LEAVE</button>
-        </div>
-      </div>
-
       <div class="modal-footer-row">
-        <button id="btn-close-lobby" class="hud-btn">RETURN TO ARENA</button>
+        <button id="btn-close-lobby" class="hud-btn hud-btn-primary">BACK TO GAME</button>
       </div>
     </div>
   </div>
 
-  <!-- WINNER PODIUM PRESENTATION MODAL -->
-  <div id="winner-modal" class="modal-backdrop">
-    <div class="modal-box winner-box">
-      <div class="winner-trophy-badge">VICTORY ROYALE</div>
-      <div id="winner-name-display" class="winner-title">DOGGESH WINS</div>
-      <div class="winner-sub">LAST OPERATOR STANDING IN THE RING</div>
-      
-      <div class="winner-stats-grid">
-        <div class="winner-stat-card">
-          <span class="stat-label">MATCH SCORE</span>
-          <span id="winner-score-val" class="stat-value">300 PTS</span>
+  <!-- CINEMATIC VICTORY ROYALE OVERLAY (Unobstructed 3D character view) -->
+  <div id="winner-modal" class="victory-cinematic-overlay hidden">
+    <!-- Top Floating Victory Header -->
+    <div class="victory-header-banner">
+      <div class="victory-trophy-pill">VICTORY ROYALE</div>
+      <div id="winner-name-display" class="victory-champion-title">DOGGESH WINS</div>
+      <div class="victory-subtitle">CHAMPION OF THE TWISTED RING</div>
+    </div>
+
+    <!-- Bottom Docked Summary Card (Leaves Center 100% Clear For The Dance!) -->
+    <div class="victory-bottom-dock">
+      <div class="victory-stats-chip">
+        <div class="chip-item">
+          <span class="chip-label">SCORE</span>
+          <span id="winner-score-val" class="chip-val">300 PTS</span>
         </div>
-        <div class="winner-stat-card">
-          <span class="stat-label">ROUNDS WON</span>
-          <span id="winner-rounds-val" class="stat-value">3</span>
+        <div class="chip-sep"></div>
+        <div class="chip-item">
+          <span class="chip-label">ROUNDS WON</span>
+          <span id="winner-rounds-val" class="chip-val">3</span>
         </div>
       </div>
 
-      <button id="btn-play-again" class="hud-btn hud-btn-primary winner-btn">
+      <button id="btn-play-again" class="hud-btn hud-btn-primary victory-action-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         CONTINUE / NEXT MATCH
       </button>
     </div>
