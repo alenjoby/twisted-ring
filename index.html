@@ -266,22 +266,15 @@
           <span class="ready-dot"></span>
           <span id="ready-btn-text">READY UP</span>
         </button>
-        <button id="btn-start" class="hud-btn hud-btn-primary hidden">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          FORCE START
-        </button>
         <button id="btn-lobby" class="hud-btn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          ROOMS / LOBBY
+          ROOMS
         </button>
         <button id="btn-sound" class="hud-btn hud-btn-icon" title="Toggle Sound">
           <svg id="sound-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
         </button>
       </div>
     </header>
-
-    <!-- Top Event Banner -->
-    <div id="event-banner">SIMULTANEOUS ENGAGEMENT</div>
 
     <!-- Spectator Drone Bar (Active When Local Player is Eliminated) -->
     <div id="spectator-bar" class="spectator-bar hidden">
@@ -372,10 +365,6 @@
             <span class="ready-dot"></span>
             <span id="lobby-ready-text">READY UP</span>
           </button>
-          <button id="btn-lobby-force-start" class="hud-btn hud-btn-primary hidden">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            FORCE START
-          </button>
           <button id="btn-copy-link" class="hud-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
             COPY LINK
@@ -433,36 +422,15 @@
   <div id="winner-modal" class="victory-cinematic-overlay hidden">
     <!-- Top Floating Victory Header -->
     <div class="victory-header-banner">
-      <div class="victory-trophy-pill">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 9V2h12v7a6 6 0 0 1-6 6 6 6 0 0 1-6-6z"/><path d="M6 4H3a2 2 0 0 0-2 2v1a4 4 0 0 0 4 4h1"/><path d="M18 4h3a2 2 0 0 1 2 2v1a4 4 0 0 1-4 4h-1"/><path d="M12 15v5"/><path d="M8 20h8"/></svg>
-        VICTORY ROYALE
-      </div>
-      <div id="winner-name-display" class="victory-champion-title">DOGGESH WINS</div>
-      <div class="victory-subtitle">CHAMPION OF THE TWISTED RING</div>
+      <div id="winner-name-display" class="victory-champion-title">OPERATOR WINS</div>
+      <div class="victory-subtitle">VICTORY ROYALE</div>
     </div>
 
-    <!-- Bottom Docked Summary Card (Leaves Center 100% Clear For The Dance!) -->
+    <!-- Bottom Action (Leaves 90% of screen 100% clear for the dance) -->
     <div class="victory-bottom-dock">
-      <div class="victory-stats-chip">
-        <div class="chip-item">
-          <span class="chip-label">SCORE</span>
-          <span id="winner-score-val" class="chip-val">300 PTS</span>
-        </div>
-        <div class="chip-sep"></div>
-        <div class="chip-item">
-          <span class="chip-label">ROUNDS WON</span>
-          <span id="winner-rounds-val" class="chip-val">3</span>
-        </div>
-        <div class="chip-sep"></div>
-        <div class="chip-item">
-          <span class="chip-label">ACCOLADE</span>
-          <span id="winner-accolade-val" class="chip-val chip-accolade">DEADSHOT OPERATOR</span>
-        </div>
-      </div>
-
       <button id="btn-play-again" class="hud-btn hud-btn-primary victory-action-btn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        CONTINUE / NEXT MATCH
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        NEXT MATCH
       </button>
     </div>
   </div>

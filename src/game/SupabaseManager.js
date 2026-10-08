@@ -152,6 +152,7 @@ export class SupabaseManager {
         })
         .on('presence', { event: 'leave' }, ({ leftPresences }) => {
           leftPresences.forEach(p => {
+            if (p.id === this.myPlayerInfo?.id) return;
             this.connectedPlayers.delete(p.id);
             if (this.onPlayerLeft) this.onPlayerLeft(p.id);
           });
@@ -232,6 +233,7 @@ export class SupabaseManager {
         } else if (type === 'room-settings') {
           if (this.onRoomSettings) this.onRoomSettings(data);
         } else if (type === 'player-left') {
+          if (data && data.id === this.myPlayerInfo?.id) return;
           this.connectedPlayers.delete(data.id);
           if (this.onPlayerLeft) this.onPlayerLeft(data.id);
           this.syncLocalRoomState();

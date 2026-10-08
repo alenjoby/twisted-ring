@@ -20,6 +20,7 @@ export class Character {
     this.currentActionName = 'idle';
     this.isHost = false;
     this.isReady = false;
+    this.laserActive = false;
     this.readyAura = null;
 
     this.group = new THREE.Group();
@@ -206,6 +207,11 @@ export class Character {
     this.updateLaser();
   }
 
+  setLaserActive(active) {
+    this.laserActive = !!active;
+    this.updateLaser();
+  }
+
   updateLaser() {
     if (!this.isAlive || !this.laserBeam) {
       if (this.laserBeam) this.laserBeam.visible = false;
@@ -213,7 +219,7 @@ export class Character {
       return;
     }
 
-    const shouldShow = this.isLocal || this.isVisible;
+    const shouldShow = this.laserActive && (this.isLocal || this.isVisible);
     this.laserBeam.visible = shouldShow;
     if (this.laserDot) {
       this.laserDot.visible = shouldShow;
@@ -269,6 +275,7 @@ export class Character {
 
   die() {
     this.isAlive = false;
+    this.laserActive = false;
     this.playAction('death', 0.1);
     if (this.laserBeam) this.laserBeam.visible = false;
     if (this.laserDot) this.laserDot.visible = false;
@@ -277,6 +284,7 @@ export class Character {
 
   revive(spawnPos) {
     this.isAlive = true;
+    this.laserActive = false;
     this.group.position.copy(spawnPos);
     this.group.rotation.set(0, 0, 0);
     this.playAction('idle', 0.2);
@@ -287,15 +295,15 @@ export class Character {
   setVisible(visible) {
     this.isVisible = !!visible;
     this.group.visible = this.isVisible;
-    if (this.laserBeam) this.laserBeam.visible = this.isVisible && this.isAlive;
-    if (this.laserDot) this.laserDot.visible = this.isVisible && this.isAlive;
+    if (this.laserBeam) this.laserBeam.visible = this.isVisible && this.isAlive && this.laserActive;
+    if (this.laserDot) this.laserDot.visible = this.isVisible && this.isAlive && this.laserActive;
     if (this.readyAura) this.readyAura.visible = this.isVisible && this.isAlive && this.isReady;
   }
 
   setStealth(isInStealth) {
     if (this.isLocal) {
       this.group.visible = true;
-      if (this.laserBeam) this.laserBeam.visible = true;
+      if (this.laserBeam) this.laserBeam.visible = this.laserActive;
     } else {
       if (isInStealth) {
         this.createGhostSilhouette();
@@ -303,8 +311,8 @@ export class Character {
         this.removeGhostSilhouette();
       }
       this.group.visible = !isInStealth;
-      if (this.laserBeam) this.laserBeam.visible = !isInStealth;
-      if (this.laserDot) this.laserDot.visible = !isInStealth;
+      if (this.laserBeam) this.laserBeam.visible = !isInStealth && this.laserActive;
+      if (this.laserDot) this.laserDot.visible = !isInStealth && this.laserActive;
       if (this.readyAura) this.readyAura.visible = !isInStealth && this.isReady;
     }
     this.isVisible = this.group.visible;

@@ -53,87 +53,58 @@ body, html {
 .floating-name-tag {
   position: absolute;
   transform: translate(-50%, -50%);
-  background: rgba(10, 13, 20, 0.88);
-  border-radius: 4px;
-  padding: 4px 12px;
+  background: rgba(10, 13, 20, 0.85);
+  backdrop-filter: blur(10px);
+  border-radius: 14px;
+  padding: 3px 10px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
   color: #fff;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   transition: opacity 0.2s;
   will-change: transform;
+  pointer-events: none;
+  z-index: 50;
 }
 
 .floating-name-tag.local {
-  border-color: rgba(255, 204, 0, 0.3);
+  border-color: rgba(255, 204, 0, 0.5);
 }
 
 .floating-name-tag.hidden {
   opacity: 0;
-}
-
-.name-tag-indicator {
-  width: 4px;
-  height: 14px;
-  background: #ff2a5f;
-  border-radius: 2px;
-}
-
-.floating-name-tag.local .name-tag-indicator {
-  background: #ffcc00;
-}
-
-.name-tag-host-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  background: rgba(255, 204, 0, 0.22);
-  border: 1px solid rgba(255, 204, 0, 0.55);
-  color: #ffcc00;
-  font-family: 'Fira Code', monospace;
-  font-size: 9px;
-  font-weight: 800;
-  padding: 1px 5px;
-  border-radius: 3px;
-  letter-spacing: 0.5px;
-}
-
-.name-tag-host-badge.hidden {
   display: none !important;
+}
+
+.name-tag-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff5500;
+  transition: all 0.2s ease;
+}
+
+.name-tag-dot.is-ready {
+  background: #00ff88;
+  box-shadow: 0 0 8px #00ff88;
+}
+
+.name-tag-dot.is-host {
+  box-shadow: 0 0 0 1.5px rgba(255, 204, 0, 0.8);
 }
 
 .name-tag-label {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
-}
-
-.name-tag-ready-badge {
-  display: inline-flex;
-  align-items: center;
-  font-family: 'Fira Code', monospace;
-  font-size: 9px;
-  font-weight: 800;
-  padding: 1px 6px;
-  border-radius: 3px;
-  letter-spacing: 0.5px;
-  background: rgba(255, 170, 0, 0.12);
-  color: #ffaa00;
-  border: 1px solid rgba(255, 170, 0, 0.35);
-  transition: all 0.2s ease;
-}
-
-.name-tag-ready-badge.is-ready {
-  background: rgba(0, 255, 136, 0.2);
-  color: #00ff88;
-  border-color: rgba(0, 255, 136, 0.5);
-  box-shadow: 0 0 8px rgba(0, 255, 136, 0.35);
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 /* ==========================================================================

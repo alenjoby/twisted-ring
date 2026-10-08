@@ -141,15 +141,8 @@ function createNameTag(player) {
   const tag = document.createElement('div');
   tag.className = `floating-name-tag ${player.isLocal ? 'local' : ''}`;
   tag.innerHTML = `
-    <div class="name-tag-indicator"></div>
-    <span class="name-tag-host-badge ${player.isHost ? '' : 'hidden'}">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      HOST
-    </span>
+    <span class="name-tag-dot ${player.isReady ? 'is-ready' : ''} ${player.isHost ? 'is-host' : ''}"></span>
     <span class="name-tag-label">${player.name.toUpperCase()}</span>
-    <span class="name-tag-ready-badge ${player.isReady ? 'is-ready' : ''}">
-      ${player.isReady ? 'READY' : 'PREPARING'}
-    </span>
   `;
   container.appendChild(tag);
   player.htmlTag = tag;
@@ -157,25 +150,17 @@ function createNameTag(player) {
 
 function updateNameTag(player) {
   if (!player.htmlTag) return;
-  const hostBadge = player.htmlTag.querySelector('.name-tag-host-badge');
   const label = player.htmlTag.querySelector('.name-tag-label');
-  const readyBadge = player.htmlTag.querySelector('.name-tag-ready-badge');
-
-  if (hostBadge) {
-    if (player.isHost) hostBadge.classList.remove('hidden');
-    else hostBadge.classList.add('hidden');
-  }
+  const dot = player.htmlTag.querySelector('.name-tag-dot');
   if (label) {
     label.innerText = player.name.toUpperCase();
   }
-  if (readyBadge) {
-    if (player.isReady) {
-      readyBadge.classList.add('is-ready');
-      readyBadge.innerText = 'READY';
-    } else {
-      readyBadge.classList.remove('is-ready');
-      readyBadge.innerText = 'PREPARING';
-    }
+  if (dot) {
+    if (player.isReady) dot.classList.add('is-ready');
+    else dot.classList.remove('is-ready');
+
+    if (player.isHost) dot.classList.add('is-host');
+    else dot.classList.remove('is-host');
   }
 }
 
@@ -213,6 +198,7 @@ function initGameAfterLoading() {
   });
   localPlayer.group.position.copy(spawnPos);
   localPlayer.lookAtTarget(new THREE.Vector3(0, 0, 0));
+  localPlayer.setLaserActive(false);
   players.set(myId, localPlayer);
   createNameTag(localPlayer);
   window.localPlayer = localPlayer;
@@ -289,6 +275,7 @@ function addRemotePlayer(id, name, pos = null) {
   p.lookAtTarget(new THREE.Vector3(0, 0, 0));
   p.isBot = false;
   p.isHost = (id === currentHostId);
+  p.setLaserActive(currentPhase === 'STEALTH' || currentPhase === 'REVEAL');
 
   players.set(id, p);
   createNameTag(p);
@@ -297,7 +284,23 @@ function addRemotePlayer(id, name, pos = null) {
   return p;
 }
 
+function isModalActive() {
+  const welcome = document.getElementById('welcome-screen');
+  if (welcome && !welcome.classList.contains('hidden')) return true;
+  const modeSelect = document.getElementById('mode-select-screen');
+  if (modeSelect && !modeSelect.classList.contains('hidden')) return true;
+  const friendsHub = document.getElementById('friends-hub-modal');
+  if (friendsHub && !friendsHub.classList.contains('hidden')) return true;
+  const lobby = document.getElementById('lobby-modal');
+  if (lobby && lobby.classList.contains('active')) return true;
+  const winner = document.getElementById('winner-modal');
+  if (winner && !winner.classList.contains('hidden')) return true;
+  if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT')) return true;
+  return false;
+}
+
 function removeRemotePlayer(id) {
+  if (id === myId) return;
   const p = players.get(id);
   if (p) {
     p.dispose();
@@ -313,6 +316,7 @@ function removeRemotePlayer(id) {
 const keys = { w: false, a: false, s: false, d: false };
 
 window.addEventListener('keydown', (e) => {
+  if (isModalActive()) return;
   audioSystem.init();
   const k = e.key.toLowerCase();
   if (k === 'w' || k === 'arrowup') keys.w = true;
@@ -329,10 +333,6 @@ window.addEventListener('keydown', (e) => {
     if (k === 'arrowleft') cycleSpectatorTarget(-1);
     if (k === 'arrowright') cycleSpectatorTarget(1);
   }
-
-  if (e.code === 'Space' && (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END')) {
-    if (isLocalHost) initiateForceStart();
-  }
 });
 
 window.addEventListener('keyup', (e) => {
@@ -344,6 +344,7 @@ window.addEventListener('keyup', (e) => {
 });
 
 window.addEventListener('mousemove', (e) => {
+  if (isModalActive()) return;
   mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 
@@ -353,6 +354,7 @@ window.addEventListener('mousemove', (e) => {
 
 // Touch controls for mobile
 window.addEventListener('touchmove', (e) => {
+  if (isModalActive()) return;
   if (e.touches.length > 0) {
     const t = e.touches[0];
     mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
@@ -363,7 +365,7 @@ window.addEventListener('touchmove', (e) => {
 }, { passive: true });
 
 // Reset Camera button
-document.getElementById('btn-reset-cam').addEventListener('click', () => {
+document.getElementById('btn-reset-cam')?.addEventListener('click', () => {
   camera.position.copy(defaultCamPos);
   controls.target.copy(defaultTarget);
 });
@@ -377,6 +379,7 @@ const supabaseManager = new SupabaseManager({
     showBanner(`${(data.name || 'OPERATOR').toUpperCase()} JOINED THE RING`, 1600);
   },
   onPlayerLeft: (id) => {
+    if (id === myId) return;
     const p = players.get(id);
     if (p) {
       showBanner(`${p.name.toUpperCase()} DISCONNECTED`, 1600);
@@ -400,12 +403,16 @@ const supabaseManager = new SupabaseManager({
       else audioSystem.playUnreadyClick();
     }
   },
-  onForceStart: (data) => {
-    handleRemoteForceStart(data);
+  onForceStart: () => {
+    handleRemoteSquadLaunch();
   },
   onRoundSync: (data) => {
     if (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END' || currentPhase === 'SHRINK') {
       currentRound = data.round || currentRound;
+      document.getElementById('friends-hub-modal')?.classList.add('hidden');
+      document.getElementById('welcome-screen')?.classList.add('hidden');
+      document.getElementById('mode-select-screen')?.classList.add('hidden');
+      deployPlayerSkyDrop();
       startRound(false);
     }
   },
@@ -509,7 +516,10 @@ function startRound(broadcast = true) {
 
   // Reveal all alive players so everyone sees where everyone is
   players.forEach(p => {
-    if (p.isAlive) p.setStealth(false);
+    if (p.isAlive) {
+      p.setStealth(false);
+      p.setLaserActive(false);
+    }
   });
 
   if (broadcast) {
@@ -525,9 +535,12 @@ function startRound(broadcast = true) {
     clockGuidanceText.innerText = 'OPPONENTS CONCEALED // GHOST SILHOUETTES MARKED';
     showBanner('PREDICTION LOCKDOWN', 1200);
 
-    // Conceal opponents and generate ghost silhouettes at their positions
+    // Conceal opponents and generate ghost silhouettes at their positions; turn on aiming lasers
     players.forEach(p => {
-      if (p.isAlive) p.setStealth(true);
+      if (p.isAlive) {
+        p.setStealth(true);
+        p.setLaserActive(true);
+      }
     });
 
     const interval = setInterval(() => {
@@ -577,6 +590,7 @@ function executeReveal() {
   players.forEach(p => {
     if (p.isAlive) {
       p.setStealth(false);
+      p.setLaserActive(true);
       p.triggerShoot();
     }
   });
@@ -648,6 +662,8 @@ function evaluateHostVerdict() {
 }
 
 function applyRoundVerdict(verdict) {
+  players.forEach(p => p.setLaserActive(false));
+
   // Score awards
   if (verdict.hits) {
     verdict.hits.forEach(({ shooterId }) => {
@@ -713,6 +729,13 @@ function applyRoundVerdict(verdict) {
 // WINNER PODIUM CELEBRATION PRESENTATION
 function presentWinner(winner) {
   currentPhase = 'VICTORY';
+  players.forEach(p => p.setLaserActive(false));
+
+  // Completely hide in-game HUD overlay and all name tags so the screen is clean for the dance
+  document.getElementById('ui-overlay')?.classList.add('hidden');
+  document.getElementById('name-tags-container')?.classList.add('hidden');
+  document.getElementById('spectator-bar')?.classList.add('hidden');
+
   clockPhaseLabel.innerText = 'MATCH CONCLUDED';
   clockGuidanceText.innerText = `${winner.name.toUpperCase()} WINS`;
 
@@ -748,21 +771,10 @@ function presentWinner(winner) {
   ringSpot.target.position.set(0, 1.2, 0);
   ringSpot.intensity = 6.0;
 
-  // Show Cinematic Victory Overlay (Leaves center 85% completely unobstructed!)
+  // Show Cinematic Victory Overlay (clean title & next match button)
   const modal = document.getElementById('winner-modal');
   const nameDisplay = document.getElementById('winner-name-display');
-  const scoreVal = document.getElementById('winner-score-val');
-  const roundsVal = document.getElementById('winner-rounds-val');
-  const accoladeVal = document.getElementById('winner-accolade-val');
-
   if (nameDisplay) nameDisplay.innerText = `${winner.name.toUpperCase()} WINS`;
-  if (scoreVal) scoreVal.innerText = `${winner.score} PTS`;
-  if (roundsVal) roundsVal.innerText = `${currentRound}`;
-  if (accoladeVal) {
-    if (winner.score >= 300) accoladeVal.innerText = 'DEADSHOT OPERATOR';
-    else if (currentRound <= 2) accoladeVal.innerText = 'SURVIVOR PRIME';
-    else accoladeVal.innerText = 'TACTICAL TITAN';
-  }
   if (modal) modal.classList.remove('hidden');
 }
 
@@ -770,6 +782,10 @@ function resetGame() {
   deactivateSpectatorMode();
   const winnerModal = document.getElementById('winner-modal');
   if (winnerModal) winnerModal.classList.add('hidden');
+
+  // Restore HUD overlay & name tags
+  document.getElementById('ui-overlay')?.classList.remove('hidden');
+  document.getElementById('name-tags-container')?.classList.remove('hidden');
 
   // Restore camera & spotlight
   camera.position.copy(defaultCamPos);
@@ -780,11 +796,12 @@ function resetGame() {
   ringSpot.target.position.set(0, 0, 0);
   ringSpot.intensity = 3.8;
 
-  // Restore player scales
+  // Restore player scales & disable lasers
   players.forEach(p => {
     if (p.originalScale && p.fbxModel) {
       p.fbxModel.scale.setScalar(p.originalScale);
     }
+    p.setLaserActive(false);
   });
 
   currentRound = 1;
@@ -887,60 +904,27 @@ function updateReadyButtonUI() {
   }
 }
 
-function initiateForceStart() {
+function launchFriendsSquadMatch() {
   if (!isLocalHost) return;
   audioSystem.init();
-  audioSystem.playForceStartWarning();
   supabaseManager.broadcastForceStart();
-  startForceStartCountdown();
+  document.getElementById('friends-hub-modal')?.classList.add('hidden');
+  deployPlayerSkyDrop();
+  startRound(true);
 }
 
-function handleRemoteForceStart() {
+function handleRemoteSquadLaunch() {
   audioSystem.init();
-  audioSystem.playForceStartWarning();
   document.getElementById('friends-hub-modal')?.classList.add('hidden');
   document.getElementById('welcome-screen')?.classList.add('hidden');
   document.getElementById('mode-select-screen')?.classList.add('hidden');
   deployPlayerSkyDrop();
-  startForceStartCountdown();
-}
-
-function startForceStartCountdown() {
-  if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END') return;
-  if (readyCountdownInterval) {
-    clearInterval(readyCountdownInterval);
-    readyCountdownInterval = null;
-  }
-  if (forceStartCountdownInterval) return;
-
-  let count = 5;
-  clockPhaseLabel.innerText = 'FORCE LAUNCH';
-  clockGuidanceText.innerText = `HOST OVERRIDE // STARTING IN ${count}S`;
-  showBanner(`HOST FORCE STARTED // LAUNCHING IN ${count}S`, 1400);
-  audioSystem.playCountdownTick(false);
-
-  forceStartCountdownInterval = setInterval(() => {
-    count--;
-    if (count > 0) {
-      clockGuidanceText.innerText = `HOST OVERRIDE // STARTING IN ${count}S`;
-      showBanner(`FORCE LAUNCH IN ${count}S`, 950);
-      audioSystem.playCountdownTick(false);
-    } else {
-      clearInterval(forceStartCountdownInterval);
-      forceStartCountdownInterval = null;
-      document.getElementById('lobby-modal')?.classList.remove('active');
-      document.getElementById('friends-hub-modal')?.classList.add('hidden');
-      if (isLocalHost) {
-        startRound(true);
-      }
-    }
-  }, 1000);
+  startRound(false);
 }
 
 function checkAllPlayersReady(playersList) {
   if (!playersList || playersList.length < 2) return;
   if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END') return;
-  if (forceStartCountdownInterval) return;
 
   const allReady = playersList.every(p => p.isReady === true);
 
@@ -1036,25 +1020,12 @@ function updateRoomUI(state) {
   const roomNameEl = document.getElementById('room-name-display');
   const roomCountEl = document.getElementById('room-players-count');
   const playersListEl = document.getElementById('lobby-players-list');
-  const topStartBtn = document.getElementById('btn-start');
-  const lobbyStartBtn = document.getElementById('btn-lobby-force-start');
-
   isLocalHost = !!state.isHost;
   currentHostId = state.hostId;
 
   if (localPlayer) {
     localPlayer.isHost = isLocalHost;
     updateNameTag(localPlayer);
-  }
-
-  const canForceStart = isLocalHost && state.count >= 2 && (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END');
-  if (topStartBtn) {
-    if (canForceStart) topStartBtn.classList.remove('hidden');
-    else topStartBtn.classList.add('hidden');
-  }
-  if (lobbyStartBtn) {
-    if (canForceStart) lobbyStartBtn.classList.remove('hidden');
-    else lobbyStartBtn.classList.add('hidden');
   }
 
   const isPrivate = state.roomId.startsWith('custom_');
@@ -1249,13 +1220,7 @@ document.getElementById('btn-confirm-join-squad')?.addEventListener('click', () 
 
 // 3. Friends Squad Hub
 document.getElementById('btn-friends-ready')?.addEventListener('click', toggleReady);
-
-document.getElementById('btn-friends-host-launch')?.addEventListener('click', () => {
-  if (!isLocalHost) return;
-  document.getElementById('friends-hub-modal')?.classList.add('hidden');
-  deployPlayerSkyDrop();
-  initiateForceStart();
-});
+document.getElementById('btn-friends-host-launch')?.addEventListener('click', launchFriendsSquadMatch);
 
 document.getElementById('btn-friends-copy-link')?.addEventListener('click', () => {
   const code = currentRoomId.startsWith('custom_') ? currentRoomId.replace('custom_', '') : currentRoomId;
@@ -1275,8 +1240,6 @@ document.getElementById('btn-friends-leave')?.addEventListener('click', () => {
 // 4. In-Game HUD Controls
 document.getElementById('btn-ready-toggle')?.addEventListener('click', toggleReady);
 document.getElementById('btn-lobby-ready')?.addEventListener('click', toggleReady);
-document.getElementById('btn-start')?.addEventListener('click', initiateForceStart);
-document.getElementById('btn-lobby-force-start')?.addEventListener('click', initiateForceStart);
 
 document.getElementById('btn-sound')?.addEventListener('click', () => {
   audioSystem.init();
@@ -1336,8 +1299,18 @@ function animate() {
 
   const delta = clock.getDelta();
 
-  // Local Player Movement
-  const isInputLocked = (currentPhase === 'INPUT_FREEZE' || currentPhase === 'REVEAL' || currentPhase === 'VICTORY');
+  const modalOpen = isModalActive();
+  controls.enabled = !modalOpen;
+
+  if (modalOpen) {
+    keys.w = false;
+    keys.a = false;
+    keys.s = false;
+    keys.d = false;
+  }
+
+  // Local Player Movement & Aiming locking
+  const isInputLocked = modalOpen || (currentPhase === 'RECON') || (currentPhase === 'INPUT_FREEZE') || (currentPhase === 'REVEAL') || (currentPhase === 'VICTORY');
   if (localPlayer && localPlayer.isAlive && !isInputLocked) {
     const moveInput = new THREE.Vector3(0, 0, 0);
     if (keys.w) moveInput.z -= 1;
@@ -1420,7 +1393,7 @@ function animate() {
     if (p.htmlTag) {
       if (p.isAlive && p.isVisible) {
         const headPos = p.group.position.clone();
-        headPos.y += 3.2; // Above head
+        headPos.y += 3.7; // Clean elevation above dog head
         headPos.project(camera);
 
         if (headPos.z < 1) { // In front of camera
@@ -1452,6 +1425,13 @@ function animate() {
 
   renderer.render(scene, camera);
 }
+
+window.addEventListener('blur', () => {
+  keys.w = false;
+  keys.a = false;
+  keys.s = false;
+  keys.d = false;
+});
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
