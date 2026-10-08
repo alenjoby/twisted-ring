@@ -1704,3 +1704,96 @@ body, html {
     justify-content: center;
   }
 }
+
+/* --- NETWORK UPLINK & HUD CHIP STYLING --- */
+.hud-status-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(14, 18, 28, 0.85);
+  border: 1px solid var(--panel-border);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+
+.hud-status-chip .status-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  box-shadow: 0 0 6px var(--accent-gold);
+}
+
+.hud-status-chip.is-cloud .status-indicator {
+  background: var(--accent-lime);
+  box-shadow: 0 0 6px var(--accent-lime);
+}
+
+.ping-tag {
+  color: var(--accent-cyan);
+  font-family: monospace;
+  font-size: 9px;
+  background: rgba(0, 240, 255, 0.1);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.uplink-config-box {
+  background: rgba(14, 18, 28, 0.7);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  margin-bottom: 12px;
+}
+
+.uplink-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.uplink-status-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.uplink-status-meta .status-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+}
+
+.uplink-status-meta.is-cloud .status-indicator {
+  background: var(--accent-lime);
+  box-shadow: 0 0 6px var(--accent-lime);
+}
+
+.hud-btn-sm {
+  padding: 5px 10px;
+  font-size: 10px;
+}
+
+.uplink-inputs-drawer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.uplink-inputs-drawer.hidden {
+  display: none;
+}
+

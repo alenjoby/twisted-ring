@@ -1,6 +1,15 @@
 import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
+// Module-level static scratch vectors for zero-allocation performance (eliminates GC spikes)
+const _scratchForward = new THREE.Vector3();
+const _scratchRight = new THREE.Vector3();
+const _scratchOrigin = new THREE.Vector3();
+const _scratchLookAtTarget = new THREE.Vector3();
+const _scratchDotPos = new THREE.Vector3();
+const _yAxis = new THREE.Vector3(0, 1, 0);
+const _chestOffset = new THREE.Vector3(0, 1.35, 0);
+
 export class Character {
   constructor({ scene, id, name, isLocal = false, color = 0xffcc00, assetManager }) {
     this.scene = scene;
@@ -226,35 +235,40 @@ export class Character {
     }
 
     if (shouldShow) {
-      const ray = this.getLaserRay();
-      
-      // Position the beam at the origin and point it along the direction
-      this.laserBeam.position.copy(ray.origin);
-      // LookAt targets a point along the direction
-      this.laserBeam.lookAt(ray.origin.clone().add(ray.direction));
-      
-      const dotPos = ray.origin.clone().add(ray.direction.clone().multiplyScalar(this.laserLength));
+      // Zero-allocation computation using module scratch vectors
+      _scratchForward.set(0, 0, 1).applyAxisAngle(_yAxis, this.rotationY).normalize();
+      _scratchRight.set(-1, 0, 0).applyAxisAngle(_yAxis, this.rotationY).normalize();
+
+      _scratchOrigin.copy(this.group.position)
+        .add(_chestOffset)
+        .addScaledVector(_scratchForward, 0.3)
+        .addScaledVector(_scratchRight, 0.2);
+
+      this.laserBeam.position.copy(_scratchOrigin);
+      _scratchLookAtTarget.copy(_scratchOrigin).add(_scratchForward);
+      this.laserBeam.lookAt(_scratchLookAtTarget);
+
       if (this.laserDot) {
-        this.laserDot.position.copy(dotPos);
+        _scratchDotPos.copy(_scratchOrigin).addScaledVector(_scratchForward, this.laserLength);
+        this.laserDot.position.copy(_scratchDotPos);
       }
     }
   }
 
   getLaserRay() {
-    const origin = new THREE.Vector3();
-    
-    // Calculate a stable shoulder/gun position instead of using bone world positions 
-    // which can be corrupted by Mixamo scaling
-    const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.rotationY).normalize();
-    const right = new THREE.Vector3(-1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.rotationY).normalize();
-    
-    // Offset: 1.35m up (chest/shoulder), 0.3m forward, 0.2m right
-    origin.copy(this.group.position)
-          .add(new THREE.Vector3(0, 1.35, 0))
-          .add(forward.clone().multiplyScalar(0.3))
-          .add(right.clone().multiplyScalar(0.2));
+    _scratchForward.set(0, 0, 1).applyAxisAngle(_yAxis, this.rotationY).normalize();
+    _scratchRight.set(-1, 0, 0).applyAxisAngle(_yAxis, this.rotationY).normalize();
 
-    return { origin, direction: forward, length: this.laserLength };
+    _scratchOrigin.copy(this.group.position)
+      .add(_chestOffset)
+      .addScaledVector(_scratchForward, 0.3)
+      .addScaledVector(_scratchRight, 0.2);
+
+    return { 
+      origin: _scratchOrigin.clone(), 
+      direction: _scratchForward.clone(), 
+      length: this.laserLength 
+    };
   }
 
   triggerShoot() {

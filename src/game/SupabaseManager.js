@@ -26,7 +26,7 @@ const DEFAULT_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PU
 const DEFAULT_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || safeStorage.getItem('supabase_anon_key') || 'mock-key';
 
 export class SupabaseManager {
-  constructor({ onPlayerJoined, onPlayerLeft, onPlayerMoved, onRoundSync, onReveal, onHit, onRoomStateChange, onPlayerReady, onForceStart, onLockPacket, onRoundVerdict, onRoomSettings, onPlayerRenamed, onGameReset }) {
+  constructor({ onPlayerJoined, onPlayerLeft, onPlayerMoved, onRoundSync, onReveal, onHit, onRoomStateChange, onPlayerReady, onForceStart, onLockPacket, onRoundVerdict, onRoomSettings, onPlayerRenamed, onGameReset, onPhaseLock, onLatencyUpdate }) {
     this.onPlayerJoined = onPlayerJoined;
     this.onPlayerLeft = onPlayerLeft;
     this.onPlayerMoved = onPlayerMoved;
@@ -41,6 +41,8 @@ export class SupabaseManager {
     this.onRoomSettings = onRoomSettings;
     this.onPlayerRenamed = onPlayerRenamed;
     this.onGameReset = onGameReset;
+    this.onPhaseLock = onPhaseLock;
+    this.onLatencyUpdate = onLatencyUpdate;
 
     this.client = null;
     this.channel = null;
@@ -250,6 +252,24 @@ export class SupabaseManager {
         })
         .on('broadcast', { event: 'game-reset' }, ({ payload }) => {
           if (this.onGameReset) this.onGameReset(payload);
+        })
+        .on('broadcast', { event: 'phase-lock' }, ({ payload }) => {
+          if (this.onPhaseLock) this.onPhaseLock(payload);
+        })
+        .on('broadcast', { event: 'ping' }, ({ payload }) => {
+          if (payload && payload.senderId !== this.myPlayerInfo?.id && this.channel) {
+            this.channel.send({
+              type: 'broadcast',
+              event: 'pong',
+              payload: { t0: payload.t0, targetId: payload.senderId, responderId: this.myPlayerInfo?.id }
+            });
+          }
+        })
+        .on('broadcast', { event: 'pong' }, ({ payload }) => {
+          if (payload && payload.targetId === this.myPlayerInfo?.id) {
+            const rtt = Math.round(performance.now() - payload.t0);
+            if (this.onLatencyUpdate) this.onLatencyUpdate(rtt);
+          }
         });
 
       // Subscribe and track presence
@@ -315,6 +335,20 @@ export class SupabaseManager {
           this.syncLocalRoomState();
         } else if (type === 'game-reset') {
           if (this.onGameReset) this.onGameReset(data);
+        } else if (type === 'phase-lock') {
+          if (this.onPhaseLock) this.onPhaseLock(data);
+        } else if (type === 'ping') {
+          if (data && data.senderId !== this.myPlayerInfo?.id && this.localBc) {
+            this.localBc.postMessage({
+              type: 'pong',
+              data: { t0: data.t0, targetId: data.senderId }
+            });
+          }
+        } else if (type === 'pong') {
+          if (data && data.targetId === this.myPlayerInfo?.id) {
+            const rtt = Math.round(performance.now() - data.t0);
+            if (this.onLatencyUpdate) this.onLatencyUpdate(rtt);
+          }
         } else if (type === 'player-left') {
           if (data && data.id === this.myPlayerInfo?.id) return;
           this.connectedPlayers.delete(data.id);
@@ -385,11 +419,11 @@ export class SupabaseManager {
     }
   }
 
-  // Throttled movement broadcast (20Hz)
-  broadcastMovement(pos, rotY) {
+  // Throttled movement broadcast (20Hz during run, unthrottled for halt/stop)
+  broadcastMovement(pos, rotY, force = false) {
     if (!this.myPlayerInfo) return;
     const now = performance.now();
-    if (now - this.lastMoveTime < this.moveThrottleMs) return;
+    if (!force && now - this.lastMoveTime < this.moveThrottleMs) return;
     this.lastMoveTime = now;
 
     const payload = {
@@ -398,7 +432,8 @@ export class SupabaseManager {
       x: Math.round(pos.x * 100) / 100,
       y: Math.round(pos.y * 100) / 100,
       z: Math.round(pos.z * 100) / 100,
-      rotY: Math.round(rotY * 100) / 100
+      rotY: Math.round(rotY * 100) / 100,
+      isStopped: !!force
     };
 
     if (this.channel && this.isConfigured) {
@@ -415,8 +450,15 @@ export class SupabaseManager {
     }
   }
 
-  broadcastRoundStart(round) {
-    const payload = { round, initiator: this.myPlayerInfo.id };
+  broadcastRoundStart(round, timingEpoch = {}) {
+    const payload = {
+      round,
+      initiator: this.myPlayerInfo?.id,
+      senderId: this.myPlayerInfo?.id,
+      serverStartTime: timingEpoch.serverStartTime || Date.now(),
+      reconDuration: timingEpoch.reconDuration || 1500,
+      stealthDuration: timingEpoch.stealthDuration || 5000
+    };
     if (this.channel && this.isConfigured) {
       this.channel.send({
         type: 'broadcast',
@@ -429,6 +471,46 @@ export class SupabaseManager {
         data: payload
       });
     }
+  }
+
+  broadcastPhaseLock(round) {
+    const payload = { round, senderId: this.myPlayerInfo?.id };
+    if (this.channel && this.isConfigured) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'phase-lock',
+        payload
+      });
+    } else if (this.localBc) {
+      this.localBc.postMessage({
+        type: 'phase-lock',
+        data: payload
+      });
+    }
+  }
+
+  ping() {
+    if (!this.myPlayerInfo) return;
+    const payload = { senderId: this.myPlayerInfo.id, t0: performance.now() };
+    if (this.channel && this.isConfigured) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'ping',
+        payload
+      });
+    } else if (this.localBc) {
+      this.localBc.postMessage({
+        type: 'ping',
+        data: payload
+      });
+    }
+  }
+
+  startPingInterval() {
+    if (this.pingTimer) clearInterval(this.pingTimer);
+    this.pingTimer = setInterval(() => {
+      this.ping();
+    }, 3500);
   }
 
   broadcastReveal(payload) {
@@ -556,5 +638,19 @@ export class SupabaseManager {
     this.roomId = null;
     this.hostId = null;
     this.isHost = false;
+  }
+
+  async reconnectWithCredentials(url, key) {
+    if (!url || !key) return false;
+    safeStorage.setItem('supabase_url', url);
+    safeStorage.setItem('supabase_anon_key', key);
+    const prevRoomId = this.roomId;
+    const prevInfo = this.myPlayerInfo;
+    await this.leaveRoom();
+    this.initClient(url, key);
+    if (prevRoomId && prevInfo) {
+      await this.joinRoom(prevRoomId, prevInfo);
+    }
+    return this.isConfigured;
   }
 }

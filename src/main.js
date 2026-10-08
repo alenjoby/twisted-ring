@@ -118,6 +118,20 @@ const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 const aimPoint = new THREE.Vector3();
 
+// Module-level static scratch vectors & cached viewport (Zero-allocation performance)
+const _scratchHeadPos = new THREE.Vector3();
+const _scratchSpecTarget = new THREE.Vector3();
+const _scratchForward = new THREE.Vector3();
+const _scratchRight = new THREE.Vector3();
+const _yAxis = new THREE.Vector3(0, 1, 0);
+const _chestOffset = new THREE.Vector3(0, 1.35, 0);
+let viewWidth = window.innerWidth;
+let viewHeight = window.innerHeight;
+let wasMoving = false;
+const lockedPlayerCoords = new Map();
+let currentRoundSyncEpoch = null;
+let stealthCountdownInterval = null;
+
 // --- GAME OBJECTS & COLLECTIONS ---
 let arena;
 const players = new Map();
@@ -454,6 +468,15 @@ const supabaseManager = new SupabaseManager({
     if (p && !p.isLocal) {
       p.targetPos = new THREE.Vector3(data.x, data.y, data.z);
       p.targetRotY = data.rotY;
+      if (data.isStopped) {
+        // Immediate clean halt without ice-skate gliding
+        p.group.position.copy(p.targetPos);
+        p.rotationY = data.rotY;
+        p.group.rotation.y = data.rotY;
+        if (p.currentActionName === 'run') {
+          p.playAction('idle', 0.12);
+        }
+      }
     }
   },
   onPlayerReady: (data) => {
@@ -482,6 +505,7 @@ const supabaseManager = new SupabaseManager({
     if (data?.senderId && currentHostId && data.senderId !== currentHostId) return;
     if (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END' || currentPhase === 'SHRINK') {
       currentRound = data.round || currentRound;
+      currentRoundSyncEpoch = data;
       closeFriendsHub();
       document.getElementById('welcome-screen')?.classList.add('hidden');
       document.getElementById('mode-select-screen')?.classList.add('hidden');
@@ -489,13 +513,28 @@ const supabaseManager = new SupabaseManager({
       if (!localPlayerDeployed) {
         deployPlayerSkyDrop();
       }
-      startRound(false);
+      startRound(false, data);
     }
+  },
+  onPhaseLock: (data) => {
+    if (data?.senderId && currentHostId && data.senderId !== currentHostId) return;
+    if (currentPhase === 'STEALTH') {
+      if (stealthCountdownInterval) {
+        clearInterval(stealthCountdownInterval);
+        stealthCountdownInterval = null;
+      }
+      freezeAndBroadcastLock();
+    }
+  },
+  onLatencyUpdate: (ms) => {
+    const badge = document.getElementById('network-ping-val');
+    if (badge) badge.innerText = `${ms}MS`;
   },
   onReveal: () => {
     executeReveal();
   },
   onLockPacket: (data) => {
+    lockedPlayerCoords.set(data.id, { x: data.x, y: data.y, z: data.z, rotY: data.rotY });
     const p = players.get(data.id);
     if (p && !p.isLocal) {
       p.targetPos = new THREE.Vector3(data.x, data.y, data.z);
@@ -601,13 +640,19 @@ function cycleSpectatorTarget(direction = 1) {
 document.getElementById('btn-spec-prev')?.addEventListener('click', () => cycleSpectatorTarget(-1));
 document.getElementById('btn-spec-next')?.addEventListener('click', () => cycleSpectatorTarget(1));
 
-function startRound(broadcast = true) {
+function startRound(broadcast = true, syncEpoch = null) {
   if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END' && currentPhase !== 'SHRINK') return;
   audioSystem.init();
   deactivateSpectatorMode();
   document.getElementById('lobby-modal')?.classList.remove('active');
   document.getElementById('friends-hub-modal')?.classList.add('hidden');
   document.getElementById('ui-overlay')?.classList.remove('hidden');
+
+  lockedPlayerCoords.clear();
+  if (stealthCountdownInterval) {
+    clearInterval(stealthCountdownInterval);
+    stealthCountdownInterval = null;
+  }
 
   // PHASE 1: RECON (1.5 seconds) - All players visible to observe trajectories
   currentPhase = 'RECON';
@@ -624,16 +669,26 @@ function startRound(broadcast = true) {
     }
   });
 
+  const now = Date.now();
+  const reconDuration = syncEpoch?.reconDuration || 1500;
+  const stealthDuration = syncEpoch?.stealthDuration || (CONFIG.countdownSeconds * 1000);
+  const serverStart = syncEpoch?.serverStartTime || now;
+
   if (broadcast) {
-    supabaseManager.broadcastRoundStart(currentRound);
+    supabaseManager.broadcastRoundStart(currentRound, {
+      serverStartTime: now,
+      reconDuration,
+      stealthDuration
+    });
   }
 
-  // After 1.5s recon phase, enter PREDICTION LOCK
+  const elapsedRecon = Date.now() - serverStart;
+  const remainingRecon = Math.max(80, reconDuration - elapsedRecon);
+
+  // After recon phase, enter synchronized PREDICTION LOCK
   setTimeout(() => {
     if (currentPhase !== 'RECON') return;
     currentPhase = 'STEALTH';
-    countdownTime = CONFIG.countdownSeconds;
-    timerEl.innerText = countdownTime.toString().padStart(2, '0');
     clockPhaseLabel.innerText = 'PREDICTION LOCK';
     clockGuidanceText.innerText = 'OPPONENTS CONCEALED // GHOST SILHOUETTES MARKED';
     showBanner('PREDICTION LOCKDOWN', 1200);
@@ -646,26 +701,45 @@ function startRound(broadcast = true) {
       }
     });
 
-    const interval = setInterval(() => {
-      countdownTime--;
+    const stealthEndTarget = serverStart + reconDuration + stealthDuration;
+    const initialRemaining = Math.max(1, Math.ceil((stealthEndTarget - Date.now()) / 1000));
+    countdownTime = initialRemaining;
+    timerEl.innerText = countdownTime.toString().padStart(2, '0');
+
+    stealthCountdownInterval = setInterval(() => {
+      const remainingMs = stealthEndTarget - Date.now();
+      const sec = Math.max(0, Math.ceil(remainingMs / 1000));
+      countdownTime = sec;
       timerEl.innerText = countdownTime.toString().padStart(2, '0');
       audioSystem.playCountdownTick(countdownTime === 0);
 
-      if (countdownTime <= 0) {
-        clearInterval(interval);
+      if (remainingMs <= 0) {
+        clearInterval(stealthCountdownInterval);
+        stealthCountdownInterval = null;
+        if (isLocalHost) {
+          supabaseManager.broadcastPhaseLock(currentRound);
+        }
         freezeAndBroadcastLock();
       }
-    }, 1000);
-  }, 1500);
+    }, 250); // Synchronous 250ms interval ensures accurate real-time second boundaries
+  }, remainingRecon);
 }
 
 function freezeAndBroadcastLock() {
+  if (currentPhase === 'INPUT_FREEZE' || currentPhase === 'REVEAL' || currentPhase === 'VICTORY') return;
   currentPhase = 'INPUT_FREEZE';
   clockPhaseLabel.innerText = 'TRAJECTORY LOCK';
   clockGuidanceText.innerText = 'INPUTS FROZEN // FIRING SIMULTANEOUSLY';
 
-  // Broadcast lock-packet with frozen coordinates
+  // Record and broadcast local lock packet
   if (localPlayer) {
+    lockedPlayerCoords.set(myId, {
+      x: localPlayer.group.position.x,
+      y: localPlayer.group.position.y,
+      z: localPlayer.group.position.z,
+      rotY: localPlayer.rotationY
+    });
+
     supabaseManager.broadcastLockPacket({
       id: myId,
       round: currentRound,
@@ -700,11 +774,11 @@ function executeReveal() {
 
   audioSystem.playLaserShot();
 
-  // 2. ONLY THE HOST EVALUATES HITS (AUTHORITATIVE REFEREE)
+  // 2. Authoritative host referee evaluates hits with generous 480ms grace window for peer lock packets
   if (isLocalHost) {
     setTimeout(() => {
       evaluateHostVerdict();
-    }, 280);
+    }, 480);
   } else {
     // Watchdog fallback in case host disconnected mid-verdict
     if (revealWatchdogTimer) clearTimeout(revealWatchdogTimer);
@@ -724,12 +798,28 @@ function evaluateHostVerdict() {
   const alivePlayers = Array.from(players.values()).filter(p => p.isAlive);
 
   alivePlayers.forEach(shooter => {
-    const ray = shooter.getLaserRay();
+    let ray;
+    const lockedShooter = lockedPlayerCoords.get(shooter.id);
+    if (lockedShooter) {
+      _scratchForward.set(0, 0, 1).applyAxisAngle(_yAxis, lockedShooter.rotY).normalize();
+      _scratchRight.set(-1, 0, 0).applyAxisAngle(_yAxis, lockedShooter.rotY).normalize();
+      const origin = new THREE.Vector3(lockedShooter.x, lockedShooter.y, lockedShooter.z)
+        .add(_chestOffset)
+        .addScaledVector(_scratchForward, 0.3)
+        .addScaledVector(_scratchRight, 0.2);
+      ray = { origin, direction: _scratchForward.clone(), length: shooter.laserLength };
+    } else {
+      ray = shooter.getLaserRay();
+    }
 
     alivePlayers.forEach(target => {
       if (shooter.id === target.id) return;
 
-      const targetPos = target.group.position.clone().add(new THREE.Vector3(0, 1.25, 0));
+      const lockedTarget = lockedPlayerCoords.get(target.id);
+      const targetPos = lockedTarget 
+        ? new THREE.Vector3(lockedTarget.x, lockedTarget.y + 1.25, lockedTarget.z)
+        : target.group.position.clone().add(new THREE.Vector3(0, 1.25, 0));
+
       const v = new THREE.Vector3().subVectors(targetPos, ray.origin);
       const proj = v.dot(ray.direction);
 
@@ -1547,7 +1637,9 @@ function animate() {
     if (keys.a) moveInput.x -= 1;
     if (keys.d) moveInput.x += 1;
 
-    if (moveInput.lengthSq() > 0) {
+    const isMovingNow = (moveInput.lengthSq() > 0);
+    if (isMovingNow) {
+      wasMoving = true;
       moveInput.normalize();
       
       // Convert to camera-relative movement
@@ -1575,18 +1667,23 @@ function animate() {
       while (diff < -Math.PI) diff += Math.PI * 2;
       while (diff > Math.PI) diff -= Math.PI * 2;
       
-      localPlayer.rotationY += diff * 12.0 * delta; // Smooth turn
+      localPlayer.rotationY += diff * 18.0 * delta; // Snappy responsive turn
       localPlayer.group.rotation.y = localPlayer.rotationY;
 
-      supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY);
+      supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY, false);
     } else {
+      if (wasMoving) {
+        // Immediate unthrottled stop packet dispatch to freeze remote visual drift
+        wasMoving = false;
+        supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY, true);
+      }
       if (localPlayer.currentActionName === 'run') {
         localPlayer.playAction('idle', 0.18);
       }
       const prevRot = localPlayer.rotationY;
       localPlayer.lookAtTarget(aimPoint);
       if (Math.abs(localPlayer.rotationY - prevRot) > 0.02) {
-        supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY);
+        supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY, false);
       }
     }
   } else if (localPlayer && isInputLocked && localPlayer.isAlive) {
@@ -1595,7 +1692,7 @@ function animate() {
     }
   }
 
-  // STRICT BOUNDARY ENFORCEMENT & REMOTE PLAYER SMOOTHING
+  // STRICT BOUNDARY ENFORCEMENT & REMOTE PLAYER SMOOTHING (26x responsive position, 28x aim lerp)
   players.forEach(p => {
     if (!p.isLocal && p.targetPos && p.isAlive) {
       if (currentPhase !== 'VICTORY') {
@@ -1603,20 +1700,22 @@ function animate() {
         if (dist > 6.0) {
           p.group.position.copy(p.targetPos);
         } else if (dist > 0.04) {
-          p.group.position.lerp(p.targetPos, Math.min(1, 14.0 * delta));
+          p.group.position.lerp(p.targetPos, Math.min(1, 26.0 * delta));
           p.playAction('run', 0.12);
-        } else if (p.currentActionName === 'run') {
-          p.playAction('idle', 0.18);
+        } else {
+          p.group.position.copy(p.targetPos);
+          if (p.currentActionName === 'run') {
+            p.playAction('idle', 0.18);
+          }
         }
         if (p.targetRotY !== undefined) {
           let diff = p.targetRotY - p.rotationY;
           while (diff < -Math.PI) diff += Math.PI * 2;
           while (diff > Math.PI) diff -= Math.PI * 2;
-          p.rotationY += diff * 12.0 * delta;
+          p.rotationY += diff * 28.0 * delta;
           p.group.rotation.y = p.rotationY;
         }
       }
-      p.updateLaser();
     }
 
     if (arena) arena.clampPosition(p.group.position);
@@ -1625,17 +1724,17 @@ function animate() {
 
   if (arena) arena.update(delta);
 
-  // Update HTML name tags
+  // Update HTML name tags (zero-allocation projection using static scratch vectors)
   players.forEach(p => {
     if (p.htmlTag) {
       if (p.isAlive && p.isVisible) {
-        const headPos = p.group.position.clone();
-        headPos.y += 3.7; // Clean elevation above dog head
-        headPos.project(camera);
+        _scratchHeadPos.copy(p.group.position);
+        _scratchHeadPos.y += 3.7; // Clean elevation above dog head
+        _scratchHeadPos.project(camera);
 
-        if (headPos.z < 1) { // In front of camera
-          const x = (headPos.x * 0.5 + 0.5) * window.innerWidth;
-          const y = (-(headPos.y * 0.5) + 0.5) * window.innerHeight;
+        if (_scratchHeadPos.z < 1) { // In front of camera
+          const x = (_scratchHeadPos.x * 0.5 + 0.5) * viewWidth;
+          const y = (-(_scratchHeadPos.y * 0.5) + 0.5) * viewHeight;
           p.htmlTag.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
           p.htmlTag.classList.remove('hidden');
         } else {
@@ -1651,7 +1750,9 @@ function animate() {
   if (spectatingPlayerId && localPlayer && !localPlayer.isAlive) {
     const targetPlayer = players.get(spectatingPlayerId);
     if (targetPlayer && targetPlayer.isAlive) {
-      controls.target.lerp(targetPlayer.group.position.clone().add(new THREE.Vector3(0, 1.2, 0)), 0.08);
+      _scratchSpecTarget.copy(targetPlayer.group.position);
+      _scratchSpecTarget.y += 1.2;
+      controls.target.lerp(_scratchSpecTarget, 0.08);
     } else {
       cycleSpectatorTarget(1);
     }
@@ -1671,9 +1772,69 @@ window.addEventListener('blur', () => {
 });
 
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  viewWidth = window.innerWidth;
+  viewHeight = window.innerHeight;
+  camera.aspect = viewWidth / viewHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(viewWidth, viewHeight);
 });
+
+// --- NETWORK UPLINK & LATENCY MONITORING ---
+function updateUplinkUI() {
+  const chip = document.getElementById('hud-uplink-chip');
+  const label = document.getElementById('uplink-label');
+  const modeText = document.getElementById('uplink-mode-text');
+  const isCloud = supabaseManager.isConfigured;
+
+  if (chip) {
+    if (isCloud) chip.classList.add('is-cloud');
+    else chip.classList.remove('is-cloud');
+  }
+  if (label) label.innerText = isCloud ? 'CLOUD' : 'PEER';
+  if (modeText) modeText.innerText = isCloud ? 'UPLINK: CLOUD WEBSOCKET (WSS)' : 'UPLINK: LOCAL PEER CHANNEL';
+  const meta = document.querySelector('.uplink-status-meta');
+  if (meta) {
+    if (isCloud) meta.classList.add('is-cloud');
+    else meta.classList.remove('is-cloud');
+  }
+}
+
+document.getElementById('btn-toggle-uplink-inputs')?.addEventListener('click', () => {
+  const drawer = document.getElementById('uplink-inputs-drawer');
+  drawer?.classList.toggle('hidden');
+});
+
+document.getElementById('btn-save-uplink')?.addEventListener('click', async () => {
+  const url = document.getElementById('cfg-supabase-url')?.value.trim();
+  const key = document.getElementById('cfg-supabase-key')?.value.trim();
+  if (!url || !key) {
+    showBanner('ENTER SUPABASE URL & KEY', 2000);
+    return;
+  }
+  showBanner('CONNECTING CLOUD WEBSOCKET...', 2000);
+  const success = await supabaseManager.reconnectWithCredentials(url, key);
+  updateUplinkUI();
+  if (success) {
+    showBanner('UPLINK ESTABLISHED: CLOUD WEBSOCKET', 2500);
+    document.getElementById('uplink-inputs-drawer')?.classList.add('hidden');
+  } else {
+    showBanner('CONNECTION FAILED // CHECK CREDENTIALS', 2500);
+  }
+});
+
+// Pre-fill existing credentials if in storage
+const existingUrl = safeStorage.getItem('supabase_url');
+const existingKey = safeStorage.getItem('supabase_anon_key');
+if (existingUrl) {
+  const urlInput = document.getElementById('cfg-supabase-url');
+  if (urlInput) urlInput.value = existingUrl;
+}
+if (existingKey) {
+  const keyInput = document.getElementById('cfg-supabase-key');
+  if (keyInput) keyInput.value = existingKey;
+}
+
+updateUplinkUI();
+supabaseManager.startPingInterval();
 
 animate();

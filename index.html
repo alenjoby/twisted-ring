@@ -265,6 +265,11 @@
 
       <!-- Top Right Action Controls -->
       <div class="hud-actions-right">
+        <div id="hud-uplink-chip" class="hud-status-chip" title="Network Uplink Mode">
+          <span id="uplink-dot" class="status-indicator"></span>
+          <span id="uplink-label">PEER</span>
+          <span id="network-ping-val" class="ping-tag">--MS</span>
+        </div>
         <button id="btn-ready-toggle" class="hud-btn hud-btn-ready">
           <span class="ready-dot"></span>
           <span id="ready-btn-text">READY UP</span>
@@ -412,6 +417,29 @@
               <button id="btn-join-private" class="hud-btn hud-btn-primary">JOIN</button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Cloud Network Uplink Configuration -->
+      <div class="lobby-divider"><span>NETWORK UPLINK SETTINGS</span></div>
+      <div class="uplink-config-box">
+        <div class="uplink-info-row">
+          <div class="uplink-status-meta">
+            <span id="uplink-mode-dot" class="status-indicator"></span>
+            <span id="uplink-mode-text">UPLINK: LOCAL PEER CHANNEL</span>
+          </div>
+          <button id="btn-toggle-uplink-inputs" class="hud-btn hud-btn-sm">CONFIGURE CLOUD</button>
+        </div>
+        <div id="uplink-inputs-drawer" class="uplink-inputs-drawer hidden">
+          <div class="form-group">
+            <label>Supabase Project URL</label>
+            <input type="text" id="cfg-supabase-url" placeholder="https://yourproject.supabase.co" />
+          </div>
+          <div class="form-group">
+            <label>Supabase Anon Key</label>
+            <input type="password" id="cfg-supabase-key" placeholder="Anon public key..." />
+          </div>
+          <button id="btn-save-uplink" class="hud-btn hud-btn-primary w-full">CONNECT CLOUD WEBSOCKET</button>
         </div>
       </div>
 
