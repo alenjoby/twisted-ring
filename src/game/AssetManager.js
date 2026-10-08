@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-const CACHE_NAME = 'twisted-ring-assets-v1';
+const CACHE_NAME = 'twisted-ring-assets-v2';
 
 async function fetchCachedBuffer(url) {
   if (typeof window !== 'undefined' && 'caches' in window) {
@@ -95,6 +95,7 @@ class AssetManager {
           this.textureLoader.load(
             blobUrl,
             (tex) => {
+              if (blobUrl.startsWith('blob:')) URL.revokeObjectURL(blobUrl);
               tex.flipY = false;
               if (item.isSrgb) {
                 tex.colorSpace = THREE.SRGBColorSpace;
@@ -104,6 +105,7 @@ class AssetManager {
             },
             undefined,
             (err) => {
+              if (blobUrl.startsWith('blob:')) URL.revokeObjectURL(blobUrl);
               console.warn(`[AssetManager] Texture ${item.key} failed:`, err);
               checkComplete();
             }

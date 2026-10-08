@@ -96,6 +96,16 @@ export class Arena {
     this.isShrinking = true;
   }
 
+  resetRadius(newRadius = 12) {
+    this.initialRadius = newRadius;
+    this.radius = newRadius;
+    this.targetRadius = newRadius;
+    this.isShrinking = false;
+    if (this.boundaryMesh) this.boundaryMesh.scale.set(1, 1, 1);
+    if (this.midBoundaryMesh) this.midBoundaryMesh.scale.set(1, 1, 1);
+    if (this.shieldMesh) this.shieldMesh.scale.set(1, 1, 1);
+  }
+
   isInside(x, z, margin = 0.8) {
     const dist = Math.sqrt(x * x + z * z);
     return dist <= (this.radius - margin);
@@ -131,12 +141,18 @@ export class Arena {
           this.radius = this.targetRadius;
           this.isShrinking = false;
         }
-
-        const scale = this.radius / this.initialRadius;
-        if (this.boundaryMesh) this.boundaryMesh.scale.set(scale, scale, 1);
-        if (this.midBoundaryMesh) this.midBoundaryMesh.scale.set(scale, scale, 1);
-        if (this.shieldMesh) this.shieldMesh.scale.set(scale, 1, scale);
+      } else if (this.radius < this.targetRadius) {
+        this.radius += this.shrinkSpeed * delta;
+        if (this.radius >= this.targetRadius) {
+          this.radius = this.targetRadius;
+          this.isShrinking = false;
+        }
       }
+
+      const scale = this.radius / this.initialRadius;
+      if (this.boundaryMesh) this.boundaryMesh.scale.set(scale, scale, 1);
+      if (this.midBoundaryMesh) this.midBoundaryMesh.scale.set(scale, scale, 1);
+      if (this.shieldMesh) this.shieldMesh.scale.set(scale, 1, scale);
     }
 
     // Boundary glow pulse

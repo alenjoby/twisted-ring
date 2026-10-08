@@ -1,11 +1,32 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Safe Storage helper to prevent crashes when storage is disabled or blocked
+export const safeStorage = {
+  getItem: (key) => {
+    try {
+      return typeof window !== 'undefined' && window.localStorage ? window.localStorage.getItem(key) : null;
+    } catch {
+      return null;
+    }
+  },
+  setItem: (key, val) => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) window.localStorage.setItem(key, val);
+    } catch {}
+  },
+  removeItem: (key) => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) window.localStorage.removeItem(key);
+    } catch {}
+  }
+};
+
 // Default / fallback configuration (Supports both Vite and Vercel Next.js integration variables)
-const DEFAULT_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || localStorage.getItem('supabase_url') || 'https://mock.supabase.co';
-const DEFAULT_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || localStorage.getItem('supabase_anon_key') || 'mock-key';
+const DEFAULT_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || safeStorage.getItem('supabase_url') || 'https://mock.supabase.co';
+const DEFAULT_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || safeStorage.getItem('supabase_anon_key') || 'mock-key';
 
 export class SupabaseManager {
-  constructor({ onPlayerJoined, onPlayerLeft, onPlayerMoved, onRoundSync, onReveal, onHit, onRoomStateChange, onPlayerReady, onForceStart, onLockPacket, onRoundVerdict, onRoomSettings }) {
+  constructor({ onPlayerJoined, onPlayerLeft, onPlayerMoved, onRoundSync, onReveal, onHit, onRoomStateChange, onPlayerReady, onForceStart, onLockPacket, onRoundVerdict, onRoomSettings, onPlayerRenamed, onGameReset }) {
     this.onPlayerJoined = onPlayerJoined;
     this.onPlayerLeft = onPlayerLeft;
     this.onPlayerMoved = onPlayerMoved;
@@ -18,6 +39,8 @@ export class SupabaseManager {
     this.onLockPacket = onLockPacket;
     this.onRoundVerdict = onRoundVerdict;
     this.onRoomSettings = onRoomSettings;
+    this.onPlayerRenamed = onPlayerRenamed;
+    this.onGameReset = onGameReset;
 
     this.client = null;
     this.channel = null;
@@ -31,11 +54,26 @@ export class SupabaseManager {
     this.moveThrottleMs = 50; // ~20Hz updates for fluid real-time sync
 
     this.initClient(DEFAULT_URL, DEFAULT_KEY);
+
+    // Auto-clean up before tab closes or reloads
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', () => {
+        if (this.localBc && this.myPlayerInfo) {
+          try {
+            this.localBc.postMessage({
+              type: 'player-left',
+              data: { id: this.myPlayerInfo.id }
+            });
+          } catch {}
+        }
+      });
+    }
   }
 
   initClient(url, key) {
     if (url && key && url.includes('supabase.co') && key !== 'mock-key') {
       try {
+        // Supabase Realtime establishes a full-duplex persistent WebSocket connection (wss://)
         this.client = createClient(url, key, {
           realtime: {
             params: {
@@ -44,11 +82,11 @@ export class SupabaseManager {
           }
         });
         this.isConfigured = true;
-        localStorage.setItem('supabase_url', url);
-        localStorage.setItem('supabase_anon_key', key);
-        console.log('[Supabase] Initialized successfully with remote project');
+        safeStorage.setItem('supabase_url', url);
+        safeStorage.setItem('supabase_anon_key', key);
+        console.log('[Supabase WebSocket] Initialized successfully with remote project');
       } catch (err) {
-        console.warn('[Supabase] Init error:', err);
+        console.warn('[Supabase WebSocket] Init error:', err);
         this.isConfigured = false;
       }
     } else {
@@ -57,17 +95,40 @@ export class SupabaseManager {
     }
   }
 
-  // Set local player info before connecting
+  // Set local player info before connecting, preserving joinedAt
   setPlayerInfo(info) {
-    this.myPlayerInfo = info;
-    if (this.myPlayerInfo && !this.myPlayerInfo.joinedAt) {
-      this.myPlayerInfo.joinedAt = Date.now();
+    if (!this.myPlayerInfo) {
+      this.myPlayerInfo = { ...info, joinedAt: Date.now() };
+    } else {
+      const existingJoinedAt = this.myPlayerInfo.joinedAt || Date.now();
+      Object.assign(this.myPlayerInfo, info);
+      this.myPlayerInfo.joinedAt = existingJoinedAt;
     }
   }
 
-  // Join a Room (Public or Private) with strict 5-player limit
+  // Update call-sign and broadcast to room
+  async updatePlayerName(newName) {
+    if (!this.myPlayerInfo) return;
+    this.myPlayerInfo.name = newName;
+    if (this.channel && this.isConfigured) {
+      await this.channel.track(this.myPlayerInfo);
+      this.channel.send({
+        type: 'broadcast',
+        event: 'player-renamed',
+        payload: { id: this.myPlayerInfo.id, name: newName }
+      });
+    } else if (this.localBc) {
+      this.localBc.postMessage({
+        type: 'player-renamed',
+        data: { id: this.myPlayerInfo.id, name: newName }
+      });
+      this.syncLocalRoomState();
+    }
+  }
+
+  // Join a Room (Public or Private) with strict player limit
   async joinRoom(roomId, playerInfo = null) {
-    if (playerInfo) this.myPlayerInfo = playerInfo;
+    if (playerInfo) this.setPlayerInfo(playerInfo);
     if (this.myPlayerInfo && !this.myPlayerInfo.joinedAt) {
       this.myPlayerInfo.joinedAt = Date.now();
     }
@@ -183,6 +244,12 @@ export class SupabaseManager {
         })
         .on('broadcast', { event: 'room-settings' }, ({ payload }) => {
           if (this.onRoomSettings) this.onRoomSettings(payload);
+        })
+        .on('broadcast', { event: 'player-renamed' }, ({ payload }) => {
+          if (this.onPlayerRenamed) this.onPlayerRenamed(payload);
+        })
+        .on('broadcast', { event: 'game-reset' }, ({ payload }) => {
+          if (this.onGameReset) this.onGameReset(payload);
         });
 
       // Subscribe and track presence
@@ -241,6 +308,13 @@ export class SupabaseManager {
           if (this.onRoundVerdict) this.onRoundVerdict(data);
         } else if (type === 'room-settings') {
           if (this.onRoomSettings) this.onRoomSettings(data);
+        } else if (type === 'player-renamed') {
+          const p = this.connectedPlayers.get(data.id);
+          if (p) p.name = data.name;
+          if (this.onPlayerRenamed) this.onPlayerRenamed(data);
+          this.syncLocalRoomState();
+        } else if (type === 'game-reset') {
+          if (this.onGameReset) this.onGameReset(data);
         } else if (type === 'player-left') {
           if (data && data.id === this.myPlayerInfo?.id) return;
           this.connectedPlayers.delete(data.id);
@@ -373,7 +447,7 @@ export class SupabaseManager {
   }
 
   broadcastForceStart() {
-    const payload = { initiator: this.myPlayerInfo.id, hostId: this.hostId };
+    const payload = { initiator: this.myPlayerInfo?.id, hostId: this.hostId, senderId: this.myPlayerInfo?.id };
     if (this.channel && this.isConfigured) {
       this.channel.send({
         type: 'broadcast',
@@ -389,6 +463,7 @@ export class SupabaseManager {
   }
 
   broadcastLockPacket(payload) {
+    if (!payload.senderId) payload.senderId = this.myPlayerInfo?.id;
     if (this.channel && this.isConfigured) {
       this.channel.send({
         type: 'broadcast',
@@ -404,6 +479,7 @@ export class SupabaseManager {
   }
 
   broadcastRoundVerdict(payload) {
+    payload.senderId = this.myPlayerInfo?.id;
     if (this.channel && this.isConfigured) {
       this.channel.send({
         type: 'broadcast',
@@ -419,6 +495,13 @@ export class SupabaseManager {
   }
 
   broadcastRoomSettings(settings) {
+    settings.senderId = this.myPlayerInfo?.id;
+    if (this.myPlayerInfo) {
+      this.myPlayerInfo.settings = settings;
+      if (this.channel && this.isConfigured) {
+        this.channel.track(this.myPlayerInfo).catch(() => {});
+      }
+    }
     if (this.channel && this.isConfigured) {
       this.channel.send({
         type: 'broadcast',
@@ -429,6 +512,22 @@ export class SupabaseManager {
       this.localBc.postMessage({
         type: 'room-settings',
         data: settings
+      });
+    }
+  }
+
+  broadcastGameReset() {
+    const payload = { senderId: this.myPlayerInfo?.id };
+    if (this.channel && this.isConfigured) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'game-reset',
+        payload
+      });
+    } else if (this.localBc) {
+      this.localBc.postMessage({
+        type: 'game-reset',
+        data: payload
       });
     }
   }
@@ -449,7 +548,13 @@ export class SupabaseManager {
       this.localBc.close();
       this.localBc = null;
     }
+    // Bug #14: Notify player-left for all existing connected players so their character models are cleanly removed
+    for (const id of this.connectedPlayers.keys()) {
+      if (this.onPlayerLeft) this.onPlayerLeft(id);
+    }
     this.connectedPlayers.clear();
     this.roomId = null;
+    this.hostId = null;
+    this.isHost = false;
   }
 }

@@ -18,16 +18,19 @@ create table if not exists public.profiles (
 alter table public.profiles enable row level security;
 
 -- Allow public read access to leaderboard and profiles
+drop policy if exists "Public profiles are viewable by everyone" on public.profiles;
 create policy "Public profiles are viewable by everyone"
   on public.profiles for select
   using (true);
 
 -- Allow players to insert their profile
+drop policy if exists "Players can insert their profile" on public.profiles;
 create policy "Players can insert their profile"
   on public.profiles for insert
   with check (true);
 
 -- Allow players to update their profile stats
+drop policy if exists "Players can update their profile" on public.profiles;
 create policy "Players can update their profile"
   on public.profiles for update
   using (true);
@@ -50,21 +53,25 @@ create table if not exists public.match_rooms (
 alter table public.match_rooms enable row level security;
 
 -- Allow anyone to view rooms
+drop policy if exists "Rooms are viewable by everyone" on public.match_rooms;
 create policy "Rooms are viewable by everyone"
   on public.match_rooms for select
   using (true);
 
 -- Allow players to create rooms
+drop policy if exists "Players can create rooms" on public.match_rooms;
 create policy "Players can create rooms"
   on public.match_rooms for insert
   with check (true);
 
 -- Allow room updates (player counts, status)
+drop policy if exists "Players can update rooms" on public.match_rooms;
 create policy "Players can update rooms"
   on public.match_rooms for update
   using (true);
 
 -- Allow room deletion when empty
+drop policy if exists "Players can delete rooms" on public.match_rooms;
 create policy "Players can delete rooms"
   on public.match_rooms for delete
   using (true);
@@ -98,10 +105,12 @@ begin
 end;
 $$ language plpgsql;
 
+drop trigger if exists on_profiles_updated on public.profiles;
 create trigger on_profiles_updated
   before update on public.profiles
   for each row execute procedure public.handle_updated_at();
 
+drop trigger if exists on_rooms_updated on public.match_rooms;
 create trigger on_rooms_updated
   before update on public.match_rooms
   for each row execute procedure public.handle_updated_at();

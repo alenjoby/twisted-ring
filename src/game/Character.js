@@ -422,13 +422,34 @@ export class Character {
 
   dispose() {
     this.removeGhostSilhouette();
+    if (this.laserBeam) {
+      this.scene.remove(this.laserBeam);
+      if (this.laserBeam.geometry) this.laserBeam.geometry.dispose();
+      if (this.laserBeam.material) this.laserBeam.material.dispose();
+      this.laserBeam = null;
+    }
+    if (this.laserDot) {
+      this.scene.remove(this.laserDot);
+      if (this.laserDot.geometry) this.laserDot.geometry.dispose();
+      if (this.laserDot.material) this.laserDot.material.dispose();
+      this.laserDot = null;
+    }
+    if (this.readyAura) {
+      this.group.remove(this.readyAura);
+      if (this.readyAura.geometry) this.readyAura.geometry.dispose();
+      if (this.readyAura.material) this.readyAura.material.dispose();
+      this.readyAura = null;
+    }
     this.scene.remove(this.group);
     if (this.mixer) {
       this.mixer.stopAllAction();
     }
+    // Only dispose per-character accessory meshes, NEVER the shared cloned base model geometry
     this.group.traverse((child) => {
-      if (child.isMesh) {
-        if (child.geometry) child.geometry.dispose();
+      if (child.isMesh && child !== this.fbxModel) {
+        if (child.geometry && child.geometry !== this.fbxModel?.geometry) {
+          child.geometry.dispose();
+        }
         if (child.material) {
           if (Array.isArray(child.material)) {
             child.material.forEach(m => m.dispose());

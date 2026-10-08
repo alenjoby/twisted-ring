@@ -4,7 +4,16 @@ import { assetManager } from './game/AssetManager.js';
 import { Arena } from './game/Arena.js';
 import { Character } from './game/Character.js';
 import { audioSystem } from './game/AudioSystem.js';
-import { SupabaseManager } from './game/SupabaseManager.js';
+import { SupabaseManager, safeStorage } from './game/SupabaseManager.js';
+
+// HTML Entity Escaper & Sanitizer (XSS Mitigation)
+const esc = s => String(s ?? '').slice(0, 15).replace(/[&<>"']/g, c => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;'
+}[c]));
 
 // --- CONFIG & STATE ---
 const CONFIG = {
@@ -20,9 +29,21 @@ let countdownTime = CONFIG.countdownSeconds;
 let currentRound = 1;
 let arenaRadius = CONFIG.initialArenaRadius;
 let currentRoomId = 'sector_1';
+let currentSquadName = 'ALPHA DOGS';
+let localPlayerDeployed = false;
+let revealWatchdogTimer = null;
 
-const savedName = localStorage.getItem('twisted_player_name') || `OPERATOR_${Math.floor(100 + Math.random() * 900)}`;
-let playerName = savedName;
+function generateRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let res = '';
+  for (let i = 0; i < 5; i++) {
+    res += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return res;
+}
+
+const savedName = safeStorage.getItem('twisted_player_name') || `OPERATOR_${Math.floor(100 + Math.random() * 900)}`;
+let playerName = savedName.slice(0, 15);
 
 // --- THREE.JS ENGINE SETUP ---
 const container = document.getElementById('canvas-container');
@@ -103,11 +124,6 @@ const players = new Map();
 const myId = 'player_' + Math.random().toString(36).substring(2, 7);
 let localPlayer = null;
 
-// Expose globals for debugging
-window.players = players;
-window.startRound = startRound;
-window.THREE = THREE;
-
 // --- PRE-LOAD ALL ASSETS BEFORE STARTING ---
 const loadingScreen = document.getElementById('loading-screen');
 const progressBar = document.getElementById('loader-progress-bar');
@@ -142,7 +158,7 @@ function createNameTag(player) {
   tag.className = `floating-name-tag ${player.isLocal ? 'local' : ''}`;
   tag.innerHTML = `
     <span class="name-tag-dot ${player.isReady ? 'is-ready' : ''} ${player.isHost ? 'is-host' : ''}"></span>
-    <span class="name-tag-label">${player.name.toUpperCase()}</span>
+    <span class="name-tag-label">${esc(player.name.toUpperCase())}</span>
   `;
   container.appendChild(tag);
   player.htmlTag = tag;
@@ -153,7 +169,7 @@ function updateNameTag(player) {
   const label = player.htmlTag.querySelector('.name-tag-label');
   const dot = player.htmlTag.querySelector('.name-tag-dot');
   if (label) {
-    label.innerText = player.name.toUpperCase();
+    label.innerText = esc(player.name.toUpperCase());
   }
   if (dot) {
     if (player.isReady) dot.classList.add('is-ready');
@@ -235,6 +251,7 @@ function closeFriendsHub() {
 }
 
 function deployPlayerSkyDrop() {
+  localPlayerDeployed = true;
   document.getElementById('welcome-screen')?.classList.add('hidden');
   document.getElementById('mode-select-screen')?.classList.add('hidden');
   closeFriendsHub();
@@ -410,13 +427,20 @@ const supabaseManager = new SupabaseManager({
     if (data.id === myId || players.has(data.id)) return;
     addRemotePlayer(data.id, data.name || 'Operator', data.position);
     audioSystem.playPlayerJoined();
-    showBanner(`${(data.name || 'OPERATOR').toUpperCase()} JOINED THE RING`, 1600);
+    showBanner(`${esc((data.name || 'OPERATOR').toUpperCase())} JOINED THE RING`, 1600);
+    if (isLocalHost) {
+      supabaseManager.broadcastRoomSettings({
+        squadName: currentSquadName,
+        roundTime: CONFIG.countdownSeconds,
+        maxSquad: CONFIG.maxPlayersPerRoom
+      });
+    }
   },
   onPlayerLeft: (id) => {
     if (id === myId) return;
     const p = players.get(id);
     if (p) {
-      showBanner(`${p.name.toUpperCase()} DISCONNECTED`, 1600);
+      showBanner(`${esc(p.name.toUpperCase())} DISCONNECTED`, 1600);
       audioSystem.playPlayerLeft();
       removeRemotePlayer(id);
     }
@@ -441,16 +465,30 @@ const supabaseManager = new SupabaseManager({
       else audioSystem.playUnreadyClick();
     }
   },
-  onForceStart: () => {
+  onPlayerRenamed: (data) => {
+    if (!data || data.id === myId) return;
+    const p = players.get(data.id);
+    if (p) {
+      p.name = esc(data.name || p.name);
+      updateNameTag(p);
+      updateScoreboard();
+    }
+  },
+  onForceStart: (payload) => {
+    if (payload?.senderId && currentHostId && payload.senderId !== currentHostId) return;
     handleRemoteSquadLaunch();
   },
   onRoundSync: (data) => {
+    if (data?.senderId && currentHostId && data.senderId !== currentHostId) return;
     if (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END' || currentPhase === 'SHRINK') {
       currentRound = data.round || currentRound;
       closeFriendsHub();
       document.getElementById('welcome-screen')?.classList.add('hidden');
       document.getElementById('mode-select-screen')?.classList.add('hidden');
       document.getElementById('ui-overlay')?.classList.remove('hidden');
+      if (!localPlayerDeployed) {
+        deployPlayerSkyDrop();
+      }
       startRound(false);
     }
   },
@@ -460,26 +498,46 @@ const supabaseManager = new SupabaseManager({
   onLockPacket: (data) => {
     const p = players.get(data.id);
     if (p && !p.isLocal) {
-      p.group.position.set(data.x, data.y, data.z);
+      p.targetPos = new THREE.Vector3(data.x, data.y, data.z);
+      p.targetRotY = data.rotY;
+      p.group.position.copy(p.targetPos);
       p.rotationY = data.rotY;
       p.group.rotation.y = data.rotY;
       p.updateLaser();
     }
   },
   onRoundVerdict: (verdict) => {
+    if (verdict?.senderId && currentHostId && verdict.senderId !== currentHostId) return;
     if (!isLocalHost) {
       applyRoundVerdict(verdict);
     }
   },
   onRoomSettings: (settings) => {
+    if (settings?.senderId && currentHostId && settings.senderId !== currentHostId) return;
     if (settings.roundTime) CONFIG.countdownSeconds = settings.roundTime;
     if (settings.maxSquad) CONFIG.maxPlayersPerRoom = settings.maxSquad;
     if (settings.squadName) {
+      currentSquadName = settings.squadName;
       const title = document.getElementById('squad-room-title');
-      if (title) title.innerText = settings.squadName.toUpperCase();
+      if (title) title.innerText = esc(settings.squadName.toUpperCase());
     }
   },
+  onGameReset: (data) => {
+    if (data?.senderId && currentHostId && data.senderId !== currentHostId) return;
+    resetGame();
+  },
   onRoomStateChange: (state) => {
+    if (state.players && state.max) {
+      const myIndex = state.players.findIndex(p => p.id === myId);
+      if (myIndex >= state.max) {
+        showBanner('SQUAD FULL // CAPACITY EXCEEDED', 3000);
+        supabaseManager.leaveRoom();
+        closeFriendsHub();
+        document.getElementById('ui-overlay')?.classList.add('hidden');
+        document.getElementById('mode-select-screen')?.classList.remove('hidden');
+        return;
+      }
+    }
     updateRoomUI(state);
     updateFriendsHubRoster(state);
   }
@@ -492,11 +550,17 @@ const clockPhaseLabel = document.getElementById('clock-phase-label');
 const clockGuidanceText = document.getElementById('clock-guidance-text');
 const roundPillEl = document.getElementById('roster-round-pill');
 
+let bannerTimer = null;
 function showBanner(text, duration = 1800) {
-  if (!bannerEl) return;
-  bannerEl.innerText = text;
-  bannerEl.classList.add('active');
-  setTimeout(() => bannerEl.classList.remove('active'), duration);
+  const el = document.getElementById('event-banner');
+  if (!el) return;
+  if (bannerTimer) clearTimeout(bannerTimer);
+  el.innerText = text;
+  el.classList.add('active');
+  bannerTimer = setTimeout(() => {
+    el.classList.remove('active');
+    bannerTimer = null;
+  }, duration);
 }
 
 let consecutiveStalemates = 0;
@@ -569,6 +633,7 @@ function startRound(broadcast = true) {
     if (currentPhase !== 'RECON') return;
     currentPhase = 'STEALTH';
     countdownTime = CONFIG.countdownSeconds;
+    timerEl.innerText = countdownTime.toString().padStart(2, '0');
     clockPhaseLabel.innerText = 'PREDICTION LOCK';
     clockGuidanceText.innerText = 'OPPONENTS CONCEALED // GHOST SILHOUETTES MARKED';
     showBanner('PREDICTION LOCKDOWN', 1200);
@@ -640,6 +705,17 @@ function executeReveal() {
     setTimeout(() => {
       evaluateHostVerdict();
     }, 280);
+  } else {
+    // Watchdog fallback in case host disconnected mid-verdict
+    if (revealWatchdogTimer) clearTimeout(revealWatchdogTimer);
+    revealWatchdogTimer = setTimeout(() => {
+      if (currentPhase === 'REVEAL') {
+        console.warn('Host verdict timeout - evaluating fallback or awaiting migration');
+        if (isLocalHost) {
+          evaluateHostVerdict();
+        }
+      }
+    }, 3200);
   }
 }
 
@@ -661,7 +737,7 @@ function evaluateHostVerdict() {
         const closestPoint = ray.origin.clone().add(ray.direction.clone().multiplyScalar(proj));
         const dist = closestPoint.distanceTo(targetPos);
 
-        // Hitbox diameter 0.72m
+        // Hitbox radius 0.72m
         if (dist <= 0.72) {
           hitList.push({ shooterId: shooter.id, targetId: target.id });
         }
@@ -672,7 +748,7 @@ function evaluateHostVerdict() {
   const eliminatedIds = [...new Set(hitList.map(h => h.targetId))];
   const survivors = alivePlayers.filter(p => !eliminatedIds.includes(p.id));
   const isGameOver = survivors.length <= 1;
-  const winnerId = isGameOver ? (survivors[0] ? survivors[0].id : myId) : null;
+  const winnerId = isGameOver ? (survivors.length === 1 ? survivors[0].id : null) : null;
 
   let newRingRadius = arenaRadius;
   if (eliminatedIds.length > 0) {
@@ -700,6 +776,10 @@ function evaluateHostVerdict() {
 }
 
 function applyRoundVerdict(verdict) {
+  if (revealWatchdogTimer) {
+    clearTimeout(revealWatchdogTimer);
+    revealWatchdogTimer = null;
+  }
   players.forEach(p => p.setLaserActive(false));
 
   // Score awards
@@ -731,7 +811,7 @@ function applyRoundVerdict(verdict) {
   setTimeout(() => {
     if (verdict.isGameOver) {
       deactivateSpectatorMode();
-      const winner = players.get(verdict.winnerId) || localPlayer;
+      const winner = verdict.winnerId ? (players.get(verdict.winnerId) || localPlayer) : null;
       presentWinner(winner);
     } else {
       currentPhase = 'SHRINK';
@@ -774,6 +854,18 @@ function presentWinner(winner) {
   document.getElementById('name-tags-container')?.classList.add('hidden');
   document.getElementById('spectator-bar')?.classList.add('hidden');
 
+  const modal = document.getElementById('winner-modal');
+  const nameDisplay = document.getElementById('winner-name-display');
+
+  if (!winner) {
+    clockPhaseLabel.innerText = 'MATCH CONCLUDED';
+    clockGuidanceText.innerText = 'MUTUAL DESTRUCTION // NO SURVIVORS';
+    if (nameDisplay) nameDisplay.innerText = 'MUTUAL DESTRUCTION // DRAW';
+    if (modal) modal.classList.remove('hidden');
+    audioSystem.playVictoryFanfare();
+    return;
+  }
+
   clockPhaseLabel.innerText = 'MATCH CONCLUDED';
   clockGuidanceText.innerText = `${winner.name.toUpperCase()} WINS`;
 
@@ -787,8 +879,10 @@ function presentWinner(winner) {
 
   // Center champion, elevate slightly and scale up 1.45x facing the camera
   winner.group.position.set(0, 0, 0);
+  winner.targetPos = new THREE.Vector3(0, 0, 0);
   winner.group.rotation.y = Math.PI;
   winner.rotationY = Math.PI;
+  winner.targetRotY = Math.PI;
 
   if (winner.fbxModel) {
     winner.originalScale = winner.fbxModel.scale.x;
@@ -810,8 +904,6 @@ function presentWinner(winner) {
   ringSpot.intensity = 6.0;
 
   // Show Cinematic Victory Overlay (clean title & next match button)
-  const modal = document.getElementById('winner-modal');
-  const nameDisplay = document.getElementById('winner-name-display');
   if (nameDisplay) nameDisplay.innerText = `${winner.name.toUpperCase()} WINS`;
   if (modal) modal.classList.remove('hidden');
 }
@@ -844,7 +936,8 @@ function resetGame() {
 
   currentRound = 1;
   arenaRadius = CONFIG.initialArenaRadius;
-  if (arena) arena.shrinkTo(arenaRadius);
+  if (arena) arena.resetRadius(arenaRadius);
+  consecutiveStalemates = 0;
 
   let i = 0;
   players.forEach(p => {
@@ -862,6 +955,7 @@ function resetGame() {
   clockGuidanceText.innerText = 'CLICK READY UP TO START MATCH';
   
   isLocalReady = false;
+  supabaseManager.setReady(false);
   updateReadyButtonUI();
   updateScoreboard();
 }
@@ -877,7 +971,7 @@ function updateScoreboard() {
     row.innerHTML = `
       <div class="entry-name-box">
         <span class="entry-indicator ${!p.isAlive ? 'dead' : ''}"></span>
-        <span class="entry-name">${p.name}</span>
+        <span class="entry-name">${esc(p.name)}</span>
       </div>
       <span class="entry-score ${!p.isAlive ? 'dead' : ''}">${p.score} PTS</span>
     `;
@@ -961,7 +1055,16 @@ function handleRemoteSquadLaunch() {
 }
 
 function checkAllPlayersReady(playersList) {
-  if (!playersList || playersList.length < 2) return;
+  if (!playersList || playersList.length < 2) {
+    if (readyCountdownInterval) {
+      clearInterval(readyCountdownInterval);
+      readyCountdownInterval = null;
+      clockPhaseLabel.innerText = 'PREPARATION';
+      clockGuidanceText.innerText = 'NEED AT LEAST 2 PLAYERS TO START';
+      showBanner('WAITING FOR MORE OPERATORS', 1500);
+    }
+    return;
+  }
   if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END') return;
 
   const allReady = playersList.every(p => p.isReady === true);
@@ -1008,7 +1111,7 @@ function updateFriendsHubRoster(state) {
   const launchBtn = document.getElementById('btn-friends-host-launch');
   const waitingNotice = document.getElementById('friends-waiting-notice');
 
-  if (countVal) countVal.innerText = `${state.count}/${CONFIG.maxPlayersPerRoom}`;
+  if (countVal) countVal.innerText = `${state.count}/${state.max || CONFIG.maxPlayersPerRoom}`;
   if (hostVal) {
     if (state.isHost) {
       hostVal.innerText = 'YOU ARE HOST';
@@ -1039,7 +1142,7 @@ function updateFriendsHubRoster(state) {
 
       card.innerHTML = `
         <div class="player-card-name">
-          <span>${p.name.toUpperCase()} ${p.id === myId ? '(YOU)' : ''}</span>
+          <span>${esc(p.name.toUpperCase())} ${p.id === myId ? '(YOU)' : ''}</span>
           ${isPHost ? `
             <span class="player-host-tag">
               <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -1061,8 +1164,16 @@ function updateRoomUI(state) {
   const roomNameEl = document.getElementById('room-name-display');
   const roomCountEl = document.getElementById('room-players-count');
   const playersListEl = document.getElementById('lobby-players-list');
+  const wasHost = isLocalHost;
   isLocalHost = !!state.isHost;
   currentHostId = state.hostId;
+
+  if (!wasHost && isLocalHost) {
+    showBanner('YOU ARE NOW THE SQUAD HOST', 2000);
+    if (currentPhase === 'INPUT_FREEZE' || currentPhase === 'REVEAL') {
+      evaluateHostVerdict();
+    }
+  }
 
   if (localPlayer) {
     localPlayer.isHost = isLocalHost;
@@ -1075,7 +1186,7 @@ function updateRoomUI(state) {
     : `PUBLIC SECTOR: ${state.roomId.toUpperCase()}`;
 
   if (roomNameEl) roomNameEl.innerText = `CONNECTED: ${displayTitle}`;
-  if (roomCountEl) roomCountEl.innerText = `${state.count}/5 PLAYERS`;
+  if (roomCountEl) roomCountEl.innerText = `${state.count}/${state.max || CONFIG.maxPlayersPerRoom} PLAYERS`;
 
   if (playersListEl && state.players) {
     playersListEl.innerHTML = '';
@@ -1094,7 +1205,7 @@ function updateRoomUI(state) {
 
       card.innerHTML = `
         <div class="player-card-name">
-          <span>${p.name.toUpperCase()} ${p.id === myId ? '(YOU)' : ''}</span>
+          <span>${esc(p.name.toUpperCase())} ${p.id === myId ? '(YOU)' : ''}</span>
           ${isPPlayerHost ? `
             <span class="player-host-tag">
               <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -1199,7 +1310,7 @@ document.getElementById('btn-confirm-create-squad')?.addEventListener('click', (
   CONFIG.countdownSeconds = roundTime;
   CONFIG.maxPlayersPerRoom = maxPlayers;
 
-  const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+  const code = generateRoomCode();
   currentRoomId = `custom_${code}`;
 
   document.getElementById('mode-select-screen')?.classList.add('hidden');
@@ -1268,6 +1379,8 @@ document.getElementById('btn-friends-copy-link')?.addEventListener('click', () =
   const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${code}`;
   navigator.clipboard.writeText(inviteUrl).then(() => {
     showBanner('SQUAD INVITE LINK COPIED', 2000);
+  }).catch(() => {
+    showBanner(`INVITE CODE: ${code}`, 2000);
   });
 });
 
@@ -1326,7 +1439,7 @@ document.getElementById('btn-quick-play')?.addEventListener('click', () => {
 document.getElementById('btn-create-private')?.addEventListener('click', () => {
   audioSystem.init();
   lobbyModal.classList.remove('active');
-  const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+  const code = generateRoomCode();
   currentRoomId = `custom_${code}`;
   openFriendsHub();
   const titleEl = document.getElementById('squad-room-title');
@@ -1382,7 +1495,7 @@ document.getElementById('btn-save-name')?.addEventListener('click', () => {
   const newName = nameInput.value.trim();
   if (newName) {
     playerName = newName;
-    localStorage.setItem('twisted_player_name', newName);
+    safeStorage.setItem('twisted_player_name', newName);
     if (localPlayer) {
       localPlayer.name = newName;
       updateNameTag(localPlayer);
@@ -1402,6 +1515,9 @@ document.getElementById('btn-save-name')?.addEventListener('click', () => {
 // Winner Play Again
 document.getElementById('btn-play-again')?.addEventListener('click', () => {
   resetGame();
+  if (isLocalHost) {
+    supabaseManager.broadcastGameReset();
+  }
 });
 
 // --- RENDER & GAME ANIMATION LOOP ---
@@ -1463,11 +1579,15 @@ function animate() {
       localPlayer.group.rotation.y = localPlayer.rotationY;
 
       supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY);
-    } else if (localPlayer.currentActionName === 'run') {
-      localPlayer.playAction('idle', 0.18);
-      localPlayer.lookAtTarget(aimPoint);
     } else {
+      if (localPlayer.currentActionName === 'run') {
+        localPlayer.playAction('idle', 0.18);
+      }
+      const prevRot = localPlayer.rotationY;
       localPlayer.lookAtTarget(aimPoint);
+      if (Math.abs(localPlayer.rotationY - prevRot) > 0.02) {
+        supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY);
+      }
     }
   } else if (localPlayer && isInputLocked && localPlayer.isAlive) {
     if (localPlayer.currentActionName === 'run') {
@@ -1478,21 +1598,23 @@ function animate() {
   // STRICT BOUNDARY ENFORCEMENT & REMOTE PLAYER SMOOTHING
   players.forEach(p => {
     if (!p.isLocal && p.targetPos && p.isAlive) {
-      const dist = p.group.position.distanceTo(p.targetPos);
-      if (dist > 6.0) {
-        p.group.position.copy(p.targetPos);
-      } else if (dist > 0.04) {
-        p.group.position.lerp(p.targetPos, Math.min(1, 14.0 * delta));
-        p.playAction('run', 0.12);
-      } else {
-        p.playAction('idle', 0.18);
-      }
-      if (p.targetRotY !== undefined) {
-        let diff = p.targetRotY - p.rotationY;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        p.rotationY += diff * 12.0 * delta;
-        p.group.rotation.y = p.rotationY;
+      if (currentPhase !== 'VICTORY') {
+        const dist = p.group.position.distanceTo(p.targetPos);
+        if (dist > 6.0) {
+          p.group.position.copy(p.targetPos);
+        } else if (dist > 0.04) {
+          p.group.position.lerp(p.targetPos, Math.min(1, 14.0 * delta));
+          p.playAction('run', 0.12);
+        } else if (p.currentActionName === 'run') {
+          p.playAction('idle', 0.18);
+        }
+        if (p.targetRotY !== undefined) {
+          let diff = p.targetRotY - p.rotationY;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          p.rotationY += diff * 12.0 * delta;
+          p.group.rotation.y = p.rotationY;
+        }
       }
       p.updateLaser();
     }
