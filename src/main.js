@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { assetManager } from './game/AssetManager.js';
+import { assetManager, CHARACTER_DATA } from './game/AssetManager.js';
 import { Arena } from './game/Arena.js';
 import { Character } from './game/Character.js';
 import { audioSystem } from './game/AudioSystem.js';
@@ -44,6 +44,9 @@ function generateRoomCode() {
 
 const savedName = safeStorage.getItem('twisted_player_name') || `OPERATOR_${Math.floor(100 + Math.random() * 900)}`;
 let playerName = savedName.slice(0, 15);
+let selectedCharacterId = safeStorage.getItem('twisted_character_id') || 'ajp';
+if (!CHARACTER_DATA[selectedCharacterId]) selectedCharacterId = 'ajp';
+let pendingDeployment = null;
 
 // --- THREE.JS ENGINE SETUP ---
 const container = document.getElementById('canvas-container');
@@ -246,7 +249,8 @@ function initGameAfterLoading() {
     name: playerName,
     isLocal: true,
     color: 0xffcc00,
-    assetManager
+    assetManager,
+    characterId: selectedCharacterId
   });
   localPlayer.group.position.copy(spawnPos);
   localPlayer.lookAtTarget(new THREE.Vector3(0, 0, 0));
@@ -292,6 +296,7 @@ function deployPlayerSkyDrop() {
   localPlayerDeployed = true;
   document.getElementById('welcome-screen')?.classList.add('hidden');
   document.getElementById('mode-select-screen')?.classList.add('hidden');
+  document.getElementById('character-select-screen')?.classList.add('hidden');
   closeFriendsHub();
   document.getElementById('lobby-modal')?.classList.remove('active');
   document.getElementById('ui-overlay')?.classList.remove('hidden');
@@ -334,8 +339,14 @@ function deployPlayerSkyDrop() {
   }, 16);
 }
 
-function addRemotePlayer(id, name, pos = null) {
-  if (players.has(id)) return players.get(id);
+function addRemotePlayer(id, name, pos = null, characterId = 'ajp') {
+  if (players.has(id)) {
+    const existing = players.get(id);
+    if (characterId && existing.characterId !== characterId) {
+      existing.setCharacterId(characterId);
+    }
+    return existing;
+  }
   const operatorColors = [0xff2a5f, 0xffaa00, 0x00f0ff, 0xaa00ff, 0x00ff88];
   const color = operatorColors[players.size % operatorColors.length];
 
@@ -345,7 +356,8 @@ function addRemotePlayer(id, name, pos = null) {
     name: name || `Operator ${players.size + 1}`,
     isLocal: false,
     color,
-    assetManager
+    assetManager,
+    characterId: characterId || 'ajp'
   });
 
   const spawnIndex = getPlayerSpawnIndex(id);
@@ -370,6 +382,7 @@ function spawnPracticeBots(count = 2) {
   clearPracticeBots();
   const botNames = ['TARGET_VIPER', 'TARGET_PHANTOM'];
   const botColors = [0x00f0ff, 0xff0055];
+  const botChars = ['big_vegas', 'knight'];
   for (let i = 0; i < count; i++) {
     const botId = `bot_${i + 1}`;
     const p = new Character({
@@ -378,7 +391,8 @@ function spawnPracticeBots(count = 2) {
       name: botNames[i] || `BOT_${i + 1}`,
       isLocal: false,
       color: botColors[i] || 0x00f0ff,
-      assetManager
+      assetManager,
+      characterId: botChars[i] || 'big_vegas'
     });
     p.isBot = true;
     p.isHost = false;
@@ -412,6 +426,8 @@ function isModalActive() {
   if (welcome && !welcome.classList.contains('hidden')) return true;
   const modeSelect = document.getElementById('mode-select-screen');
   if (modeSelect && !modeSelect.classList.contains('hidden')) return true;
+  const charSelect = document.getElementById('character-select-screen');
+  if (charSelect && !charSelect.classList.contains('hidden')) return true;
   const friendsHub = document.getElementById('friends-hub-modal');
   if (friendsHub && !friendsHub.classList.contains('hidden') && friendsHub.classList.contains('active')) return true;
   const lobby = document.getElementById('lobby-modal');
@@ -585,7 +601,7 @@ const supabaseManager = new SupabaseManager({
     if (practiceBots.length > 0) {
       clearPracticeBots();
     }
-    addRemotePlayer(data.id, data.name || 'Operator', data.position);
+    addRemotePlayer(data.id, data.name || 'Operator', data.position, data.characterId || 'ajp');
     audioSystem.playPlayerJoined();
     showBanner(`${esc((data.name || 'OPERATOR').toUpperCase())} JOINED THE RING`, 1600);
     if (isLocalHost) {
@@ -609,7 +625,9 @@ const supabaseManager = new SupabaseManager({
     if (!data || !data.id || data.id === myId) return;
     let p = players.get(data.id);
     if (!p) {
-      p = addRemotePlayer(data.id, data.name || 'Operator', new THREE.Vector3(data.x, data.y, data.z));
+      p = addRemotePlayer(data.id, data.name || 'Operator', new THREE.Vector3(data.x, data.y, data.z), data.characterId || 'ajp');
+    } else if (data.characterId && p.characterId !== data.characterId) {
+      p.setCharacterId(data.characterId);
     }
     if (p && !p.isLocal) {
       p.targetPos = new THREE.Vector3(data.x, data.y, data.z);
@@ -1197,9 +1215,11 @@ function presentWinner(winner) {
   controls.update();
   victoryOrbitAngle = 0;
 
-  // Play Victory Fanfare and Celebration Dance
+  // Play Victory Fanfare and Character-Specific Celebration Dance
   audioSystem.playVictoryFanfare();
-  winner.playAction('dance', 0.2);
+  const charMeta = CHARACTER_DATA[winner.characterId] || CHARACTER_DATA['ajp'];
+  const danceKey = charMeta?.danceKey || 'dance';
+  winner.playAction(danceKey, 0.2);
 
   // Focus high-intensity spotlight on the champion
   ringSpot.position.set(0, 10, 2);
@@ -1208,6 +1228,10 @@ function presentWinner(winner) {
 
   // Show Cinematic Victory Overlay (clean title & next match button)
   if (nameDisplay) nameDisplay.innerText = `${winner.name.toUpperCase()} WINS`;
+  const danceDisplay = document.getElementById('winner-dance-display');
+  if (danceDisplay) {
+    danceDisplay.innerText = `CELEBRATION: ${charMeta?.danceName || 'VICTORY DANCE'}`;
+  }
   if (modal) modal.classList.remove('hidden');
 }
 
@@ -1359,6 +1383,7 @@ function handleRemoteSquadLaunch() {
   closeFriendsHub();
   document.getElementById('welcome-screen')?.classList.add('hidden');
   document.getElementById('mode-select-screen')?.classList.add('hidden');
+  document.getElementById('character-select-screen')?.classList.add('hidden');
   deployPlayerSkyDrop();
   startRound(false);
 }
@@ -1447,10 +1472,22 @@ function updateFriendsHubRoster(state) {
       card.className = `lobby-player-card ${p.id === myId ? 'is-local' : ''}`;
       const isReady = p.isReady === true;
       const isPHost = (p.id === state.hostId);
+      const charMeta = CHARACTER_DATA[p.characterId || 'ajp'] || CHARACTER_DATA['ajp'];
+
+      const char = players.get(p.id);
+      if (char) {
+        char.isHost = isPHost;
+        char.setReady(isReady);
+        if (p.characterId && char.characterId !== p.characterId) {
+          char.setCharacterId(p.characterId);
+        }
+        updateNameTag(char);
+      }
 
       card.innerHTML = `
         <div class="player-card-name">
           <span>${esc(p.name.toUpperCase())} ${p.id === myId ? '(YOU)' : ''}</span>
+          <span class="player-host-tag" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18);">${charMeta.name}</span>
           ${isPHost ? `
             <span class="player-host-tag">
               <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -1510,17 +1547,22 @@ function updateRoomUI(state) {
       card.className = `lobby-player-card ${p.id === myId ? 'is-local' : ''}`;
       const isReady = p.isReady === true;
       const isPPlayerHost = (p.id === currentHostId);
+      const charMeta = CHARACTER_DATA[p.characterId || 'ajp'] || CHARACTER_DATA['ajp'];
 
       const char = players.get(p.id);
       if (char) {
         char.isHost = isPPlayerHost;
         char.setReady(isReady);
+        if (p.characterId && char.characterId !== p.characterId) {
+          char.setCharacterId(p.characterId);
+        }
         updateNameTag(char);
       }
 
       card.innerHTML = `
         <div class="player-card-name">
           <span>${esc(p.name.toUpperCase())} ${p.id === myId ? '(YOU)' : ''}</span>
+          <span class="player-host-tag" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18);">${charMeta.name}</span>
           ${isPPlayerHost ? `
             <span class="player-host-tag">
               <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -1540,6 +1582,116 @@ function updateRoomUI(state) {
   checkAllPlayersReady(state.players);
 }
 
+// --- SCREEN NAVIGATION & OPERATOR SELECTION ---
+
+function openCharacterSelectScreen() {
+  document.getElementById('character-select-screen')?.classList.remove('hidden');
+  updateCharacterSelectUI();
+}
+
+function closeCharacterSelectScreen() {
+  document.getElementById('character-select-screen')?.classList.add('hidden');
+}
+
+function updateCharacterSelectUI() {
+  const cards = document.querySelectorAll('#char-cards-container .char-card');
+  cards.forEach(card => {
+    const id = card.getAttribute('data-char-id');
+    const isSelected = (id === selectedCharacterId);
+    if (isSelected) {
+      card.classList.add('active');
+      const status = card.querySelector('.char-status-badge');
+      if (status) status.innerText = 'SELECTED';
+    } else {
+      card.classList.remove('active');
+      const status = card.querySelector('.char-status-badge');
+      if (status) status.innerText = 'SELECT';
+    }
+  });
+}
+
+function executeDeployment(deployment) {
+  if (!deployment) deployment = { type: 'public' };
+  audioSystem.init();
+
+  if (deployment.type === 'public') {
+    currentRoomId = 'sector_1';
+    isLocalReady = false;
+    updateReadyButtonUI();
+    supabaseManager.joinRoom(currentRoomId, {
+      id: myId,
+      name: playerName,
+      color: 0xffcc00,
+      isReady: false,
+      characterId: selectedCharacterId,
+      position: localPlayer.group.position
+    });
+    deployPlayerSkyDrop();
+    const charMeta = CHARACTER_DATA[selectedCharacterId] || CHARACTER_DATA['ajp'];
+    showBanner(`DEPLOYING TO SECTOR 1 // OPERATOR: ${charMeta.name}`, 2000);
+  } else if (deployment.type === 'create_squad') {
+    const squadName = deployment.squadName || 'ALPHA DOGS';
+    const roundTime = deployment.roundTime || 5;
+    const maxPlayers = deployment.maxPlayers || 5;
+    CONFIG.countdownSeconds = roundTime;
+    CONFIG.maxPlayersPerRoom = maxPlayers;
+
+    const code = generateRoomCode();
+    currentRoomId = `custom_${code}`;
+
+    openFriendsHub();
+
+    const titleEl = document.getElementById('squad-room-title');
+    if (titleEl) titleEl.innerText = squadName.toUpperCase();
+    const codeEl = document.getElementById('squad-code-val');
+    if (codeEl) codeEl.innerText = code;
+    const timerVal = document.getElementById('squad-timer-val');
+    if (timerVal) timerVal.innerText = `${roundTime}S`;
+
+    isLocalReady = false;
+    updateReadyButtonUI();
+
+    supabaseManager.joinRoom(currentRoomId, {
+      id: myId,
+      name: playerName,
+      color: 0xffcc00,
+      isReady: false,
+      characterId: selectedCharacterId,
+      position: localPlayer.group.position
+    });
+
+    setTimeout(() => {
+      supabaseManager.broadcastRoomSettings({ squadName, roundTime, maxSquad: maxPlayers });
+    }, 500);
+
+    showBanner(`PRIVATE SQUAD ESTABLISHED: ${code}`, 2500);
+  } else if (deployment.type === 'join_squad') {
+    const code = deployment.code;
+    currentRoomId = `custom_${code}`;
+
+    openFriendsHub();
+
+    const titleEl = document.getElementById('squad-room-title');
+    if (titleEl) titleEl.innerText = `SQUAD ${code}`;
+    const codeEl = document.getElementById('squad-code-val');
+    if (codeEl) codeEl.innerText = code;
+
+    isLocalReady = false;
+    updateReadyButtonUI();
+
+    supabaseManager.joinRoom(currentRoomId, {
+      id: myId,
+      name: playerName,
+      color: 0xffcc00,
+      isReady: false,
+      characterId: selectedCharacterId,
+      position: localPlayer.group.position
+    });
+
+    showBanner(`JOINING SQUAD: ${code}`, 2000);
+  }
+}
+
 // --- BUTTON & SCREEN LISTENERS ---
 
 // 1. Welcome Screen
@@ -1548,7 +1700,7 @@ document.getElementById('btn-enter-game')?.addEventListener('click', () => {
   const val = input ? input.value.trim() : '';
   if (val) {
     playerName = val;
-    localStorage.setItem('twisted_player_name', playerName);
+    safeStorage.setItem('twisted_player_name', playerName);
     if (localPlayer) {
       localPlayer.name = playerName;
       updateNameTag(localPlayer);
@@ -1559,20 +1711,9 @@ document.getElementById('btn-enter-game')?.addEventListener('click', () => {
   audioSystem.playReadyClick();
 
   if (inviteRoomCode) {
-    currentRoomId = `custom_${inviteRoomCode}`;
+    pendingDeployment = { type: 'join_squad', code: inviteRoomCode };
     document.getElementById('welcome-screen')?.classList.add('hidden');
-    openFriendsHub();
-    const codeEl = document.getElementById('squad-code-val');
-    if (codeEl) codeEl.innerText = inviteRoomCode;
-    const titleEl = document.getElementById('squad-room-title');
-    if (titleEl) titleEl.innerText = `SQUAD ${inviteRoomCode}`;
-    supabaseManager.joinRoom(currentRoomId, {
-      id: myId,
-      name: playerName,
-      color: 0xffcc00,
-      position: localPlayer.group.position
-    });
-    showBanner(`JOINED INVITE SQUAD: ${inviteRoomCode}`, 2500);
+    openCharacterSelectScreen();
   } else {
     document.getElementById('welcome-screen')?.classList.add('hidden');
     document.getElementById('mode-select-screen')?.classList.remove('hidden');
@@ -1599,93 +1740,84 @@ document.getElementById('tab-join-squad')?.addEventListener('click', () => {
   document.getElementById('panel-create-squad')?.classList.add('hidden');
 });
 
-// Deploy to Public Quick-Match
+// Deploy to Public Quick-Match (opens Character Select)
 document.getElementById('btn-deploy-public')?.addEventListener('click', () => {
   audioSystem.init();
-  currentRoomId = 'sector_1';
-  isLocalReady = false;
-  updateReadyButtonUI();
-  supabaseManager.joinRoom(currentRoomId, {
-    id: myId,
-    name: playerName,
-    color: 0xffcc00,
-    isReady: false,
-    position: localPlayer.group.position
-  });
-  deployPlayerSkyDrop();
-  showBanner('PUBLIC SECTOR 1 DEPLOYMENT', 2000);
+  pendingDeployment = { type: 'public' };
+  document.getElementById('mode-select-screen')?.classList.add('hidden');
+  openCharacterSelectScreen();
 });
 
-// Confirm Create Private Squad
+// Confirm Create Private Squad (opens Character Select)
 document.getElementById('btn-confirm-create-squad')?.addEventListener('click', () => {
   audioSystem.init();
   const squadName = document.getElementById('create-squad-name')?.value.trim() || 'ALPHA DOGS';
   const roundTime = parseInt(document.getElementById('create-timer-select')?.value) || 5;
   const maxPlayers = parseInt(document.getElementById('create-max-players-select')?.value) || 5;
-  CONFIG.countdownSeconds = roundTime;
-  CONFIG.maxPlayersPerRoom = maxPlayers;
-
-  const code = generateRoomCode();
-  currentRoomId = `custom_${code}`;
-
+  pendingDeployment = { type: 'create_squad', squadName, roundTime, maxPlayers };
   document.getElementById('mode-select-screen')?.classList.add('hidden');
-  openFriendsHub();
-
-  const titleEl = document.getElementById('squad-room-title');
-  if (titleEl) titleEl.innerText = squadName.toUpperCase();
-  const codeEl = document.getElementById('squad-code-val');
-  if (codeEl) codeEl.innerText = code;
-  const timerVal = document.getElementById('squad-timer-val');
-  if (timerVal) timerVal.innerText = `${roundTime}S`;
-
-  isLocalReady = false;
-  updateReadyButtonUI();
-
-  supabaseManager.joinRoom(currentRoomId, {
-    id: myId,
-    name: playerName,
-    color: 0xffcc00,
-    isReady: false,
-    position: localPlayer.group.position
-  });
-
-  setTimeout(() => {
-    supabaseManager.broadcastRoomSettings({ squadName, roundTime, maxSquad: maxPlayers });
-  }, 500);
-
-  showBanner(`PRIVATE SQUAD ESTABLISHED: ${code}`, 2500);
+  openCharacterSelectScreen();
 });
 
-// Confirm Join Private Squad with Code
+// Confirm Join Private Squad with Code (opens Character Select)
 document.getElementById('btn-confirm-join-squad')?.addEventListener('click', () => {
   audioSystem.init();
   const code = document.getElementById('join-squad-code-input')?.value.trim().toUpperCase();
-  if (!code) return;
-
-  currentRoomId = `custom_${code}`;
+  if (!code) {
+    showBanner('PLEASE ENTER 5-DIGIT CODE', 2000);
+    return;
+  }
+  pendingDeployment = { type: 'join_squad', code };
   document.getElementById('mode-select-screen')?.classList.add('hidden');
-  openFriendsHub();
-
-  const titleEl = document.getElementById('squad-room-title');
-  if (titleEl) titleEl.innerText = `SQUAD ${code}`;
-  const codeEl = document.getElementById('squad-code-val');
-  if (codeEl) codeEl.innerText = code;
-
-  isLocalReady = false;
-  updateReadyButtonUI();
-
-  supabaseManager.joinRoom(currentRoomId, {
-    id: myId,
-    name: playerName,
-    color: 0xffcc00,
-    isReady: false,
-    position: localPlayer.group.position
-  });
-
-  showBanner(`JOINING SQUAD: ${code}`, 2000);
+  openCharacterSelectScreen();
 });
 
-// 3. Friends Squad Hub
+// 3. Operator / Character Select Screen
+document.querySelectorAll('#char-cards-container .char-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const charId = card.getAttribute('data-char-id');
+    if (!charId || !CHARACTER_DATA[charId]) return;
+    selectedCharacterId = charId;
+    safeStorage.setItem('twisted_character_id', selectedCharacterId);
+    if (localPlayer) {
+      localPlayer.setCharacterId(selectedCharacterId);
+    }
+    updateCharacterSelectUI();
+    audioSystem.init();
+    audioSystem.playReadyClick();
+  });
+});
+
+document.getElementById('btn-char-select-back')?.addEventListener('click', () => {
+  closeCharacterSelectScreen();
+  if (pendingDeployment && pendingDeployment.type === 'friends_hub') {
+    openFriendsHub();
+  } else if (inviteRoomCode) {
+    document.getElementById('welcome-screen')?.classList.remove('hidden');
+  } else {
+    document.getElementById('mode-select-screen')?.classList.remove('hidden');
+  }
+});
+
+document.getElementById('btn-confirm-operator')?.addEventListener('click', () => {
+  closeCharacterSelectScreen();
+  if (pendingDeployment && pendingDeployment.type === 'friends_hub') {
+    supabaseManager.setPlayerInfo({ characterId: selectedCharacterId });
+    openFriendsHub();
+    showBanner(`OPERATOR CONFIRMED: ${CHARACTER_DATA[selectedCharacterId].name}`, 2000);
+    return;
+  }
+  executeDeployment(pendingDeployment);
+});
+
+// Friends Hub: Change Operator button
+document.getElementById('btn-friends-change-char')?.addEventListener('click', () => {
+  pendingDeployment = { type: 'friends_hub' };
+  closeFriendsHub();
+  openCharacterSelectScreen();
+});
+
+// 4. Friends Squad Hub
 document.getElementById('btn-friends-ready')?.addEventListener('click', toggleReady);
 document.getElementById('btn-friends-host-launch')?.addEventListener('click', launchFriendsSquadMatch);
 
@@ -1820,6 +1952,7 @@ document.getElementById('btn-save-name')?.addEventListener('click', () => {
       id: myId,
       name: newName,
       color: 0xffcc00,
+      characterId: selectedCharacterId,
       isReady: isLocalReady,
       position: localPlayer.group.position
     });

@@ -444,6 +444,7 @@ export class SupabaseManager {
     const payload = {
       id: this.myPlayerInfo.id,
       name: this.myPlayerInfo.name,
+      characterId: this.myPlayerInfo.characterId || 'ajp',
       x: Math.round(pos.x * 100) / 100,
       y: Math.round(pos.y * 100) / 100,
       z: Math.round(pos.z * 100) / 100,

@@ -11,13 +11,14 @@ const _yAxis = new THREE.Vector3(0, 1, 0);
 const _chestOffset = new THREE.Vector3(0, 1.35, 0);
 
 export class Character {
-  constructor({ scene, id, name, isLocal = false, color = 0xffcc00, assetManager }) {
+  constructor({ scene, id, name, isLocal = false, color = 0xffcc00, assetManager, characterId = 'ajp' }) {
     this.scene = scene;
     this.id = id;
     this.name = name;
     this.isLocal = isLocal;
     this.color = color;
     this.assetManager = assetManager;
+    this.characterId = characterId;
 
     this.position = new THREE.Vector3(0, 0, 0);
     this.rotationY = 0;
@@ -46,10 +47,12 @@ export class Character {
   }
 
   initModelFromAssets() {
-    if (!this.assetManager || !this.assetManager.baseModel) return;
+    if (!this.assetManager) return;
+    const template = this.assetManager.characterModels[this.characterId] || this.assetManager.baseModel;
+    if (!template) return;
 
-    // Instantly clone base model using SkeletonUtils for butter-smooth multi-character performance!
-    this.fbxModel = cloneSkeleton(this.assetManager.baseModel);
+    // Instantly clone model template using SkeletonUtils
+    this.fbxModel = cloneSkeleton(template);
 
     // Precise bounding box scale
     const box = new THREE.Box3().setFromObject(this.fbxModel);
@@ -57,31 +60,36 @@ export class Character {
     box.getSize(size);
 
     const targetHeight = 2.45; // Heroic scale, clearly visible
-    const scale = size.y > 0.001 ? (targetHeight / size.y) : 0.012;
+    const scale = size.y > 0.05 ? (targetHeight / size.y) : 0.0125;
     this.fbxModel.scale.setScalar(scale);
+    this.baseScale = scale;
 
-    // Mixamo characters are naturally grounded at y = 0
+    // Grounded at y = 0
     this.fbxModel.position.y = 0;
 
-    // Apply texture with tactical PBR tuning
+    // Preserve native character materials and textures
     this.fbxModel.traverse((child) => {
       if (child.isMesh) {
         child.castShadow = true;
         child.receiveShadow = true;
-        child.material = new THREE.MeshStandardMaterial({
-          map: this.assetManager.textures['map'] || null,
-          normalMap: this.assetManager.textures['normalMap'] || null,
-          roughnessMap: this.assetManager.textures['metalnessMap'] || null,
-          color: 0xffffff,
-          roughness: 0.6,
-          metalness: 0.15
-        });
-        child.material.needsUpdate = true;
+        if (child.material) {
+          const mats = Array.isArray(child.material) ? child.material : [child.material];
+          mats.forEach(m => {
+            if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
+            m.needsUpdate = true;
+          });
+        }
       }
     });
 
-    // Locate Right Hand Bone to attach blaster & laser
-    this.rightHandBone = this.fbxModel.getObjectByName('mixamorigRightHand');
+    // Locate Right Hand Bone to attach blaster & laser (supports mixamorig:RightHand and mixamorigRightHand)
+    let handBone = null;
+    this.fbxModel.traverse((child) => {
+      if (child.isBone && child.name.toLowerCase().endsWith('righthand')) {
+        handBone = child;
+      }
+    });
+    this.rightHandBone = handBone || this.fbxModel.getObjectByName('mixamorig:RightHand') || this.fbxModel.getObjectByName('mixamorigRightHand');
     if (this.rightHandBone) {
       this.attachBlasterAndLaser(this.rightHandBone);
     }
@@ -104,6 +112,32 @@ export class Character {
 
     this.group.add(this.fbxModel);
     this.modelLoaded = true;
+  }
+
+  setCharacterId(newId) {
+    if (!newId || this.characterId === newId) return;
+    this.characterId = newId;
+    if (this.fbxModel) {
+      if (this.mixer) {
+        this.mixer.stopAllAction();
+        this.mixer.uncacheRoot(this.fbxModel);
+      }
+      this.group.remove(this.fbxModel);
+      this.fbxModel = null;
+    }
+    if (this.laserBeam) {
+      this.scene.remove(this.laserBeam);
+      this.laserBeam = null;
+    }
+    if (this.laserDot) {
+      this.scene.remove(this.laserDot);
+      this.laserDot = null;
+    }
+    this.blasterMesh = null;
+    this.actions = {};
+    this.currentAction = null;
+    this.currentActionName = null;
+    this.initModelFromAssets();
   }
 
   attachBlasterAndLaser(handBone) {
