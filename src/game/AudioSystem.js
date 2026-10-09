@@ -77,6 +77,38 @@ class AudioSystem {
     } catch (e) {}
   }
 
+  playCinematicElimination() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      // Deep sub-bass impact drop
+      const subOsc = this.ctx.createOscillator();
+      const subGain = this.ctx.createGain();
+      subOsc.type = 'sine';
+      subOsc.connect(subGain);
+      subGain.connect(this.ctx.destination);
+      subOsc.frequency.setValueAtTime(130, t);
+      subOsc.frequency.exponentialRampToValueAtTime(28, t + 0.7);
+      subGain.gain.setValueAtTime(0.65, t);
+      subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+      subOsc.start(t);
+      subOsc.stop(t + 0.7);
+
+      // Heavy metallic strike impact
+      const hitOsc = this.ctx.createOscillator();
+      const hitGain = this.ctx.createGain();
+      hitOsc.type = 'sawtooth';
+      hitOsc.connect(hitGain);
+      hitGain.connect(this.ctx.destination);
+      hitOsc.frequency.setValueAtTime(340, t);
+      hitOsc.frequency.exponentialRampToValueAtTime(45, t + 0.38);
+      hitGain.gain.setValueAtTime(0.45, t);
+      hitGain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+      hitOsc.start(t);
+      hitOsc.stop(t + 0.38);
+    } catch (e) {}
+  }
+
   playRingShrink() {
     if (!this.enabled || !this.ctx) return;
     try {

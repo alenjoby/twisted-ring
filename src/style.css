@@ -194,7 +194,17 @@ body, html {
   background: radial-gradient(circle at center, rgba(14, 18, 28, 0.72) 0%, rgba(6, 8, 12, 0.94) 100%);
   backdrop-filter: blur(8px);
   padding: 24px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
   transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+@media (max-width: 768px) {
+  .title-cinematic-screen {
+    justify-content: flex-start;
+    padding: 16px 12px;
+  }
 }
 
 .title-cinematic-screen.hidden {
@@ -212,12 +222,17 @@ body, html {
 /* SCREEN 1: WELCOME CENTER BOX */
 .welcome-center-box {
   max-width: 480px;
-  width: 100%;
+  width: 90vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 24px;
+  gap: 20px;
   animation: fadeInScale 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -341,12 +356,17 @@ body, html {
 
 /* SCREEN 2: MODE SELECTOR */
 .mode-select-box {
-  max-width: 860px;
-  width: 100%;
+  max-width: 900px;
+  width: 92vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  padding: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
   animation: fadeInScale 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -385,6 +405,22 @@ body, html {
   grid-template-columns: 1fr 1.15fr;
   gap: 20px;
   width: 100%;
+}
+
+@media (max-width: 768px) {
+  .mode-select-box {
+    width: 96vw;
+    max-height: 92vh;
+    padding: 6px;
+    gap: 16px;
+  }
+  .mode-select-title {
+    font-size: 24px;
+  }
+  .deployment-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 }
 
 .deployment-card {
@@ -557,9 +593,15 @@ body, html {
 }
 
 /* SCREEN 3: FRIENDS SQUAD HUB MODAL */
+/* SCREEN 3: FRIENDS SQUAD HUB MODAL (Widescreen Horizontal Layout) */
 .friends-hub-box {
-  max-width: 640px;
-  width: 100%;
+  max-width: 960px;
+  width: 92vw;
+  max-height: 86vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px 28px;
+  box-sizing: border-box;
 }
 
 .friends-hub-header {
@@ -568,6 +610,32 @@ body, html {
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.friends-horizontal-columns {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.friends-col-left, .friends-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.friends-actions-box {
+  background: var(--panel-bg-subtle);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .room-code-chip {
@@ -603,7 +671,7 @@ body, html {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   padding: 10px 16px;
-  margin: 14px 0;
+  margin-bottom: 6px;
 }
 
 .status-item {
@@ -642,13 +710,16 @@ body, html {
   border: 1px solid var(--panel-border);
   border-radius: 8px;
   padding: 12px;
-  margin-bottom: 16px;
 }
 
 .friends-hub-actions {
   display: flex;
   gap: 10px;
-  flex-wrap: wrap;
+}
+
+.friends-hub-subactions {
+  display: flex;
+  gap: 10px;
 }
 
 .friends-waiting-notice {
@@ -656,8 +727,22 @@ body, html {
   font-size: 11px;
   color: #ffaa00;
   text-align: center;
-  margin-top: 10px;
   letter-spacing: 0.5px;
+}
+
+@media (max-width: 768px) {
+  .friends-hub-box {
+    max-width: 95vw;
+    max-height: 90vh;
+    padding: 16px;
+  }
+  .friends-horizontal-columns {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .friends-hub-subactions {
+    flex-direction: column;
+  }
 }
 
 /* ==========================================================================
@@ -1100,6 +1185,10 @@ body, html {
   display: none;
   align-items: center;
   justify-content: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 .modal-backdrop.active {
@@ -1114,9 +1203,13 @@ body, html {
   background: #111520;
   border: 1px solid var(--panel-border-bright);
   border-radius: 12px;
-  padding: 32px;
+  padding: 28px;
   width: 90%;
-  max-width: 440px;
+  max-width: 520px;
+  max-height: 88vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8);
   position: relative;
 }
@@ -1183,10 +1276,58 @@ body, html {
   margin-top: 24px;
 }
 
-/* --- ADVANCED MULTIPLAYER LOBBY STYLES --- */
+/* --- ADVANCED MULTIPLAYER LOBBY STYLES (Widescreen Horizontal Layout) --- */
 .lobby-box {
-  max-width: 620px;
-  width: 95%;
+  max-width: 960px;
+  width: 92vw;
+  max-height: 86vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px 28px;
+  box-sizing: border-box;
+}
+
+.lobby-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.lobby-horizontal-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.lobby-col-left, .lobby-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lobby-section-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--text-dark);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+@media (max-width: 768px) {
+  .lobby-box {
+    max-width: 95vw;
+    max-height: 90vh;
+    padding: 16px;
+  }
+  .lobby-horizontal-columns {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 }
 
 .modal-tag {
@@ -1206,33 +1347,11 @@ body, html {
   flex: 1;
 }
 
-.lobby-divider {
-  display: flex;
-  align-items: center;
-  text-align: center;
-  margin: 20px 0 16px;
-  color: var(--text-dark);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 2px;
-}
-
-.lobby-divider::before,
-.lobby-divider::after {
-  content: '';
-  flex: 1;
-  border-bottom: 1px solid var(--panel-border);
-}
-
-.lobby-divider span {
-  padding: 0 12px;
-}
-
 .lobby-modes-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
-  margin-bottom: 20px;
+  margin-bottom: 6px;
 }
 
 @media (max-width: 600px) {
@@ -1845,4 +1964,29 @@ body, html {
   position: absolute;
   pointer-events: none;
 }
+
+/* ==========================================================================
+   CINEMATIC DEATH & ELIMINATION VIGNETTE
+   ========================================================================== */
+.death-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 998;
+  opacity: 0;
+  box-shadow: inset 0 0 140px rgba(255, 20, 60, 0.85), inset 0 0 45px rgba(255, 0, 40, 0.95);
+  background: radial-gradient(circle at center, transparent 40%, rgba(220, 20, 60, 0.35) 100%);
+  transition: opacity 0.12s ease-out;
+}
+
+.death-vignette.active {
+  opacity: 1;
+}
+
+.death-vignette.critical {
+  opacity: 1;
+  box-shadow: inset 0 0 180px rgba(255, 0, 0, 0.95), inset 0 0 70px rgba(255, 20, 60, 1);
+  background: radial-gradient(circle at center, rgba(180, 0, 0, 0.18) 30%, rgba(220, 20, 60, 0.5) 100%);
+}
+
 

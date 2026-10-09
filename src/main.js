@@ -55,6 +55,27 @@ scene.fog = new THREE.FogExp2(0x090b10, 0.018);
 const defaultCamPos = new THREE.Vector3(0, 11, 14.5);
 const defaultTarget = new THREE.Vector3(0, 1.2, 0);
 
+// --- CINEMATIC CAMERA & VFX STATE ---
+let victoryOrbitAngle = 0;
+let screenShakeIntensity = 0;
+let screenShakeTime = 0;
+
+function triggerScreenShake(intensity = 0.5) {
+  screenShakeIntensity = Math.min(1.0, screenShakeIntensity + intensity);
+}
+
+function triggerDeathVignette(duration = 800, isCritical = false) {
+  const el = document.getElementById('death-vignette');
+  if (!el) return;
+  el.classList.remove('critical', 'active');
+  void el.offsetWidth; // Force CSS animation restart
+  if (isCritical) el.classList.add('critical');
+  el.classList.add('active');
+  setTimeout(() => {
+    el.classList.remove('active', 'critical');
+  }, duration);
+}
+
 const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 120);
 camera.position.copy(defaultCamPos);
 
@@ -1056,14 +1077,23 @@ function applyRoundVerdict(verdict) {
   }
 
   let someoneDied = false;
+  let localPlayerEliminated = false;
   verdict.eliminatedIds.forEach(targetId => {
     const target = players.get(targetId);
     if (target && target.isAlive) {
       target.die();
       someoneDied = true;
-      audioSystem.playHitImpact();
+      if (localPlayer && targetId === localPlayer.id) {
+        localPlayerEliminated = true;
+      }
     }
   });
+
+  if (someoneDied) {
+    audioSystem.playCinematicElimination();
+    triggerScreenShake(localPlayerEliminated ? 0.8 : 0.45);
+    triggerDeathVignette(localPlayerEliminated ? 1400 : 700, localPlayerEliminated);
+  }
 
   updateScoreboard();
 
@@ -1114,10 +1144,13 @@ function presentWinner(winner) {
   currentPhase = 'VICTORY';
   players.forEach(p => p.setLaserActive(false));
 
-  // Completely hide in-game HUD overlay and all name tags so the screen is clean for the dance
+  // Completely hide in-game HUD overlay and modals so victory screen is completely unobstructed
   document.getElementById('ui-overlay')?.classList.add('hidden');
   document.getElementById('name-tags-container')?.classList.add('hidden');
   document.getElementById('spectator-bar')?.classList.add('hidden');
+  document.getElementById('lobby-modal')?.classList.remove('active');
+  document.getElementById('friends-hub-modal')?.classList.add('hidden');
+  document.getElementById('friends-hub-modal')?.classList.remove('active');
 
   const modal = document.getElementById('winner-modal');
   const nameDisplay = document.getElementById('winner-name-display');
@@ -1142,24 +1175,26 @@ function presentWinner(winner) {
     }
   });
 
-  // Center champion, elevate slightly and scale up 1.45x facing the camera
+  // Center champion facing camera (0 rotation faces camera directly)
   winner.group.position.set(0, 0, 0);
   winner.targetPos = new THREE.Vector3(0, 0, 0);
-  winner.group.rotation.y = Math.PI;
-  winner.rotationY = Math.PI;
-  winner.targetRotY = Math.PI;
+  winner.group.rotation.y = 0;
+  winner.rotationY = 0;
+  winner.targetRotY = 0;
 
   if (winner.fbxModel) {
     if (!winner.baseScale) {
       winner.baseScale = winner.originalScale || winner.fbxModel.scale.x;
     }
-    winner.fbxModel.scale.setScalar(winner.baseScale * 1.45);
+    // Scale champion to 1.18x so full character from head to toe is visible
+    winner.fbxModel.scale.setScalar(winner.baseScale * 1.18);
   }
 
-  // Position camera directly in front of champion to give full unobstructed view of the dance
-  camera.position.set(0, 1.9, 4.4);
-  controls.target.set(0, 1.2, 0);
+  // Position camera with cinematic distance to show full body dance without being overly zoomed in
+  camera.position.set(0, 2.0, 5.8);
+  controls.target.set(0, 1.05, 0);
   controls.update();
+  victoryOrbitAngle = 0;
 
   // Play Victory Fanfare and Celebration Dance
   audioSystem.playVictoryFanfare();
@@ -1187,6 +1222,7 @@ function resetGame() {
   // Restore camera & spotlight
   camera.position.copy(defaultCamPos);
   controls.target.copy(defaultTarget);
+  controls.enabled = true;
   controls.update();
 
   ringSpot.position.set(0, 18, 0);
@@ -1949,8 +1985,31 @@ function animate() {
     }
   }
 
-  // Update OrbitControls smoothly
-  controls.update();
+  // Victory 360 Cinematic Orbit Sweep
+  if (currentPhase === 'VICTORY') {
+    controls.enabled = false;
+    victoryOrbitAngle += delta * 0.38;
+    const orbitDist = 5.8;
+    camera.position.x = Math.sin(victoryOrbitAngle) * orbitDist;
+    camera.position.z = Math.cos(victoryOrbitAngle) * orbitDist;
+    camera.position.y = 2.0 + Math.sin(victoryOrbitAngle * 1.6) * 0.22;
+    camera.lookAt(0, 1.05, 0);
+    controls.target.set(0, 1.05, 0);
+  } else {
+    // Update OrbitControls smoothly
+    controls.update();
+  }
+
+  // Cinematic screen shake physics decay
+  if (screenShakeIntensity > 0.001) {
+    screenShakeTime += delta * 45.0;
+    const decay = Math.exp(-delta * 7.5);
+    screenShakeIntensity *= decay;
+    const shakeX = (Math.sin(screenShakeTime * 1.1) + Math.cos(screenShakeTime * 2.3)) * 0.5 * screenShakeIntensity * 0.35;
+    const shakeY = (Math.cos(screenShakeTime * 1.7) + Math.sin(screenShakeTime * 2.9)) * 0.5 * screenShakeIntensity * 0.25;
+    camera.position.x += shakeX;
+    camera.position.y += shakeY;
+  }
 
   renderer.render(scene, camera);
 }
