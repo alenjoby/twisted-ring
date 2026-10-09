@@ -26,9 +26,9 @@ export class ColyseusManager {
     this.room = null;
     this.isConnected = false;
 
-    // Supports Render/production wss:// URL via environment variable or fallback to localhost
+    // Supports Render/production wss:// URL via environment variable or fallback to live Render instance
     const envUrl = typeof import.meta !== 'undefined' && import.meta.env ? (import.meta.env.VITE_COLYSEUS_URL || import.meta.env.NEXT_PUBLIC_COLYSEUS_URL) : null;
-    this.serverUrl = envUrl || (window.location.protocol === 'https:' ? `wss://${window.location.hostname}` : 'ws://localhost:2567');
+    this.serverUrl = envUrl || (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'ws://localhost:2567' : 'wss://twisted-ring.onrender.com');
   }
 
   async connect(roomName = 'arena_room', playerOptions = {}) {
