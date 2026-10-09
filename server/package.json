@@ -1,0 +1,17 @@
+{
+  "name": "party-game-server",
+  "version": "1.0.0",
+  "description": "Colyseus authoritative server for Party game",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@colyseus/schema": "^2.0.35",
+    "@colyseus/tools": "^0.15.49",
+    "colyseus": "^0.15.57",
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}

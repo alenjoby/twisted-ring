@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",
+    "colyseus.js": "^0.16.22",
     "fflate": "^0.8.3",
     "pusher-js": "^8.6.0",
     "three": "^0.165.0"
