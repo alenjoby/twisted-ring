@@ -149,6 +149,7 @@ const _chestOffset = new THREE.Vector3(0, 1.35, 0);
 let viewWidth = window.innerWidth;
 let viewHeight = window.innerHeight;
 let wasMoving = false;
+const localPlayerVelocity = new THREE.Vector3(0, 0, 0);
 const lockedPlayerCoords = new Map();
 let currentRoundSyncEpoch = null;
 let stealthCountdownInterval = null;
@@ -618,8 +619,8 @@ const supabaseManager = new SupabaseManager({
         p.group.position.copy(p.targetPos);
         p.rotationY = data.rotY;
         p.group.rotation.y = data.rotY;
-        if (p.currentActionName === 'run') {
-          p.playAction('idle', 0.12);
+        if (p.currentActionName === 'walk' || p.currentActionName === 'run') {
+          p.playAction('idle', 0.16);
         }
       }
     }
@@ -1864,62 +1865,79 @@ function animate() {
     if (keys.a) moveInput.x -= 1;
     if (keys.d) moveInput.x += 1;
 
-    const isMovingNow = (moveInput.lengthSq() > 0);
-    if (isMovingNow) {
-      wasMoving = true;
+    const isInputActive = (moveInput.lengthSq() > 0);
+    const targetVelocity = new THREE.Vector3(0, 0, 0);
+
+    if (isInputActive) {
       moveInput.normalize();
-      
+
       // Convert to camera-relative movement
       const camForward = new THREE.Vector3();
       camera.getWorldDirection(camForward);
       camForward.y = 0;
       camForward.normalize();
-      
+
       const camRight = new THREE.Vector3().crossVectors(camForward, new THREE.Vector3(0, 1, 0)).normalize();
-      
+
       // W sets moveInput.z to -1. We want -1 to move ALONG camForward.
       const moveDir = new THREE.Vector3()
         .add(camRight.clone().multiplyScalar(moveInput.x))
         .add(camForward.clone().multiplyScalar(-moveInput.z))
         .normalize();
 
-      localPlayer.group.position.addScaledVector(moveDir, CONFIG.playerSpeed * delta);
-      localPlayer.playAction('run', 0.14);
-      
-      // Face movement direction while moving (Smoothly interpolate rotation for AAA feel)
-      const targetRotation = Math.atan2(moveDir.x, moveDir.z);
-      
-      // Shortest path rotation interpolation
-      let diff = targetRotation - localPlayer.rotationY;
+      targetVelocity.copy(moveDir).multiplyScalar(CONFIG.playerSpeed);
+    }
+
+    // Natural acceleration and braking momentum (15x accel, 18x brake friction)
+    const accelRate = isInputActive ? 15.0 : 18.0;
+    localPlayerVelocity.lerp(targetVelocity, Math.min(1.0, accelRate * delta));
+
+    const currentSpeed = localPlayerVelocity.length();
+    const isMovingNow = (currentSpeed > 0.12);
+
+    if (isMovingNow) {
+      wasMoving = true;
+      localPlayer.group.position.addScaledVector(localPlayerVelocity, delta);
+
+      // Smoothly orient player body towards movement direction
+      const moveAngle = Math.atan2(localPlayerVelocity.x, localPlayerVelocity.z);
+      let diff = moveAngle - localPlayer.rotationY;
       while (diff < -Math.PI) diff += Math.PI * 2;
       while (diff > Math.PI) diff -= Math.PI * 2;
-      
-      localPlayer.rotationY += diff * 18.0 * delta; // Snappy responsive turn
+
+      localPlayer.rotationY += diff * Math.min(1.0, 16.0 * delta);
       localPlayer.group.rotation.y = localPlayer.rotationY;
+
+      // Dynamic animation speed sync to completely eliminate foot sliding:
+      // Basic Locomotion Pack walking cadence matches ground speed
+      const walkTimeScale = Math.max(0.75, Math.min(1.45, currentSpeed / 3.4));
+      localPlayer.playAction('walk', 0.16, walkTimeScale);
 
       supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY, false);
     } else {
+      localPlayerVelocity.set(0, 0, 0);
       if (wasMoving) {
         // Immediate unthrottled stop packet dispatch to freeze remote visual drift
         wasMoving = false;
         supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY, true);
       }
-      if (localPlayer.currentActionName === 'run') {
-        localPlayer.playAction('idle', 0.18);
-      }
+      localPlayer.playAction('idle', 0.22, 1.0);
+
+      // Smooth aim tracking when stationary
       const prevRot = localPlayer.rotationY;
-      localPlayer.lookAtTarget(aimPoint);
+      localPlayer.lookAtTarget(aimPoint, delta, 16.0);
       if (Math.abs(localPlayer.rotationY - prevRot) > 0.02) {
         supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY, false);
       }
     }
   } else if (localPlayer && isInputLocked && localPlayer.isAlive) {
-    if (localPlayer.currentActionName === 'run') {
-      localPlayer.playAction('idle', 0.12);
+    localPlayerVelocity.set(0, 0, 0);
+    if (localPlayer.currentActionName === 'walk' || localPlayer.currentActionName === 'run') {
+      localPlayer.playAction('idle', 0.15, 1.0);
     }
   }
 
-  // STRICT BOUNDARY ENFORCEMENT & REMOTE PLAYER SMOOTHING (26x responsive position, 28x aim lerp)
+  // STRICT BOUNDARY ENFORCEMENT & REMOTE PLAYER SMOOTHING
   players.forEach(p => {
     if (!p.isLocal && p.targetPos && p.isAlive) {
       if (currentPhase !== 'VICTORY') {
@@ -1927,19 +1945,21 @@ function animate() {
         if (dist > 6.0) {
           p.group.position.copy(p.targetPos);
         } else if (dist > 0.04) {
-          p.group.position.lerp(p.targetPos, Math.min(1, 26.0 * delta));
-          p.playAction('run', 0.12);
+          p.group.position.lerp(p.targetPos, Math.min(1, 24.0 * delta));
+          const remoteSpeed = (dist / Math.max(delta, 0.016));
+          const walkTimeScale = Math.max(0.75, Math.min(1.45, remoteSpeed / 3.4));
+          p.playAction('walk', 0.16, walkTimeScale);
         } else {
           p.group.position.copy(p.targetPos);
-          if (p.currentActionName === 'run') {
-            p.playAction('idle', 0.18);
+          if (p.currentActionName === 'walk' || p.currentActionName === 'run') {
+            p.playAction('idle', 0.2, 1.0);
           }
         }
         if (p.targetRotY !== undefined) {
           let diff = p.targetRotY - p.rotationY;
           while (diff < -Math.PI) diff += Math.PI * 2;
           while (diff > Math.PI) diff -= Math.PI * 2;
-          p.rotationY += diff * 28.0 * delta;
+          p.rotationY += diff * Math.min(1.0, 24.0 * delta);
           p.group.rotation.y = p.rotationY;
         }
       }

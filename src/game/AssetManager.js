@@ -47,6 +47,22 @@ async function fetchCachedBlobUrl(url) {
   return url;
 }
 
+function makeClipInPlace(clip) {
+  if (!clip || !clip.tracks) return clip;
+  clip.tracks.forEach(track => {
+    if (track.name.toLowerCase().includes('hips.position')) {
+      const v = track.values;
+      const initialX = v[0];
+      const initialZ = v[2];
+      for (let i = 0; i < v.length; i += 3) {
+        v[i] = initialX; // Lock X to root origin
+        v[i + 2] = initialZ; // Lock Z to root origin
+      }
+    }
+  });
+  return clip;
+}
+
 class AssetManager {
   constructor() {
     this.fbxLoader = new FBXLoader();
@@ -66,8 +82,12 @@ class AssetManager {
       { key: 'normalMap', url: '/assets/texture_2.jpg', type: 'texture', isSrgb: false },
       { key: 'arena', url: '/assets/areana.glb', type: 'gltf' },
       { key: 'baseModel', url: '/assets/Pistol Idle.fbx', type: 'fbx' },
-      { key: 'walk', url: '/assets/Walk.fbx', type: 'clip' },
-      { key: 'run', url: '/assets/Running.fbx', type: 'clip' },
+      { key: 'idle', url: '/ANIMATIONS/Basic Locomotion Pack/idle.fbx', type: 'clip' },
+      { key: 'walk', url: '/ANIMATIONS/Basic Locomotion Pack/walking.fbx', type: 'clip', inPlace: true },
+      { key: 'strafeLeft', url: '/ANIMATIONS/Basic Locomotion Pack/left strafe walking.fbx', type: 'clip', inPlace: true },
+      { key: 'strafeRight', url: '/ANIMATIONS/Basic Locomotion Pack/right strafe walking.fbx', type: 'clip', inPlace: true },
+      { key: 'run', url: '/assets/Running.fbx', type: 'clip', inPlace: true },
+      { key: 'jump', url: '/ANIMATIONS/Basic Locomotion Pack/jump.fbx', type: 'clip' },
       { key: 'shoot', url: '/assets/Shooting.fbx', type: 'clip' },
       { key: 'death', url: '/assets/Standing React Death Backward.fbx', type: 'clip' },
       { key: 'dance', url: '/assets/Dancing Twerk.fbx', type: 'clip' }
@@ -137,7 +157,10 @@ class AssetManager {
           const buffer = await fetchCachedBuffer(item.url);
           const animFbx = this.fbxLoader.parse(buffer, '');
           if (animFbx.animations && animFbx.animations.length > 0) {
-            const clip = animFbx.animations[0];
+            let clip = animFbx.animations[0];
+            if (item.inPlace) {
+              clip = makeClipInPlace(clip);
+            }
             clip.name = item.key;
             this.clips[item.key] = clip;
           }
@@ -156,8 +179,12 @@ class AssetManager {
               }
             } else {
               if (fbx.animations && fbx.animations.length > 0) {
-                this.clips[item.key] = fbx.animations[0];
-                this.clips[item.key].name = item.key;
+                let clip = fbx.animations[0];
+                if (item.inPlace) {
+                  clip = makeClipInPlace(clip);
+                }
+                clip.name = item.key;
+                this.clips[item.key] = clip;
               }
             }
             checkComplete();

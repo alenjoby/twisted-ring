@@ -186,32 +186,46 @@ export class Character {
     }
   }
 
-  playAction(name, duration = 0.16) {
-    if (this.currentActionName === name) return;
-    const prevAction = this.actions[this.currentActionName];
+  playAction(name, duration = 0.18, timeScale = 1.0) {
     const newAction = this.actions[name];
-
-    if (newAction && this.mixer) {
-      newAction.reset();
-      newAction.fadeIn(duration).play();
-      if (prevAction) {
-        prevAction.fadeOut(duration);
-      }
+    if (!newAction || !this.mixer) {
       this.currentActionName = name;
-    } else {
-      this.currentActionName = name;
+      return;
     }
+
+    newAction.timeScale = timeScale;
+
+    if (this.currentActionName === name) {
+      if (!newAction.isRunning()) {
+        newAction.play();
+      }
+      return;
+    }
+
+    const prevAction = this.actions[this.currentActionName];
+    newAction.reset();
+    newAction.fadeIn(duration).play();
+    if (prevAction) {
+      prevAction.fadeOut(duration);
+    }
+    this.currentActionName = name;
   }
 
-  lookAtTarget(targetPos) {
+  lookAtTarget(targetPos, delta = 0, smoothSpeed = 16.0) {
     this.aimTarget.copy(targetPos);
     const dir = new THREE.Vector3().subVectors(targetPos, this.group.position);
     dir.y = 0;
     if (dir.lengthSq() > 0.001) {
-      dir.normalize();
-      const angle = Math.atan2(dir.x, dir.z);
-      this.rotationY = angle;
-      this.group.rotation.y = angle;
+      const targetAngle = Math.atan2(dir.x, dir.z);
+      if (delta > 0 && smoothSpeed < 100) {
+        let diff = targetAngle - this.rotationY;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        this.rotationY += diff * Math.min(1.0, smoothSpeed * delta);
+      } else {
+        this.rotationY = targetAngle;
+      }
+      this.group.rotation.y = this.rotationY;
     }
     this.updateLaser();
   }
