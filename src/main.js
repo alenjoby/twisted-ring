@@ -273,9 +273,9 @@ function initCharacterSelectPreviews() {
     podiumMesh.position.set(0, 0.02, 0);
     previewScene.add(podiumMesh);
 
-    previewCamera = new THREE.PerspectiveCamera(32, 300 / 380, 0.1, 30);
-    previewCamera.position.set(0, 1.24, 3.6);
-    previewCamera.lookAt(0, 1.18, 0);
+    previewCamera = new THREE.PerspectiveCamera(34, 300 / 380, 0.1, 30);
+    previewCamera.position.set(0, 1.0, 5.2);
+    previewCamera.lookAt(0, 0.95, 0);
 
     previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
