@@ -255,7 +255,7 @@ function initGameAfterLoading() {
   localPlayer.group.position.copy(spawnPos);
   localPlayer.lookAtTarget(new THREE.Vector3(0, 0, 0));
   localPlayer.setLaserActive(false);
-  localPlayer.setVisible(false);
+  localPlayer.setVisible(true);
   players.set(myId, localPlayer);
   createNameTag(localPlayer);
   if (localPlayer.htmlTag) localPlayer.htmlTag.classList.add('hidden');
@@ -1207,6 +1207,7 @@ function presentWinner(winner) {
     }
     // Scale champion to 1.18x so full character from head to toe is visible
     winner.fbxModel.scale.setScalar(winner.baseScale * 1.18);
+    winner.fbxModel.position.y = (winner.baseOffsetY || 0) * 1.18;
   }
 
   // Position camera with cinematic distance to show full body dance without being overly zoomed in
@@ -1258,8 +1259,10 @@ function resetGame() {
   players.forEach(p => {
     if (p.baseScale && p.fbxModel) {
       p.fbxModel.scale.setScalar(p.baseScale);
+      p.fbxModel.position.y = p.baseOffsetY || 0;
     } else if (p.originalScale && p.fbxModel) {
       p.fbxModel.scale.setScalar(p.originalScale);
+      p.fbxModel.position.y = p.baseOffsetY || 0;
     }
     p.setLaserActive(false);
   });
@@ -1585,12 +1588,34 @@ function updateRoomUI(state) {
 // --- SCREEN NAVIGATION & OPERATOR SELECTION ---
 
 function openCharacterSelectScreen() {
-  document.getElementById('character-select-screen')?.classList.remove('hidden');
+  const el = document.getElementById('character-select-screen');
+  if (el) {
+    el.classList.remove('hidden');
+    el.classList.add('active');
+  }
+  if (localPlayer) {
+    localPlayer.setVisible(true);
+    localPlayer.setCharacterId(selectedCharacterId);
+    localPlayer.group.position.set(0, 0, 0);
+    localPlayer.rotationY = 0;
+    localPlayer.group.rotation.y = 0;
+    localPlayer.playAction('idle', 0.15);
+  }
   updateCharacterSelectUI();
 }
 
 function closeCharacterSelectScreen() {
-  document.getElementById('character-select-screen')?.classList.add('hidden');
+  const el = document.getElementById('character-select-screen');
+  if (el) {
+    el.classList.add('hidden');
+    el.classList.remove('active');
+  }
+  if (localPlayer && !localPlayerDeployed) {
+    const myIdx = getPlayerSpawnIndex(myId);
+    const spawnPos = getRadialSpawnPosition(myIdx, Math.max(5, players.size));
+    localPlayer.group.position.copy(spawnPos);
+    localPlayer.lookAtTarget(new THREE.Vector3(0, 0, 0));
+  }
 }
 
 function updateCharacterSelectUI() {

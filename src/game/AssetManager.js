@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-const CACHE_NAME = 'twisted-ring-assets-v2';
+const CACHE_NAME = 'twisted-ring-assets-v3';
 
 async function fetchCachedBuffer(url) {
   if (typeof window !== 'undefined' && 'caches' in window) {
@@ -47,19 +47,9 @@ async function fetchCachedBlobUrl(url) {
   return url;
 }
 
-function makeClipInPlace(clip) {
-  if (!clip || !clip.tracks) return clip;
-  clip.tracks.forEach(track => {
-    if (track.name.toLowerCase().includes('hips.position')) {
-      const v = track.values;
-      const initialX = v[0];
-      const initialZ = v[2];
-      for (let i = 0; i < v.length; i += 3) {
-        v[i] = initialX; // Lock X to root origin
-        v[i + 2] = initialZ; // Lock Z to root origin
-      }
-    }
-  });
+function tagClipMetadata(clip, inPlace) {
+  if (!clip) return clip;
+  clip.userData = { inPlace: !!inPlace };
   return clip;
 }
 
@@ -131,14 +121,14 @@ class AssetManager {
       { key: 'char_knight', url: '/CHARACTERS/Knight D Pelegrini.fbx', type: 'character', charId: 'knight' },
       { key: 'char_peasant_girl', url: '/CHARACTERS/Peasant Girl.fbx', type: 'character', charId: 'peasant_girl' },
       // Locomotion Animations
-      { key: 'idle', url: '/ANIMATIONS/Basic Locomotion Pack/idle.fbx', type: 'clip' },
+      { key: 'idle', url: '/ANIMATIONS/Basic Locomotion Pack/idle.fbx', type: 'clip', inPlace: true },
       { key: 'walk', url: '/ANIMATIONS/Basic Locomotion Pack/walking.fbx', type: 'clip', inPlace: true },
       { key: 'strafeLeft', url: '/ANIMATIONS/Basic Locomotion Pack/left strafe walking.fbx', type: 'clip', inPlace: true },
       { key: 'strafeRight', url: '/ANIMATIONS/Basic Locomotion Pack/right strafe walking.fbx', type: 'clip', inPlace: true },
       { key: 'run', url: '/assets/Running.fbx', type: 'clip', inPlace: true },
-      { key: 'jump', url: '/ANIMATIONS/Basic Locomotion Pack/jump.fbx', type: 'clip' },
-      { key: 'shoot', url: '/assets/Shooting.fbx', type: 'clip' },
-      { key: 'death', url: '/assets/Standing React Death Backward.fbx', type: 'clip' },
+      { key: 'jump', url: '/ANIMATIONS/Basic Locomotion Pack/jump.fbx', type: 'clip', inPlace: true },
+      { key: 'shoot', url: '/assets/Shooting.fbx', type: 'clip', inPlace: true },
+      { key: 'death', url: '/assets/Standing React Death Backward.fbx', type: 'clip', inPlace: false },
       // Distinct Victory Dance Animations
       { key: 'dance_breakdance', url: '/ANIMATIONS/Breakdance Uprock Var 2.fbx', type: 'clip', inPlace: true },
       { key: 'dance_swing', url: '/ANIMATIONS/DANCE 2 - Swing Dancing.fbx', type: 'clip', inPlace: true },
@@ -212,10 +202,7 @@ class AssetManager {
           const buffer = await fetchCachedBuffer(item.url);
           const animFbx = this.fbxLoader.parse(buffer, '');
           if (animFbx.animations && animFbx.animations.length > 0) {
-            let clip = animFbx.animations[0];
-            if (item.inPlace) {
-              clip = makeClipInPlace(clip);
-            }
+            const clip = tagClipMetadata(animFbx.animations[0], item.inPlace !== false);
             clip.name = item.key;
             this.clips[item.key] = clip;
           }
@@ -235,10 +222,7 @@ class AssetManager {
         } else if (item.type === 'clip') {
           this.fbxLoader.load(item.url, (fbx) => {
             if (fbx.animations && fbx.animations.length > 0) {
-              let clip = fbx.animations[0];
-              if (item.inPlace) {
-                clip = makeClipInPlace(clip);
-              }
+              const clip = tagClipMetadata(fbx.animations[0], item.inPlace !== false);
               clip.name = item.key;
               this.clips[item.key] = clip;
             }

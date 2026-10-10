@@ -10,6 +10,57 @@ const _scratchDotPos = new THREE.Vector3();
 const _yAxis = new THREE.Vector3(0, 1, 0);
 const _chestOffset = new THREE.Vector3(0, 1.35, 0);
 
+/**
+ * Retargets a Mixamo animation clip to a specific character rig's bone names,
+ * rest-pose hip height, and coordinate unit scale (meters vs centimeters).
+ * Prevents meter-rig characters (e.g. AJP) from flying +144m into the sky on cm clips
+ * and prevents cm-rig characters (Big Vegas, Knight, Peasant Girl) from collapsing on meter clips.
+ */
+function retargetClipForCharacter(baseClip, validNodeNames, hipsBoneName, restHipsPos, charUnitPerMeter, inPlace) {
+  const clip = baseClip.clone();
+  const tracks = [];
+
+  for (const track of clip.tracks) {
+    const dotIdx = track.name.indexOf('.');
+    const nodeName = dotIdx !== -1 ? track.name.slice(0, dotIdx) : track.name;
+    const propName = dotIdx !== -1 ? track.name.slice(dotIdx + 1) : '';
+
+    if (validNodeNames.size > 0 && !validNodeNames.has(nodeName)) {
+      continue;
+    }
+
+    if (propName === 'position' && nodeName.toLowerCase().includes('hips')) {
+      const t = track.clone();
+      if (hipsBoneName) {
+        t.name = `${hipsBoneName}.position`;
+      }
+      const v = t.values;
+      if (v.length >= 3) {
+        const initX = v[0];
+        const initY = v[1];
+        const initZ = v[2];
+        const clipUnitToMeter = Math.abs(initY) > 10 ? 0.01 : 1.0;
+
+        for (let i = 0; i < v.length; i += 3) {
+          const dx = (v[i] - initX) * clipUnitToMeter;
+          const dy = (v[i + 1] - initY) * clipUnitToMeter;
+          const dz = (v[i + 2] - initZ) * clipUnitToMeter;
+
+          v[i] = inPlace ? restHipsPos.x : restHipsPos.x + dx * charUnitPerMeter;
+          v[i + 1] = restHipsPos.y + dy * charUnitPerMeter;
+          v[i + 2] = inPlace ? restHipsPos.z : restHipsPos.z + dz * charUnitPerMeter;
+        }
+      }
+      tracks.push(t);
+    } else {
+      tracks.push(track);
+    }
+  }
+
+  clip.tracks = tracks;
+  return clip;
+}
+
 export class Character {
   constructor({ scene, id, name, isLocal = false, color = 0xffcc00, assetManager, characterId = 'ajp' }) {
     this.scene = scene;
@@ -41,6 +92,8 @@ export class Character {
     this.modelLoaded = false;
     this.blasterMesh = null;
     this.rightHandBone = null;
+    this.baseScale = 1;
+    this.baseOffsetY = 0;
 
     this.initModelFromAssets();
     this.initHUD();
@@ -53,52 +106,89 @@ export class Character {
 
     // Instantly clone model template using SkeletonUtils
     this.fbxModel = cloneSkeleton(template);
+    this.fbxModel.position.set(0, 0, 0);
+    this.fbxModel.scale.setScalar(1);
+    this.fbxModel.updateMatrixWorld(true);
 
-    // Precise bounding box scale
+    // Measure unscaled bounding box to normalize height and ground feet at Y = 0
     const box = new THREE.Box3().setFromObject(this.fbxModel);
     const size = new THREE.Vector3();
     box.getSize(size);
 
-    const targetHeight = 2.45; // Heroic scale, clearly visible
+    const targetHeight = 2.45; // Heroic scale, clearly visible in arena
     const scale = size.y > 0.05 ? (targetHeight / size.y) : 0.0125;
     this.fbxModel.scale.setScalar(scale);
     this.baseScale = scale;
 
-    // Grounded at y = 0
-    this.fbxModel.position.y = 0;
+    // Ground the character's lowest vertex at Y = 0 (crucial for origin-centered rigs like AJP.fbx)
+    this.baseOffsetY = Number.isFinite(box.min.y) ? (-box.min.y * scale) : 0;
+    this.fbxModel.position.set(0, this.baseOffsetY, 0);
 
-    // Preserve native character materials and textures
+    // Determine whether this character rig is authored in centimeters (~170-220) or meters (~1.8)
+    const charUnitPerMeter = size.y > 10 ? 100.0 : 1.0;
+
+    const validNodeNames = new Set();
+    let handBone = null;
+    let hipsBone = null;
+
+    // Preserve native character materials and fix black diffuse factor on Meshy exports
     this.fbxModel.traverse((child) => {
+      if (child.name) {
+        validNodeNames.add(child.name);
+      }
+      if (child.isBone) {
+        const lower = child.name.toLowerCase();
+        if (!hipsBone && lower.endsWith('hips')) {
+          hipsBone = child;
+        }
+        if (!handBone && lower.endsWith('righthand')) {
+          handBone = child;
+        }
+      }
       if (child.isMesh) {
         child.castShadow = true;
         child.receiveShadow = true;
+        child.frustumCulled = false;
         if (child.material) {
           const mats = Array.isArray(child.material) ? child.material : [child.material];
           mats.forEach(m => {
-            if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
+            if (m.map) {
+              m.map.colorSpace = THREE.SRGBColorSpace;
+              // Meshy AI FBX exports set diffuse color to 0x000000 alongside a valid texture map;
+              // reset to white so Three.js multiplies the texture by 1.0 instead of 0.0.
+              if (m.color && (m.color.r + m.color.g + m.color.b) < 0.35) {
+                m.color.setHex(0xffffff);
+              }
+            }
             m.needsUpdate = true;
           });
         }
       }
     });
 
-    // Locate Right Hand Bone to attach blaster & laser (supports mixamorig:RightHand and mixamorigRightHand)
-    let handBone = null;
-    this.fbxModel.traverse((child) => {
-      if (child.isBone && child.name.toLowerCase().endsWith('righthand')) {
-        handBone = child;
-      }
-    });
+    const restHipsPos = hipsBone ? hipsBone.position.clone() : new THREE.Vector3(0, 0, 0);
+    const hipsBoneName = hipsBone ? hipsBone.name : null;
+
     this.rightHandBone = handBone || this.fbxModel.getObjectByName('mixamorig:RightHand') || this.fbxModel.getObjectByName('mixamorigRightHand');
     if (this.rightHandBone) {
       this.attachBlasterAndLaser(this.rightHandBone);
     }
 
-    // Set up AnimationMixer with pre-cached clips
+    // Set up AnimationMixer with per-character retargeted clips
     this.mixer = new THREE.AnimationMixer(this.fbxModel);
 
-    for (const [key, clip] of Object.entries(this.assetManager.clips)) {
-      const action = this.mixer.clipAction(clip);
+    for (const [key, baseClip] of Object.entries(this.assetManager.clips)) {
+      if (!baseClip) continue;
+      const inPlace = baseClip.userData?.inPlace !== undefined ? baseClip.userData.inPlace : (key !== 'death');
+      const retargetedClip = retargetClipForCharacter(
+        baseClip,
+        validNodeNames,
+        hipsBoneName,
+        restHipsPos,
+        charUnitPerMeter,
+        inPlace
+      );
+      const action = this.mixer.clipAction(retargetedClip);
       if (key === 'death' || key === 'shoot') {
         action.loop = THREE.LoopOnce;
         action.clampWhenFinished = true;
@@ -136,7 +226,7 @@ export class Character {
     this.blasterMesh = null;
     this.actions = {};
     this.currentAction = null;
-    this.currentActionName = null;
+    this.currentActionName = 'idle';
     this.initModelFromAssets();
   }
 
@@ -187,6 +277,9 @@ export class Character {
 
     this.blasterMesh.add(frame, barrel, this.muzzleMesh);
     this.blasterMesh.rotation.x = Math.PI / 2; // match pistol hand grip
+    // Compensate for parent fbxModel scale so blaster stays consistent world size across meter/cm rigs
+    const invScale = 1 / (this.baseScale || 1);
+    this.blasterMesh.scale.setScalar(invScale);
 
     handBone.add(this.blasterMesh);
 
@@ -322,12 +415,12 @@ export class Character {
   triggerShoot() {
     this.playAction('shoot', 0.04);
 
-    if (this.beamMat) {
+    if (this.beamMat && this.laserBeam) {
       this.beamMat.color.setHex(0xffffff);
       this.laserBeam.scale.set(3, 3, 1);
 
       setTimeout(() => {
-        if (this.beamMat) {
+        if (this.beamMat && this.laserBeam) {
           this.beamMat.color.setHex(this.isLocal ? 0xffcc00 : 0xff2a5f);
           this.laserBeam.scale.set(1, 1, 1);
         }
@@ -399,7 +492,11 @@ export class Character {
           child.receiveShadow = false;
         }
       });
-      this.ghostMesh.position.copy(this.group.position);
+      this.ghostMesh.position.set(
+        this.group.position.x,
+        this.group.position.y + (this.baseOffsetY || 0),
+        this.group.position.z
+      );
       this.ghostMesh.rotation.copy(this.group.rotation);
       this.ghostMesh.scale.copy(this.fbxModel.scale);
       this.scene.add(this.ghostMesh);
@@ -502,24 +599,27 @@ export class Character {
       if (this.readyAura.material) this.readyAura.material.dispose();
       this.readyAura = null;
     }
-    this.scene.remove(this.group);
-    if (this.mixer) {
-      this.mixer.stopAllAction();
-    }
-    // Only dispose per-character accessory meshes, NEVER the shared cloned base model geometry
-    this.group.traverse((child) => {
-      if (child.isMesh && child !== this.fbxModel) {
-        if (child.geometry && child.geometry !== this.fbxModel?.geometry) {
-          child.geometry.dispose();
-        }
-        if (child.material) {
-          if (Array.isArray(child.material)) {
-            child.material.forEach(m => m.dispose());
-          } else {
-            child.material.dispose();
+    if (this.blasterMesh) {
+      if (this.blasterMesh.parent) {
+        this.blasterMesh.parent.remove(this.blasterMesh);
+      }
+      this.blasterMesh.traverse((child) => {
+        if (child.isMesh) {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+            else child.material.dispose();
           }
         }
+      });
+      this.blasterMesh = null;
+    }
+    if (this.mixer) {
+      this.mixer.stopAllAction();
+      if (this.fbxModel) {
+        this.mixer.uncacheRoot(this.fbxModel);
       }
-    });
+    }
+    this.scene.remove(this.group);
   }
 }
