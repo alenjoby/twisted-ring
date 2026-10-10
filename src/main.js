@@ -273,13 +273,13 @@ function initCharacterSelectPreviews() {
     podiumMesh.position.set(0, 0.02, 0);
     previewScene.add(podiumMesh);
 
-    previewCamera = new THREE.PerspectiveCamera(34, 240 / 320, 0.1, 30);
-    previewCamera.position.set(0, 1.32, 4.65);
-    previewCamera.lookAt(0, 1.22, 0);
+    previewCamera = new THREE.PerspectiveCamera(32, 300 / 380, 0.1, 30);
+    previewCamera.position.set(0, 1.24, 3.6);
+    previewCamera.lookAt(0, 1.18, 0);
 
     previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    previewRenderer.setSize(240, 320, false);
+    previewRenderer.setSize(300, 380, false);
     previewRenderer.outputColorSpace = THREE.SRGBColorSpace;
     previewRenderer.toneMapping = THREE.ACESFilmicToneMapping;
     previewRenderer.toneMappingExposure = 1.25;
@@ -880,6 +880,7 @@ const roundPillEl = document.getElementById('roster-round-pill');
 
 let bannerTimer = null;
 function showBanner(text, duration = 1800) {
+  if (currentPhase === 'VICTORY') return;
   const el = document.getElementById('event-banner');
   if (!el) return;
   if (bannerTimer) clearTimeout(bannerTimer);
@@ -1280,13 +1281,25 @@ function presentWinner(winner) {
   currentPhase = 'VICTORY';
   players.forEach(p => p.setLaserActive(false));
 
-  // Completely hide in-game HUD overlay and modals so victory screen is completely unobstructed
+  if (bannerTimer) {
+    clearTimeout(bannerTimer);
+    bannerTimer = null;
+  }
+
+  // Hide ALL buttons, HUD overlays, banners, vignettes, and modals so ONLY winner name and NEXT button are visible
+  document.getElementById('event-banner')?.classList.remove('active');
+  document.getElementById('death-vignette')?.classList.remove('active', 'critical');
   document.getElementById('ui-overlay')?.classList.add('hidden');
   document.getElementById('name-tags-container')?.classList.add('hidden');
   document.getElementById('spectator-bar')?.classList.add('hidden');
+  document.getElementById('touch-joystick-zone')?.classList.add('hidden');
   document.getElementById('lobby-modal')?.classList.remove('active');
   document.getElementById('friends-hub-modal')?.classList.add('hidden');
   document.getElementById('friends-hub-modal')?.classList.remove('active');
+  document.getElementById('character-select-screen')?.classList.add('hidden');
+  document.getElementById('character-select-screen')?.classList.remove('active');
+  document.getElementById('mode-select-screen')?.classList.add('hidden');
+  document.getElementById('welcome-screen')?.classList.add('hidden');
 
   const modal = document.getElementById('winner-modal');
   const nameDisplay = document.getElementById('winner-name-display');
@@ -1294,7 +1307,7 @@ function presentWinner(winner) {
   if (!winner) {
     clockPhaseLabel.innerText = 'MATCH CONCLUDED';
     clockGuidanceText.innerText = 'MUTUAL DESTRUCTION // NO SURVIVORS';
-    if (nameDisplay) nameDisplay.innerText = 'MUTUAL DESTRUCTION // DRAW';
+    if (nameDisplay) nameDisplay.innerText = 'DRAW';
     if (modal) modal.classList.remove('hidden');
     audioSystem.playVictoryFanfare();
     return;
@@ -1344,12 +1357,8 @@ function presentWinner(winner) {
   ringSpot.target.position.set(0, 1.2, 0);
   ringSpot.intensity = 6.0;
 
-  // Show Cinematic Victory Overlay (clean title & next match button)
+  // Show minimal left Winner Name and right NEXT button
   if (nameDisplay) nameDisplay.innerText = `${winner.name.toUpperCase()} WINS`;
-  const danceDisplay = document.getElementById('winner-dance-display');
-  if (danceDisplay) {
-    danceDisplay.innerText = `CELEBRATION: ${charMeta?.danceName || 'VICTORY DANCE'}`;
-  }
   if (modal) modal.classList.remove('hidden');
 }
 
@@ -1361,6 +1370,7 @@ function resetGame() {
   // Restore HUD overlay & name tags
   document.getElementById('ui-overlay')?.classList.remove('hidden');
   document.getElementById('name-tags-container')?.classList.remove('hidden');
+  document.getElementById('touch-joystick-zone')?.classList.remove('hidden');
 
   // Restore camera & spotlight
   camera.position.copy(defaultCamPos);
@@ -1915,6 +1925,23 @@ document.getElementById('btn-confirm-join-squad')?.addEventListener('click', () 
 });
 
 // 3. Operator / Character Select Screen
+const charCardsContainer = document.getElementById('char-cards-container');
+
+document.getElementById('btn-char-scroll-left')?.addEventListener('click', () => {
+  charCardsContainer?.scrollBy({ left: -290, behavior: 'smooth' });
+});
+
+document.getElementById('btn-char-scroll-right')?.addEventListener('click', () => {
+  charCardsContainer?.scrollBy({ left: 290, behavior: 'smooth' });
+});
+
+charCardsContainer?.addEventListener('wheel', (e) => {
+  if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+    charCardsContainer.scrollLeft += e.deltaY;
+    e.preventDefault();
+  }
+}, { passive: false });
+
 document.querySelectorAll('#char-cards-container .char-card').forEach(card => {
   card.addEventListener('click', () => {
     const charId = card.getAttribute('data-char-id');
@@ -1925,6 +1952,7 @@ document.querySelectorAll('#char-cards-container .char-card').forEach(card => {
       localPlayer.setCharacterId(selectedCharacterId);
     }
     updateCharacterSelectUI();
+    card.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
     audioSystem.init();
     audioSystem.playReadyClick();
   });
