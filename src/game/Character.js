@@ -131,7 +131,7 @@ export class Character {
     let handBone = null;
     let hipsBone = null;
 
-    // Preserve native character materials and fix black diffuse factor on Meshy exports
+    // Apply dedicated PBR textures for AJP and Dog, and preserve/brighten native materials for others
     this.fbxModel.traverse((child) => {
       if (child.name) {
         validNodeNames.add(child.name);
@@ -149,14 +149,34 @@ export class Character {
         child.castShadow = true;
         child.receiveShadow = true;
         child.frustumCulled = false;
-        if (child.material) {
+
+        if (this.characterId === 'ajp' && this.assetManager.textures?.['ajp_map']) {
+          child.material = new THREE.MeshStandardMaterial({
+            map: this.assetManager.textures['ajp_map'],
+            metalnessMap: this.assetManager.textures['ajp_metalness'] || null,
+            normalMap: this.assetManager.textures['ajp_normal'] || null,
+            roughnessMap: this.assetManager.textures['ajp_roughness'] || null,
+            color: 0xffffff,
+            roughness: 1.0,
+            metalness: 1.0
+          });
+          child.material.needsUpdate = true;
+        } else if (this.characterId === 'dog' && this.assetManager.textures?.['map']) {
+          child.material = new THREE.MeshStandardMaterial({
+            map: this.assetManager.textures['map'],
+            normalMap: this.assetManager.textures['normalMap'] || null,
+            roughnessMap: this.assetManager.textures['metalnessMap'] || null,
+            color: 0xffffff,
+            roughness: 0.6,
+            metalness: 0.15
+          });
+          child.material.needsUpdate = true;
+        } else if (child.material) {
           const mats = Array.isArray(child.material) ? child.material : [child.material];
           mats.forEach(m => {
             if (m.map) {
               m.map.colorSpace = THREE.SRGBColorSpace;
-              // Meshy AI FBX exports set diffuse color to 0x000000 alongside a valid texture map;
-              // reset to white so Three.js multiplies the texture by 1.0 instead of 0.0.
-              if (m.color && (m.color.r + m.color.g + m.color.b) < 0.35) {
+              if (m.color) {
                 m.color.setHex(0xffffff);
               }
             }

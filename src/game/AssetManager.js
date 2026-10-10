@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-const CACHE_NAME = 'twisted-ring-assets-v3';
+const CACHE_NAME = 'twisted-ring-assets-v4';
 
 async function fetchCachedBuffer(url) {
   if (typeof window !== 'undefined' && 'caches' in window) {
@@ -57,42 +57,37 @@ export const CHARACTER_DATA = {
   'ajp': {
     id: 'ajp',
     name: 'AJP',
-    title: 'CYBER OPERATIVE',
-    role: 'TACTICAL / ASSAULT',
     url: '/CHARACTERS/AJP.fbx',
     danceKey: 'dance_breakdance',
-    danceName: 'BREAKDANCE UPROCK',
-    desc: 'Elite high-mobility operative with advanced cybernetic reflex targeting.'
+    danceName: 'BREAKDANCE UPROCK'
+  },
+  'dog': {
+    id: 'dog',
+    name: 'DOG',
+    url: '/assets/Pistol Idle.fbx',
+    danceKey: 'dance_twerk',
+    danceName: 'VICTORY TWERK'
   },
   'big_vegas': {
     id: 'big_vegas',
     name: 'BIG VEGAS',
-    title: 'HEAVY ENFORCER',
-    role: 'VANGUARD / HEAVY',
     url: '/CHARACTERS/Big Vegas.fbx',
     danceKey: 'dance_headspin',
-    danceName: 'HEADSPIN CYCLONE',
-    desc: 'Heavyweight enforcer commanding deep perimeter suppression lanes.'
+    danceName: 'HEADSPIN CYCLONE'
   },
   'knight': {
     id: 'knight',
-    name: 'KNIGHT PELEGRINI',
-    title: 'IRON PALADIN',
-    role: 'DEFENDER / STRATEGIST',
+    name: 'KNIGHT',
     url: '/CHARACTERS/Knight D Pelegrini.fbx',
     danceKey: 'dance_swing',
-    danceName: 'VICTORY SWING',
-    desc: 'Armored sector champion with centuries of combat precision and resolve.'
+    danceName: 'VICTORY SWING'
   },
   'peasant_girl': {
     id: 'peasant_girl',
     name: 'PEASANT GIRL',
-    title: 'SHADOW RUNNER',
-    role: 'INFILTRATOR / SPEED',
     url: '/CHARACTERS/Peasant Girl.fbx',
-    danceKey: 'dance_twerk',
-    danceName: 'TACTICAL CELEBRATION',
-    desc: 'Lightweight agile scout excelling at rapid crossfire redirection.'
+    danceKey: 'dance_swing',
+    danceName: 'FREESTYLE SWING'
   }
 };
 
@@ -111,16 +106,23 @@ class AssetManager {
 
   async loadAll(onProgress, onComplete, onError) {
     const assets = [
-      { key: 'map', url: '/assets/texture_0.jpg', type: 'texture', isSrgb: true },
-      { key: 'metalnessMap', url: '/assets/texture_1.jpg', type: 'texture', isSrgb: false },
-      { key: 'normalMap', url: '/assets/texture_2.jpg', type: 'texture', isSrgb: false },
+      // Dog Character PBR Textures (flipY: false)
+      { key: 'map', url: '/assets/texture_0.jpg', type: 'texture', isSrgb: true, flipY: false },
+      { key: 'metalnessMap', url: '/assets/texture_1.jpg', type: 'texture', isSrgb: false, flipY: false },
+      { key: 'normalMap', url: '/assets/texture_2.jpg', type: 'texture', isSrgb: false, flipY: false },
+      // AJP High-Resolution PBR Textures from /CHARACTERS/Character-Textures (flipY: true)
+      { key: 'ajp_map', url: '/CHARACTERS/Character-Textures/AJP-TEXTURE_01.png', type: 'texture', isSrgb: true, flipY: true },
+      { key: 'ajp_metalness', url: '/CHARACTERS/Character-Textures/AJP-TEXTURE_02.png', type: 'texture', isSrgb: false, flipY: true },
+      { key: 'ajp_normal', url: '/CHARACTERS/Character-Textures/AJP-TEXTURE_03.png', type: 'texture', isSrgb: false, flipY: true },
+      { key: 'ajp_roughness', url: '/CHARACTERS/Character-Textures/AJP-TEXTURE_04.png', type: 'texture', isSrgb: false, flipY: true },
       { key: 'arena', url: '/assets/areana.glb', type: 'gltf' },
-      // All 4 Selectable Characters
+      // All 5 Selectable Characters
       { key: 'char_ajp', url: '/CHARACTERS/AJP.fbx', type: 'character', charId: 'ajp' },
+      { key: 'char_dog', url: '/assets/Pistol Idle.fbx', type: 'character', charId: 'dog' },
       { key: 'char_big_vegas', url: '/CHARACTERS/Big Vegas.fbx', type: 'character', charId: 'big_vegas' },
       { key: 'char_knight', url: '/CHARACTERS/Knight D Pelegrini.fbx', type: 'character', charId: 'knight' },
       { key: 'char_peasant_girl', url: '/CHARACTERS/Peasant Girl.fbx', type: 'character', charId: 'peasant_girl' },
-      // Locomotion Animations
+      // Basic Locomotion Pack Animations (shared across all 5 characters including Dog)
       { key: 'idle', url: '/ANIMATIONS/Basic Locomotion Pack/idle.fbx', type: 'clip', inPlace: true },
       { key: 'walk', url: '/ANIMATIONS/Basic Locomotion Pack/walking.fbx', type: 'clip', inPlace: true },
       { key: 'strafeLeft', url: '/ANIMATIONS/Basic Locomotion Pack/left strafe walking.fbx', type: 'clip', inPlace: true },
@@ -162,10 +164,11 @@ class AssetManager {
             blobUrl,
             (tex) => {
               if (blobUrl.startsWith('blob:')) URL.revokeObjectURL(blobUrl);
-              tex.flipY = false;
+              tex.flipY = item.flipY !== undefined ? item.flipY : true;
               if (item.isSrgb) {
                 tex.colorSpace = THREE.SRGBColorSpace;
               }
+              tex.needsUpdate = true;
               this.textures[item.key] = tex;
               checkComplete();
             },

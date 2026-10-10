@@ -238,6 +238,111 @@ function getPlayerSpawnIndex(id) {
 
 let inviteRoomCode = null;
 
+let previewScene = null;
+let previewCamera = null;
+let previewRenderer = null;
+let previewPodiumMat = null;
+const previewCharacters = new Map();
+const previewCanvasContexts = new Map();
+
+function initCharacterSelectPreviews() {
+  if (previewRenderer) return;
+  try {
+    previewScene = new THREE.Scene();
+
+    const amb = new THREE.AmbientLight(0xffffff, 1.85);
+    previewScene.add(amb);
+
+    const keyLight = new THREE.DirectionalLight(0xfff6e5, 2.8);
+    keyLight.position.set(2.5, 4.5, 5.0);
+    previewScene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x00f0ff, 1.4);
+    rimLight.position.set(-3.0, 3.0, -3.0);
+    previewScene.add(rimLight);
+
+    const podiumGeo = new THREE.RingGeometry(0.62, 0.78, 36);
+    podiumGeo.rotateX(-Math.PI / 2);
+    previewPodiumMat = new THREE.MeshBasicMaterial({
+      color: 0x00f0ff,
+      transparent: true,
+      opacity: 0.75,
+      side: THREE.DoubleSide
+    });
+    const podiumMesh = new THREE.Mesh(podiumGeo, previewPodiumMat);
+    podiumMesh.position.set(0, 0.02, 0);
+    previewScene.add(podiumMesh);
+
+    previewCamera = new THREE.PerspectiveCamera(34, 240 / 320, 0.1, 30);
+    previewCamera.position.set(0, 1.32, 4.65);
+    previewCamera.lookAt(0, 1.22, 0);
+
+    previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    previewRenderer.setSize(240, 320, false);
+    previewRenderer.outputColorSpace = THREE.SRGBColorSpace;
+    previewRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+    previewRenderer.toneMappingExposure = 1.25;
+
+    const charIds = Object.keys(CHARACTER_DATA);
+    for (const charId of charIds) {
+      const charInstance = new Character({
+        scene: previewScene,
+        id: `preview_${charId}`,
+        name: CHARACTER_DATA[charId].name,
+        isLocal: false,
+        color: 0xffcc00,
+        assetManager,
+        characterId: charId
+      });
+      charInstance.setLaserActive(false);
+      if (charInstance.blasterMesh) {
+        charInstance.blasterMesh.visible = false;
+      }
+      charInstance.group.position.set(0, 0, 0);
+      charInstance.group.rotation.y = 0;
+      charInstance.rotationY = 0;
+      charInstance.group.visible = false;
+      previewCharacters.set(charId, charInstance);
+
+      const canvas = document.querySelector(`canvas[data-char-canvas="${charId}"]`);
+      if (canvas) {
+        previewCanvasContexts.set(charId, {
+          canvas,
+          ctx: canvas.getContext('2d')
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[CharacterPreview] Failed to initialize 3D preview renderer:', err);
+  }
+}
+
+function renderCharacterSelectPreviews(delta) {
+  const charSelectEl = document.getElementById('character-select-screen');
+  if (!charSelectEl || charSelectEl.classList.contains('hidden')) return;
+  if (!previewRenderer || previewCharacters.size === 0) return;
+
+  for (const [charId, charInstance] of previewCharacters.entries()) {
+    const target = previewCanvasContexts.get(charId);
+    if (!target || !target.ctx) continue;
+
+    charInstance.update(delta);
+    charInstance.group.visible = true;
+
+    if (previewPodiumMat) {
+      previewPodiumMat.color.setHex(charId === selectedCharacterId ? 0xffcc00 : 0x00f0ff);
+      previewPodiumMat.opacity = charId === selectedCharacterId ? 0.95 : 0.45;
+    }
+
+    previewRenderer.render(previewScene, previewCamera);
+    target.ctx.clearRect(0, 0, target.canvas.width, target.canvas.height);
+    target.ctx.drawImage(previewRenderer.domElement, 0, 0, target.canvas.width, target.canvas.height);
+
+    charInstance.group.visible = false;
+  }
+}
+
 function initGameAfterLoading() {
   arena = new Arena(scene, arenaRadius);
 
@@ -253,13 +358,15 @@ function initGameAfterLoading() {
     characterId: selectedCharacterId
   });
   localPlayer.group.position.copy(spawnPos);
-  localPlayer.lookAtTarget(new THREE.Vector3(0, 0, 0));
+  localPlayer.lookAtTarget(new THREE.Vector3(camera.position.x, 0, camera.position.z));
   localPlayer.setLaserActive(false);
   localPlayer.setVisible(true);
   players.set(myId, localPlayer);
   createNameTag(localPlayer);
   if (localPlayer.htmlTag) localPlayer.htmlTag.classList.add('hidden');
   window.localPlayer = localPlayer;
+
+  initCharacterSelectPreviews();
 
   // Pre-fill Welcome screen input
   const welcomeInput = document.getElementById('welcome-name-input');
@@ -297,6 +404,7 @@ function deployPlayerSkyDrop() {
   document.getElementById('welcome-screen')?.classList.add('hidden');
   document.getElementById('mode-select-screen')?.classList.add('hidden');
   document.getElementById('character-select-screen')?.classList.add('hidden');
+  document.getElementById('character-select-screen')?.classList.remove('active');
   closeFriendsHub();
   document.getElementById('lobby-modal')?.classList.remove('active');
   document.getElementById('ui-overlay')?.classList.remove('hidden');
@@ -312,7 +420,7 @@ function deployPlayerSkyDrop() {
     localPlayer.setVisible(true);
     if (localPlayer.htmlTag) localPlayer.htmlTag.classList.remove('hidden');
     localPlayer.group.position.copy(spawnPos);
-    localPlayer.lookAtTarget(new THREE.Vector3(0, 0, 0));
+    localPlayer.lookAtTarget(new THREE.Vector3(defaultCamPos.x, 0, defaultCamPos.z));
     localPlayer.animateSkyDrop(() => {
       audioSystem.playHitImpact();
       showBanner('DEPLOYED TO ARENA // READY UP TO ENGAGE', 2000);
@@ -493,6 +601,9 @@ renderer.domElement.addEventListener('pointerdown', () => {
   }
 });
 
+let hasAimedSinceStop = false;
+const _scratchCameraFacePos = new THREE.Vector3();
+
 window.addEventListener('mousemove', (e) => {
   if (isModalActive()) return;
   mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -500,6 +611,9 @@ window.addEventListener('mousemove', (e) => {
 
   raycaster.setFromCamera(mouse, camera);
   raycaster.ray.intersectPlane(raycastPlane, aimPoint);
+  if (currentPhase === 'STEALTH') {
+    hasAimedSinceStop = true;
+  }
 });
 
 // Virtual Touch Joystick Implementation for Mobile
@@ -583,6 +697,9 @@ window.addEventListener('touchmove', (e) => {
       mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
       raycaster.setFromCamera(mouse, camera);
       raycaster.ray.intersectPlane(raycastPlane, aimPoint);
+      if (currentPhase === 'STEALTH') {
+        hasAimedSinceStop = true;
+      }
       break;
     }
   }
@@ -2055,6 +2172,7 @@ function animate() {
 
     if (isMovingNow) {
       wasMoving = true;
+      hasAimedSinceStop = false;
       localPlayer.group.position.addScaledVector(localPlayerVelocity, delta);
 
       // Smoothly orient player body towards movement direction
@@ -2077,13 +2195,19 @@ function animate() {
       if (wasMoving) {
         // Immediate unthrottled stop packet dispatch to freeze remote visual drift
         wasMoving = false;
+        hasAimedSinceStop = false;
         supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY, true);
       }
       localPlayer.playAction('idle', 0.22, 1.0);
 
-      // Smooth aim tracking when stationary
+      // After walking is done, smoothly rotate character to face the camera (unless actively aiming laser in STEALTH)
       const prevRot = localPlayer.rotationY;
-      localPlayer.lookAtTarget(aimPoint, delta, 16.0);
+      if (currentPhase === 'STEALTH' && hasAimedSinceStop) {
+        localPlayer.lookAtTarget(aimPoint, delta, 16.0);
+      } else {
+        _scratchCameraFacePos.set(camera.position.x, localPlayer.group.position.y, camera.position.z);
+        localPlayer.lookAtTarget(_scratchCameraFacePos, delta, 14.0);
+      }
       if (Math.abs(localPlayer.rotationY - prevRot) > 0.02) {
         supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY, false);
       }
@@ -2189,6 +2313,7 @@ function animate() {
     camera.position.y += shakeY;
   }
 
+  renderCharacterSelectPreviews(delta);
   renderer.render(scene, camera);
 }
 
