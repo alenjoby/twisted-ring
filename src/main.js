@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { assetManager, CHARACTER_DATA } from './game/AssetManager.js';
-import { Arena } from './game/Arena.js';
+import { assetManager, CHARACTER_DATA, VICTORY_DANCE_KEYS, pickRandomVictoryDance } from './game/AssetManager.js';
+import { Arena, ARENA_THEMES } from './game/Arena.js';
 import { Character } from './game/Character.js';
 import { audioSystem } from './game/AudioSystem.js';
 import { SupabaseManager, safeStorage } from './game/SupabaseManager.js';
@@ -21,6 +21,8 @@ const CONFIG = {
   initialArenaRadius: 10.5,
   shrinkPerRound: 2.2,
   playerSpeed: 7.8,
+  basePlayerSpeed: 7.8,
+  baseShrinkPerRound: 2.2,
   maxPlayersPerRoom: 5
 };
 
@@ -30,6 +32,10 @@ let currentRound = 1;
 let arenaRadius = CONFIG.initialArenaRadius;
 let currentRoomId = 'sector_1';
 let currentSquadName = 'ALPHA DOGS';
+let currentArenaTheme = 'cyber_gold';
+let currentMatchModifier = 'standard';
+let timeDilationFactor = 1.0;
+let footstepTimer = 0;
 let localPlayerDeployed = false;
 let revealWatchdogTimer = null;
 
@@ -136,6 +142,31 @@ const rimLight = new THREE.DirectionalLight(0xff2a5f, 2.0);
 rimLight.position.set(-10, 16, -12);
 scene.add(rimLight);
 
+function applyArenaTheme(themeId) {
+  if (!arena) return;
+  const theme = arena.setTheme(themeId);
+  currentArenaTheme = theme.id;
+  if (scene.fog) scene.fog.color.setHex(theme.fogColor);
+  if (scene.background) scene.background.setHex(theme.fogColor);
+  if (ringSpot) ringSpot.color.setHex(theme.spotColor);
+  const badge = document.getElementById('theme-badge-label');
+  if (badge) badge.innerText = `MAP: ${theme.name}`;
+}
+
+function applyMatchModifier(modifierId) {
+  currentMatchModifier = modifierId || 'standard';
+  if (currentMatchModifier === 'turbo_speed') {
+    CONFIG.playerSpeed = 10.6;
+    CONFIG.shrinkPerRound = 2.6;
+  } else if (currentMatchModifier === 'sudden_death') {
+    CONFIG.playerSpeed = 8.8;
+    CONFIG.shrinkPerRound = 3.8;
+  } else {
+    CONFIG.playerSpeed = CONFIG.basePlayerSpeed;
+    CONFIG.shrinkPerRound = CONFIG.baseShrinkPerRound;
+  }
+}
+
 // Raycast plane for aiming
 const raycastPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const raycaster = new THREE.Raycaster();
@@ -198,6 +229,8 @@ function createNameTag(player) {
   tag.innerHTML = `
     <span class="name-tag-dot ${player.isReady ? 'is-ready' : ''} ${player.isHost ? 'is-host' : ''}"></span>
     <span class="name-tag-label">${esc(player.name.toUpperCase())}</span>
+    <span class="streak-tag hidden"></span>
+    <span class="emote-bubble-tag hidden"></span>
   `;
   container.appendChild(tag);
   player.htmlTag = tag;
@@ -207,6 +240,8 @@ function updateNameTag(player) {
   if (!player.htmlTag) return;
   const label = player.htmlTag.querySelector('.name-tag-label');
   const dot = player.htmlTag.querySelector('.name-tag-dot');
+  const streakEl = player.htmlTag.querySelector('.streak-tag');
+  const emoteEl = player.htmlTag.querySelector('.emote-bubble-tag');
   if (label) {
     label.innerText = esc(player.name.toUpperCase());
   }
@@ -216,6 +251,22 @@ function updateNameTag(player) {
 
     if (player.isHost) dot.classList.add('is-host');
     else dot.classList.remove('is-host');
+  }
+  if (streakEl) {
+    if (player.winStreak >= 2) {
+      streakEl.innerText = `${player.winStreak}X STREAK`;
+      streakEl.classList.remove('hidden');
+    } else {
+      streakEl.classList.add('hidden');
+    }
+  }
+  if (emoteEl) {
+    if (player.activeEmoteText) {
+      emoteEl.innerText = player.activeEmoteText;
+      emoteEl.classList.remove('hidden');
+    } else {
+      emoteEl.classList.add('hidden');
+    }
   }
 }
 
@@ -486,11 +537,37 @@ function addRemotePlayer(id, name, pos = null, characterId = 'ajp') {
 
 const practiceBots = [];
 
+function pickRandomBotCharacters(count = 2) {
+  const allCharIds = Object.keys(CHARACTER_DATA);
+  const otherChars = allCharIds.filter(id => id !== selectedCharacterId);
+  const shuffled = [...otherChars];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  const result = [];
+  for (let i = 0; i < count; i++) {
+    result.push(shuffled[i % shuffled.length] || allCharIds[i % allCharIds.length]);
+  }
+  return result;
+}
+
+function randomizePracticeBotCharacters() {
+  if (practiceBots.length === 0) return;
+  const randomChars = pickRandomBotCharacters(practiceBots.length);
+  practiceBots.forEach((bot, idx) => {
+    const newCharId = randomChars[idx];
+    if (newCharId) {
+      bot.setCharacterId(newCharId);
+    }
+  });
+}
+
 function spawnPracticeBots(count = 2) {
   clearPracticeBots();
-  const botNames = ['TARGET_VIPER', 'TARGET_PHANTOM'];
-  const botColors = [0x00f0ff, 0xff0055];
-  const botChars = ['big_vegas', 'knight'];
+  const botNames = ['TARGET_VIPER', 'TARGET_PHANTOM', 'TARGET_SPECTRE', 'TARGET_APEX'];
+  const botColors = [0x00f0ff, 0xff0055, 0x00ff88, 0xaa00ff];
+  const botChars = pickRandomBotCharacters(count);
   for (let i = 0; i < count; i++) {
     const botId = `bot_${i + 1}`;
     const p = new Character({
@@ -498,7 +575,7 @@ function spawnPracticeBots(count = 2) {
       id: botId,
       name: botNames[i] || `BOT_${i + 1}`,
       isLocal: false,
-      color: botColors[i] || 0x00f0ff,
+      color: botColors[i % botColors.length] || 0x00f0ff,
       assetManager,
       characterId: botChars[i] || 'big_vegas'
     });
@@ -558,6 +635,28 @@ function removeRemotePlayer(id) {
   }
 }
 
+// --- IN-GAME QUICK EMOTE & TAUNT SYSTEM ---
+const EMOTE_DEFS = {
+  HYPE: { label: 'LET US GO', animKey: 'jump' },
+  TAUNT: { label: 'TOO EASY', animKey: 'turnLeft' },
+  DANCE: { label: 'WATCH THIS', animKey: 'random_dance' },
+  JUMP: { label: 'AIRBORNE', animKey: 'jump' }
+};
+
+function triggerLocalEmote(emoteId) {
+  if (!localPlayer || !localPlayer.isAlive) return;
+  if (currentPhase === 'INPUT_FREEZE' || currentPhase === 'REVEAL' || currentPhase === 'VICTORY') return;
+  audioSystem.init();
+
+  const def = EMOTE_DEFS[emoteId] || EMOTE_DEFS.HYPE;
+  const animKey = def.animKey === 'random_dance' ? pickRandomVictoryDance() : def.animKey;
+  const label = (localPlayer.characterId === 'dog' && emoteId === 'TAUNT') ? 'WOOF WOOF' : def.label;
+
+  localPlayer.triggerEmote(label, animKey, updateNameTag);
+  audioSystem.playEmoteSound(emoteId, localPlayer.characterId);
+  supabaseManager.broadcastEmote({ label, animKey, emoteId });
+}
+
 // --- CONTROLS & AIMING ---
 const keys = { w: false, a: false, s: false, d: false };
 
@@ -576,6 +675,12 @@ window.addEventListener('keydown', (e) => {
   if (k === 'r' && (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END')) {
     toggleReady();
   }
+
+  // Emote hotkeys 1, 2, 3, 4
+  if (k === '1') triggerLocalEmote('HYPE');
+  if (k === '2') triggerLocalEmote('TAUNT');
+  if (k === '3') triggerLocalEmote('DANCE');
+  if (k === '4') triggerLocalEmote('JUMP');
 
   // Spectator mode arrow navigation
   if (localPlayer && !localPlayer.isAlive && spectatingPlayerId) {
@@ -705,6 +810,32 @@ window.addEventListener('touchmove', (e) => {
   }
 }, { passive: true });
 
+// Emote HUD buttons & Map Theme cycle button
+document.querySelectorAll('#hud-emote-bar .emote-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const emoteId = btn.getAttribute('data-emote-id');
+    if (emoteId) triggerLocalEmote(emoteId);
+  });
+});
+
+document.getElementById('btn-cycle-theme')?.addEventListener('click', () => {
+  audioSystem.init();
+  audioSystem.playReadyClick();
+  const themeKeys = Object.keys(ARENA_THEMES);
+  const currIdx = themeKeys.indexOf(currentArenaTheme);
+  const nextThemeId = themeKeys[(currIdx + 1) % themeKeys.length];
+  applyArenaTheme(nextThemeId);
+  if (isLocalHost) {
+    supabaseManager.broadcastRoomSettings({
+      squadName: currentSquadName,
+      roundTime: CONFIG.countdownSeconds,
+      maxSquad: CONFIG.maxPlayersPerRoom,
+      arenaTheme: currentArenaTheme,
+      matchModifier: currentMatchModifier
+    });
+  }
+});
+
 // Reset Camera button
 document.getElementById('btn-reset-cam')?.addEventListener('click', () => {
   camera.position.copy(defaultCamPos);
@@ -725,7 +856,9 @@ const supabaseManager = new SupabaseManager({
       supabaseManager.broadcastRoomSettings({
         squadName: currentSquadName,
         roundTime: CONFIG.countdownSeconds,
-        maxSquad: CONFIG.maxPlayersPerRoom
+        maxSquad: CONFIG.maxPlayersPerRoom,
+        arenaTheme: currentArenaTheme,
+        matchModifier: currentMatchModifier
       });
     }
   },
@@ -772,7 +905,8 @@ const supabaseManager = new SupabaseManager({
       id: pl.id,
       name: pl.name,
       isReady: pl.isReady,
-      isHost: pl.isHost
+      isHost: pl.isHost,
+      characterId: pl.characterId
     }));
     updateFriendsHubRoster({ count: players.size, max: CONFIG.maxPlayersPerRoom, isHost: isLocalHost, hostId: currentHostId, players: currentRoster });
     updateRoomUI({ roomId: currentRoomId, count: players.size, max: CONFIG.maxPlayersPerRoom, isHost: isLocalHost, hostId: currentHostId, players: currentRoster });
@@ -784,6 +918,14 @@ const supabaseManager = new SupabaseManager({
       p.name = esc(data.name || p.name);
       updateNameTag(p);
       updateScoreboard();
+    }
+  },
+  onPlayerEmote: (data) => {
+    if (!data || !data.id || data.id === myId) return;
+    const p = players.get(data.id);
+    if (p && p.isAlive) {
+      p.triggerEmote(esc(data.label || 'HYPE'), data.animKey || null, updateNameTag);
+      audioSystem.playEmoteSound(data.emoteId || 'HYPE', p.characterId);
     }
   },
   onForceStart: (payload) => {
@@ -844,6 +986,8 @@ const supabaseManager = new SupabaseManager({
     if (settings?.senderId && currentHostId && settings.senderId !== currentHostId) return;
     if (settings.roundTime) CONFIG.countdownSeconds = settings.roundTime;
     if (settings.maxSquad) CONFIG.maxPlayersPerRoom = settings.maxSquad;
+    if (settings.arenaTheme) applyArenaTheme(settings.arenaTheme);
+    if (settings.matchModifier) applyMatchModifier(settings.matchModifier);
     if (settings.squadName) {
       currentSquadName = settings.squadName;
       const title = document.getElementById('squad-room-title');
@@ -1172,6 +1316,7 @@ function evaluateHostVerdict() {
   const survivors = alivePlayers.filter(p => !eliminatedIds.includes(p.id));
   const isGameOver = survivors.length <= 1;
   const winnerId = isGameOver ? (survivors.length === 1 ? survivors[0].id : null) : null;
+  const winnerDanceKey = isGameOver ? pickRandomVictoryDance() : null;
 
   let newRingRadius = arenaRadius;
   if (eliminatedIds.length > 0) {
@@ -1190,6 +1335,7 @@ function evaluateHostVerdict() {
     ringRadius: newRingRadius,
     isGameOver,
     winnerId,
+    winnerDanceKey,
     survivors: survivors.map(s => s.id)
   };
 
@@ -1232,19 +1378,43 @@ function applyRoundVerdict(verdict) {
     triggerDeathVignette(localPlayerEliminated ? 1400 : 700, localPlayerEliminated);
   }
 
+  // Track match wins and streaks when game concludes
+  if (verdict.isGameOver) {
+    players.forEach(p => {
+      if (verdict.winnerId && p.id === verdict.winnerId) {
+        p.wins = (p.wins || 0) + 1;
+        p.winStreak = (p.winStreak || 0) + 1;
+        p.score += 150;
+      } else {
+        p.winStreak = 0;
+      }
+      updateNameTag(p);
+    });
+
+    // Dramatic slow-motion final elimination finish
+    if (someoneDied) {
+      timeDilationFactor = 0.32;
+      audioSystem.playSlowMoFinish();
+      setTimeout(() => {
+        timeDilationFactor = 1.0;
+      }, 1100);
+    }
+  }
+
   updateScoreboard();
 
   // If local player was eliminated, activate spectator mode
-  if (localPlayer && !localPlayer.isAlive) {
+  if (localPlayer && !localPlayer.isAlive && !verdict.isGameOver) {
     activateSpectatorMode();
   }
 
   // After animation delay, process game over or next round shrink
   setTimeout(() => {
+    timeDilationFactor = 1.0;
     if (verdict.isGameOver) {
       deactivateSpectatorMode();
       const winner = verdict.winnerId ? (players.get(verdict.winnerId) || localPlayer) : null;
-      presentWinner(winner);
+      presentWinner(winner, verdict.winnerDanceKey);
     } else {
       currentPhase = 'SHRINK';
       arenaRadius = verdict.ringRadius;
@@ -1277,8 +1447,9 @@ function applyRoundVerdict(verdict) {
 }
 
 // WINNER PODIUM CELEBRATION PRESENTATION
-function presentWinner(winner) {
+function presentWinner(winner, danceKeyOverride = null) {
   currentPhase = 'VICTORY';
+  timeDilationFactor = 1.0;
   players.forEach(p => p.setLaserActive(false));
 
   if (bannerTimer) {
@@ -1346,10 +1517,11 @@ function presentWinner(winner) {
   controls.update();
   victoryOrbitAngle = 0;
 
-  // Play Victory Fanfare and Character-Specific Celebration Dance
+  // Play Victory Fanfare and Randomized Celebration Dance across all 4 dance animations
   audioSystem.playVictoryFanfare();
-  const charMeta = CHARACTER_DATA[winner.characterId] || CHARACTER_DATA['ajp'];
-  const danceKey = charMeta?.danceKey || 'dance';
+  const danceKey = (danceKeyOverride && VICTORY_DANCE_KEYS.includes(danceKeyOverride))
+    ? danceKeyOverride
+    : pickRandomVictoryDance();
   winner.playAction(danceKey, 0.2);
 
   // Focus high-intensity spotlight on the champion
@@ -1363,6 +1535,7 @@ function presentWinner(winner) {
 }
 
 function resetGame() {
+  timeDilationFactor = 1.0;
   deactivateSpectatorMode();
   const winnerModal = document.getElementById('winner-modal');
   if (winnerModal) winnerModal.classList.add('hidden');
@@ -1381,6 +1554,10 @@ function resetGame() {
   ringSpot.position.set(0, 18, 0);
   ringSpot.target.position.set(0, 0, 0);
   ringSpot.intensity = 3.8;
+  applyArenaTheme(currentArenaTheme);
+
+  // Randomize demo bot characters for the next match in Public mode
+  randomizePracticeBotCharacters();
 
   // Restore player scales & disable lasers
   players.forEach(p => {
@@ -1428,10 +1605,11 @@ function updateScoreboard() {
   Array.from(players.values()).sort((a, b) => b.score - a.score).forEach(p => {
     const row = document.createElement('div');
     row.className = `roster-entry ${p.isLocal ? 'local' : ''} ${!p.isAlive ? 'dead' : ''}`;
+    const streakHtml = p.winStreak >= 2 ? `<span class="streak-tag">${p.winStreak}X STREAK</span>` : '';
     row.innerHTML = `
       <div class="entry-name-box">
         <span class="entry-indicator ${!p.isAlive ? 'dead' : ''}"></span>
-        <span class="entry-name">${esc(p.name)}</span>
+        <span class="entry-name">${esc(p.name)}${streakHtml}</span>
       </div>
       <span class="entry-score ${!p.isAlive ? 'dead' : ''}">${p.score} PTS</span>
     `;
@@ -1785,8 +1963,12 @@ function executeDeployment(deployment) {
     const squadName = deployment.squadName || 'ALPHA DOGS';
     const roundTime = deployment.roundTime || 5;
     const maxPlayers = deployment.maxPlayers || 5;
+    const arenaTheme = deployment.arenaTheme || 'cyber_gold';
+    const matchModifier = deployment.matchModifier || 'standard';
     CONFIG.countdownSeconds = roundTime;
     CONFIG.maxPlayersPerRoom = maxPlayers;
+    applyArenaTheme(arenaTheme);
+    applyMatchModifier(matchModifier);
 
     const code = generateRoomCode();
     currentRoomId = `custom_${code}`;
@@ -1813,7 +1995,13 @@ function executeDeployment(deployment) {
     });
 
     setTimeout(() => {
-      supabaseManager.broadcastRoomSettings({ squadName, roundTime, maxSquad: maxPlayers });
+      supabaseManager.broadcastRoomSettings({
+        squadName,
+        roundTime,
+        maxSquad: maxPlayers,
+        arenaTheme,
+        matchModifier
+      });
     }, 500);
 
     showBanner(`PRIVATE SQUAD ESTABLISHED: ${code}`, 2500);
@@ -1895,6 +2083,7 @@ document.getElementById('tab-join-squad')?.addEventListener('click', () => {
 // Deploy to Public Quick-Match (opens Character Select)
 document.getElementById('btn-deploy-public')?.addEventListener('click', () => {
   audioSystem.init();
+  applyMatchModifier('standard');
   pendingDeployment = { type: 'public' };
   document.getElementById('mode-select-screen')?.classList.add('hidden');
   openCharacterSelectScreen();
@@ -1906,7 +2095,9 @@ document.getElementById('btn-confirm-create-squad')?.addEventListener('click', (
   const squadName = document.getElementById('create-squad-name')?.value.trim() || 'ALPHA DOGS';
   const roundTime = parseInt(document.getElementById('create-timer-select')?.value) || 5;
   const maxPlayers = parseInt(document.getElementById('create-max-players-select')?.value) || 5;
-  pendingDeployment = { type: 'create_squad', squadName, roundTime, maxPlayers };
+  const arenaTheme = document.getElementById('create-theme-select')?.value || 'cyber_gold';
+  const matchModifier = document.getElementById('create-modifier-select')?.value || 'standard';
+  pendingDeployment = { type: 'create_squad', squadName, roundTime, maxPlayers, arenaTheme, matchModifier };
   document.getElementById('mode-select-screen')?.classList.add('hidden');
   openCharacterSelectScreen();
 });
@@ -2148,6 +2339,7 @@ function animate() {
   requestAnimationFrame(animate);
 
   const delta = clock.getDelta();
+  const scaledDelta = delta * timeDilationFactor;
 
   const modalOpen = isModalActive();
   controls.enabled = !modalOpen;
@@ -2217,16 +2409,26 @@ function animate() {
       const walkTimeScale = Math.max(0.75, Math.min(1.45, currentSpeed / 3.4));
       localPlayer.playAction('walk', 0.16, walkTimeScale);
 
+      // Synthesized footstep cadence synced to movement speed
+      footstepTimer += delta * walkTimeScale * 2.6;
+      if (footstepTimer >= 1.0) {
+        footstepTimer = 0;
+        audioSystem.playFootstep(currentSpeed > 8.5);
+      }
+
       supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY, false);
     } else {
       localPlayerVelocity.set(0, 0, 0);
+      footstepTimer = 0.75;
       if (wasMoving) {
         // Immediate unthrottled stop packet dispatch to freeze remote visual drift
         wasMoving = false;
         hasAimedSinceStop = false;
+        localPlayer.playAction('idle', 0.22, 1.0);
         supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY, true);
+      } else if (!localPlayer.activeEmoteText) {
+        localPlayer.playAction('idle', 0.22, 1.0);
       }
-      localPlayer.playAction('idle', 0.22, 1.0);
 
       // After walking is done, smoothly rotate character to face the camera (unless actively aiming laser in STEALTH)
       const prevRot = localPlayer.rotationY;
@@ -2276,10 +2478,10 @@ function animate() {
     }
 
     if (arena) arena.clampPosition(p.group.position);
-    p.update(delta);
+    p.update(scaledDelta);
   });
 
-  if (arena) arena.update(delta);
+  if (arena) arena.update(scaledDelta);
 
   // Update HTML name tags (zero-allocation projection using static scratch vectors)
   players.forEach(p => {

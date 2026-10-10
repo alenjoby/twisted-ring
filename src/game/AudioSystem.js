@@ -241,6 +241,93 @@ class AudioSystem {
       });
     } catch (e) {}
   }
+
+  playFootstep(isSprint = false) {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      const baseFreq = isSprint ? 135 : 105;
+      const pitchJitter = (Math.random() - 0.5) * 18;
+      osc.frequency.setValueAtTime(baseFreq + pitchJitter, t);
+      osc.frequency.exponentialRampToValueAtTime(34, t + 0.065);
+
+      gain.gain.setValueAtTime(isSprint ? 0.13 : 0.09, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.065);
+
+      osc.start(t);
+      osc.stop(t + 0.065);
+    } catch (e) {}
+  }
+
+  playEmoteSound(emoteType = 'HYPE', characterId = 'ajp') {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      if (characterId === 'dog') {
+        // Synthesized double bark for Doggesh Bhair
+        [0, 0.13].forEach((offset, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          const startFreq = idx === 0 ? 310 : 350;
+          osc.frequency.setValueAtTime(startFreq, t + offset);
+          osc.frequency.exponentialRampToValueAtTime(460, t + offset + 0.035);
+          osc.frequency.exponentialRampToValueAtTime(140, t + offset + 0.1);
+          gain.gain.setValueAtTime(0.22, t + offset);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.1);
+          osc.start(t + offset);
+          osc.stop(t + offset + 0.1);
+        });
+        return;
+      }
+
+      const freqs = emoteType === 'TAUNT' ? [520, 390]
+        : emoteType === 'DANCE' ? [440, 554.37, 659.25]
+        : emoteType === 'JUMP' ? [340, 680]
+        : [587.33, 880];
+
+      freqs.forEach((f, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        const start = t + idx * 0.075;
+        osc.frequency.setValueAtTime(f, start);
+        gain.gain.setValueAtTime(0.18, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.12);
+        osc.start(start);
+        osc.stop(start + 0.12);
+      });
+    } catch (e) {}
+  }
+
+  playSlowMoFinish() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.frequency.setValueAtTime(190, t);
+      osc.frequency.exponentialRampToValueAtTime(32, t + 1.05);
+      gain.gain.setValueAtTime(0.55, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 1.05);
+      osc.start(t);
+      osc.stop(t + 1.05);
+    } catch (e) {}
+  }
 }
 
 export const audioSystem = new AudioSystem();
+

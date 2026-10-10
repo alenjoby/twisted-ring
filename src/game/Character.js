@@ -78,6 +78,10 @@ export class Character {
     this.isAlive = true;
     this.isVisible = true;
     this.score = 0;
+    this.wins = 0;
+    this.winStreak = 0;
+    this.activeEmoteText = null;
+    this.emoteTimeout = null;
     this.currentActionName = 'idle';
     this.isHost = false;
     this.isReady = false;
@@ -446,6 +450,26 @@ export class Character {
         }
       }, 160);
     }
+  }
+
+  triggerEmote(label, animKey = null, onUpdateTag = null) {
+    if (!this.isAlive) return;
+    this.activeEmoteText = label;
+    if (onUpdateTag) onUpdateTag(this);
+
+    if (animKey && this.actions[animKey] && this.currentActionName === 'idle') {
+      this.playAction(animKey, 0.14, 1.0);
+    }
+
+    if (this.emoteTimeout) clearTimeout(this.emoteTimeout);
+    this.emoteTimeout = setTimeout(() => {
+      this.activeEmoteText = null;
+      if (this.isAlive && animKey && this.currentActionName === animKey) {
+        this.playAction('idle', 0.18, 1.0);
+      }
+      if (onUpdateTag) onUpdateTag(this);
+      this.emoteTimeout = null;
+    }, 1500);
   }
 
   die() {

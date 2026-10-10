@@ -53,6 +53,21 @@ function tagClipMetadata(clip, inPlace) {
   return clip;
 }
 
+export const VICTORY_DANCE_KEYS = [
+  'dance_breakdance',
+  'dance_swing',
+  'dance_headspin',
+  'dance_twerk'
+];
+
+let _lastPickedDanceKey = null;
+export function pickRandomVictoryDance(excludeKey = _lastPickedDanceKey) {
+  const pool = VICTORY_DANCE_KEYS.filter(k => k !== excludeKey);
+  const chosen = pool[Math.floor(Math.random() * pool.length)] || VICTORY_DANCE_KEYS[0];
+  _lastPickedDanceKey = chosen;
+  return chosen;
+}
+
 export const CHARACTER_DATA = {
   'ajp': {
     id: 'ajp',
@@ -63,7 +78,7 @@ export const CHARACTER_DATA = {
   },
   'dog': {
     id: 'dog',
-    name: 'DOG',
+    name: 'DOGGESH BHAIR',
     url: '/assets/Pistol Idle.fbx',
     danceKey: 'dance_twerk',
     danceName: 'VICTORY TWERK'
@@ -122,16 +137,18 @@ class AssetManager {
       { key: 'char_big_vegas', url: '/CHARACTERS/Big Vegas.fbx', type: 'character', charId: 'big_vegas' },
       { key: 'char_knight', url: '/CHARACTERS/Knight D Pelegrini.fbx', type: 'character', charId: 'knight' },
       { key: 'char_peasant_girl', url: '/CHARACTERS/Peasant Girl.fbx', type: 'character', charId: 'peasant_girl' },
-      // Basic Locomotion Pack Animations (shared across all 5 characters including Dog)
+      // Basic Locomotion Pack Animations (shared across all 5 characters including Doggesh Bhair)
       { key: 'idle', url: '/ANIMATIONS/Basic Locomotion Pack/idle.fbx', type: 'clip', inPlace: true },
       { key: 'walk', url: '/ANIMATIONS/Basic Locomotion Pack/walking.fbx', type: 'clip', inPlace: true },
       { key: 'strafeLeft', url: '/ANIMATIONS/Basic Locomotion Pack/left strafe walking.fbx', type: 'clip', inPlace: true },
       { key: 'strafeRight', url: '/ANIMATIONS/Basic Locomotion Pack/right strafe walking.fbx', type: 'clip', inPlace: true },
+      { key: 'turnLeft', url: '/ANIMATIONS/Basic Locomotion Pack/left turn 90.fbx', type: 'clip', inPlace: true },
+      { key: 'turnRight', url: '/ANIMATIONS/Basic Locomotion Pack/right turn 90.fbx', type: 'clip', inPlace: true },
       { key: 'run', url: '/assets/Running.fbx', type: 'clip', inPlace: true },
       { key: 'jump', url: '/ANIMATIONS/Basic Locomotion Pack/jump.fbx', type: 'clip', inPlace: true },
       { key: 'shoot', url: '/assets/Shooting.fbx', type: 'clip', inPlace: true },
       { key: 'death', url: '/assets/Standing React Death Backward.fbx', type: 'clip', inPlace: false },
-      // Distinct Victory Dance Animations
+      // Victory Dance Animation Pool (Available to ALL characters randomly)
       { key: 'dance_breakdance', url: '/ANIMATIONS/Breakdance Uprock Var 2.fbx', type: 'clip', inPlace: true },
       { key: 'dance_swing', url: '/ANIMATIONS/DANCE 2 - Swing Dancing.fbx', type: 'clip', inPlace: true },
       { key: 'dance_headspin', url: '/ANIMATIONS/DANCE 3 - Headspin Start.fbx', type: 'clip', inPlace: true },

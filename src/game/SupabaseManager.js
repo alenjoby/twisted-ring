@@ -26,7 +26,7 @@ const DEFAULT_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PU
 const DEFAULT_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || safeStorage.getItem('supabase_anon_key') || 'mock-key';
 
 export class SupabaseManager {
-  constructor({ onPlayerJoined, onPlayerLeft, onPlayerMoved, onRoundSync, onReveal, onHit, onRoomStateChange, onPlayerReady, onForceStart, onLockPacket, onRoundVerdict, onRoomSettings, onPlayerRenamed, onGameReset, onPhaseLock, onLatencyUpdate }) {
+  constructor({ onPlayerJoined, onPlayerLeft, onPlayerMoved, onRoundSync, onReveal, onHit, onRoomStateChange, onPlayerReady, onForceStart, onLockPacket, onRoundVerdict, onRoomSettings, onPlayerRenamed, onGameReset, onPhaseLock, onLatencyUpdate, onPlayerEmote }) {
     this.onPlayerJoined = onPlayerJoined;
     this.onPlayerLeft = onPlayerLeft;
     this.onPlayerMoved = onPlayerMoved;
@@ -43,6 +43,7 @@ export class SupabaseManager {
     this.onGameReset = onGameReset;
     this.onPhaseLock = onPhaseLock;
     this.onLatencyUpdate = onLatencyUpdate;
+    this.onPlayerEmote = onPlayerEmote;
 
     this.client = null;
     this.channel = null;
@@ -266,6 +267,9 @@ export class SupabaseManager {
         .on('broadcast', { event: 'phase-lock' }, ({ payload }) => {
           if (this.onPhaseLock) this.onPhaseLock(payload);
         })
+        .on('broadcast', { event: 'player-emote' }, ({ payload }) => {
+          if (this.onPlayerEmote) this.onPlayerEmote(payload);
+        })
         .on('broadcast', { event: 'ping' }, ({ payload }) => {
           if (payload && payload.senderId !== this.myPlayerInfo?.id && this.channel) {
             this.channel.send({
@@ -352,6 +356,8 @@ export class SupabaseManager {
           }
         } else if (type === 'phase-lock') {
           if (this.onPhaseLock) this.onPhaseLock(data);
+        } else if (type === 'player-emote') {
+          if (this.onPlayerEmote) this.onPlayerEmote(data);
         } else if (type === 'ping') {
           if (data && data.senderId !== this.myPlayerInfo?.id && this.localBc) {
             this.localBc.postMessage({
@@ -500,6 +506,28 @@ export class SupabaseManager {
     } else if (this.localBc) {
       this.localBc.postMessage({
         type: 'phase-lock',
+        data: payload
+      });
+    }
+  }
+
+  broadcastEmote(emoteData = {}) {
+    if (!this.myPlayerInfo) return;
+    const payload = {
+      id: this.myPlayerInfo.id,
+      senderId: this.myPlayerInfo.id,
+      label: emoteData.label || 'HYPE',
+      animKey: emoteData.animKey || null
+    };
+    if (this.channel && this.isConfigured) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'player-emote',
+        payload
+      });
+    } else if (this.localBc) {
+      this.localBc.postMessage({
+        type: 'player-emote',
         data: payload
       });
     }

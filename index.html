@@ -135,6 +135,24 @@
                 </select>
               </div>
             </div>
+            <div class="squad-options-row">
+              <div class="squad-field flex-1">
+                <label>Arena Map Theme</label>
+                <select id="create-theme-select">
+                  <option value="cyber_gold" selected>CYBER RING</option>
+                  <option value="volcanic_core">VOLCANIC CORE</option>
+                  <option value="sky_citadel">SKY CITADEL</option>
+                </select>
+              </div>
+              <div class="squad-field flex-1">
+                <label>Match Modifier</label>
+                <select id="create-modifier-select">
+                  <option value="standard" selected>STANDARD</option>
+                  <option value="turbo_speed">TURBO SPEED</option>
+                  <option value="sudden_death">SUDDEN DEATH</option>
+                </select>
+              </div>
+            </div>
             <button id="btn-confirm-create-squad" class="hud-btn hud-btn-primary deploy-action-btn">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
               CREATE PRIVATE ROOM
@@ -188,10 +206,10 @@
             <span class="char-status-badge">SELECTED</span>
           </div>
 
-          <!-- Card 2: DOG -->
+          <!-- Card 2: DOGGESH BHAIR -->
           <div class="char-card" data-char-id="dog">
             <div class="char-card-glow"></div>
-            <div class="char-name">DOG</div>
+            <div class="char-name">DOGGESH BHAIR</div>
             <div class="char-3d-viewport">
               <canvas class="char-3d-canvas" data-char-canvas="dog" width="300" height="380"></canvas>
             </div>
@@ -438,8 +456,33 @@
         </div>
       </div>
 
-      <div id="btn-reset-cam" class="camera-mode-badge">
-        <span>RESET CAMERA</span>
+      <div class="hud-footer-right">
+        <div id="hud-emote-bar" class="hud-emote-bar">
+          <button type="button" class="emote-btn" data-emote-id="HYPE" title="Hype Emote (Key 1)">
+            <span class="key-tag">1</span>
+            <span>HYPE</span>
+          </button>
+          <button type="button" class="emote-btn" data-emote-id="TAUNT" title="Taunt Emote (Key 2)">
+            <span class="key-tag">2</span>
+            <span>TAUNT</span>
+          </button>
+          <button type="button" class="emote-btn" data-emote-id="DANCE" title="Dance Emote (Key 3)">
+            <span class="key-tag">3</span>
+            <span>DANCE</span>
+          </button>
+          <button type="button" class="emote-btn" data-emote-id="JUMP" title="Jump Emote (Key 4)">
+            <span class="key-tag">4</span>
+            <span>JUMP</span>
+          </button>
+        </div>
+
+        <div id="btn-cycle-theme" class="camera-mode-badge" title="Switch Arena Map Theme">
+          <span id="theme-badge-label">MAP: CYBER RING</span>
+        </div>
+
+        <div id="btn-reset-cam" class="camera-mode-badge">
+          <span>RESET CAMERA</span>
+        </div>
       </div>
     </footer>
   </div>

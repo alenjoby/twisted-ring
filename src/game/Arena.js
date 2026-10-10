@@ -1,6 +1,39 @@
 import * as THREE from 'three';
 import { assetManager } from './AssetManager.js';
 
+export const ARENA_THEMES = {
+  cyber_gold: {
+    id: 'cyber_gold',
+    name: 'CYBER RING',
+    boundaryColor: 0xffcc00,
+    midWireColor: 0xffffff,
+    shieldColor: 0xffcc00,
+    floorTint: 0xffffff,
+    spotColor: 0xfff5e4,
+    fogColor: 0x050608
+  },
+  volcanic_core: {
+    id: 'volcanic_core',
+    name: 'VOLCANIC CORE',
+    boundaryColor: 0xff3b00,
+    midWireColor: 0xffaa00,
+    shieldColor: 0xff2200,
+    floorTint: 0xffd2b8,
+    spotColor: 0xffc499,
+    fogColor: 0x0d0403
+  },
+  sky_citadel: {
+    id: 'sky_citadel',
+    name: 'SKY CITADEL',
+    boundaryColor: 0x00f0ff,
+    midWireColor: 0xd8f8ff,
+    shieldColor: 0x00b8ff,
+    floorTint: 0xdff8ff,
+    spotColor: 0xd6f4ff,
+    fogColor: 0x040810
+  }
+};
+
 export class Arena {
   constructor(scene, initialRadius = 12) {
     this.scene = scene;
@@ -9,6 +42,7 @@ export class Arena {
     this.targetRadius = initialRadius;
     this.shrinkSpeed = 2.5;
     this.isShrinking = false;
+    this.themeId = 'cyber_gold';
 
     this.group = new THREE.Group();
     this.scene.add(this.group);
@@ -89,6 +123,22 @@ export class Arena {
     this.group.add(this.shieldMesh);
 
     this.posts = []; // Clean boundary without bulky procedural pillars obscuring the 3D model
+  }
+
+  setTheme(themeId) {
+    const theme = ARENA_THEMES[themeId] || ARENA_THEMES.cyber_gold;
+    this.themeId = theme.id;
+    if (this.boundaryMat) this.boundaryMat.color.setHex(theme.boundaryColor);
+    if (this.midBoundaryMat) this.midBoundaryMat.color.setHex(theme.midWireColor);
+    if (this.shieldMat) this.shieldMat.color.setHex(theme.shieldColor);
+    if (this.arenaModel) {
+      this.arenaModel.traverse((child) => {
+        if (child.isMesh && child.material && child.material.color) {
+          child.material.color.setHex(theme.floorTint);
+        }
+      });
+    }
+    return theme;
   }
 
   shrinkTo(newRadius) {

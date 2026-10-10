@@ -1410,11 +1410,80 @@ body, html {
   border-radius: 6px;
   pointer-events: auto;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color 0.2s, border-color 0.2s;
 }
 
 .camera-mode-badge:hover {
   color: var(--accent-lime);
+  border-color: rgba(255, 204, 0, 0.45);
+}
+
+.hud-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  pointer-events: auto;
+}
+
+.hud-emote-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--panel-border);
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.emote-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-dim);
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.emote-btn:hover {
+  background: rgba(255, 204, 0, 0.16);
+  border-color: var(--accent-lime);
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.streak-tag {
+  font-family: 'Fira Code', monospace;
+  font-size: 9px;
+  font-weight: 800;
+  color: #090c13;
+  background: var(--accent-lime);
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  margin-left: 6px;
+}
+
+.emote-bubble-tag {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  color: #090c13;
+  background: #00f0ff;
+  padding: 2px 7px;
+  border-radius: 8px;
+  letter-spacing: 0.8px;
+  margin-left: 6px;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.65);
 }
 
 /* ==========================================================================
