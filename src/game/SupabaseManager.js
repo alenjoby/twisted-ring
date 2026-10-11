@@ -385,10 +385,11 @@ export class SupabaseManager {
         .on('broadcast', { event: 'game-reset' }, ({ payload }) => {
           if (this.onGameReset) this.onGameReset(payload);
         })
-        .on('broadcast', { event: 'request-game-reset' }, () => {
+        .on('broadcast', { event: 'request-game-reset' }, ({ payload }) => {
           if (this.isHost) {
-            this.broadcastGameReset();
-            if (this.onGameReset) this.onGameReset({ senderId: this.myPlayerInfo?.id });
+            const opts = (payload && typeof payload === 'object') ? payload : {};
+            this.broadcastGameReset(opts);
+            if (this.onGameReset) this.onGameReset({ ...opts, senderId: this.myPlayerInfo?.id });
           }
         })
         .on('broadcast', { event: 'phase-lock' }, ({ payload }) => {
@@ -511,8 +512,9 @@ export class SupabaseManager {
           if (this.onGameReset) this.onGameReset(data);
         } else if (type === 'request-game-reset') {
           if (this.isHost) {
-            this.broadcastGameReset();
-            if (this.onGameReset) this.onGameReset({ senderId: this.myPlayerInfo?.id });
+            const opts = (data && typeof data === 'object') ? data : {};
+            this.broadcastGameReset(opts);
+            if (this.onGameReset) this.onGameReset({ ...opts, senderId: this.myPlayerInfo?.id });
           }
         } else if (type === 'phase-lock') {
           if (this.onPhaseLock) this.onPhaseLock(data);
@@ -667,6 +669,7 @@ export class SupabaseManager {
 
   broadcastRoundStart(round, timingEpoch = {}) {
     const payload = {
+      ...timingEpoch,
       round,
       initiator: this.myPlayerInfo?.id,
       senderId: this.myPlayerInfo?.id,
@@ -840,8 +843,8 @@ export class SupabaseManager {
     }
   }
 
-  broadcastGameReset() {
-    const payload = { senderId: this.myPlayerInfo?.id };
+  broadcastGameReset(options = {}) {
+    const payload = { ...options, senderId: this.myPlayerInfo?.id };
     if (this.channel && this.isConfigured) {
       this.channel.send({
         type: 'broadcast',
@@ -856,8 +859,8 @@ export class SupabaseManager {
     }
   }
 
-  requestGameReset() {
-    const payload = { senderId: this.myPlayerInfo?.id };
+  requestGameReset(options = {}) {
+    const payload = { ...options, senderId: this.myPlayerInfo?.id };
     if (this.channel && this.isConfigured) {
       this.channel.send({
         type: 'broadcast',

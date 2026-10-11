@@ -116,9 +116,20 @@
 
           <!-- Create Squad Panel -->
           <div id="panel-create-squad" class="squad-panel active">
-            <div class="squad-field">
-              <label>Lobby / Squad Name</label>
-              <input type="text" id="create-squad-name" maxlength="15" placeholder="E.G. DOG SQUAD" value="ALPHA DOGS" />
+            <div class="squad-options-row">
+              <div class="squad-field flex-1">
+                <label>Lobby / Squad Name</label>
+                <input type="text" id="create-squad-name" maxlength="15" placeholder="E.G. DOG SQUAD" value="ALPHA DOGS" />
+              </div>
+              <div class="squad-field flex-1">
+                <label>Series Rounds</label>
+                <select id="create-rounds-select">
+                  <option value="1">1 ROUND (SINGLE)</option>
+                  <option value="3" selected>3 ROUNDS (SERIES)</option>
+                  <option value="5">5 ROUNDS (TOURNAMENT)</option>
+                  <option value="7">7 ROUNDS (CHAMPIONSHIP)</option>
+                </select>
+              </div>
             </div>
             <div class="squad-options-row">
               <div class="squad-field flex-1">
@@ -300,6 +311,11 @@
             </div>
             <div class="status-sep"></div>
             <div class="status-item">
+              <span class="status-lbl">ROUNDS</span>
+              <span id="squad-rounds-val" class="status-val text-gold">3 ROUNDS</span>
+            </div>
+            <div class="status-sep"></div>
+            <div class="status-item">
               <span class="status-lbl">TIMER</span>
               <span id="squad-timer-val" class="status-val">5S</span>
             </div>
@@ -322,6 +338,15 @@
         <div class="friends-col-right">
           <div class="friends-actions-box">
             <div class="roster-section-title">DEPLOYMENT ACTIONS</div>
+            <div id="friends-host-rounds-row" class="squad-field hidden" style="margin-bottom: 10px;">
+              <label>Match Series Length (Host)</label>
+              <select id="friends-rounds-select">
+                <option value="1">1 ROUND (SINGLE)</option>
+                <option value="3" selected>3 ROUNDS (SERIES)</option>
+                <option value="5">5 ROUNDS (TOURNAMENT)</option>
+                <option value="7">7 ROUNDS (CHAMPIONSHIP)</option>
+              </select>
+            </div>
             <div class="friends-hub-actions">
               <!-- Ready toggle for all players -->
               <button id="btn-friends-ready" class="hud-btn hud-btn-ready flex-1">
@@ -420,6 +445,10 @@
       <div class="hud-actions-right">
         <button id="btn-toggle-demo-bots" class="hud-btn" type="button">
           <span id="demo-bots-btn-text">ADD DEMO BOTS</span>
+        </button>
+        <button id="btn-hud-host-start" class="hud-btn hud-btn-primary hidden" type="button">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span id="hud-host-start-text">START MATCH</span>
         </button>
         <button id="btn-ready-toggle" class="hud-btn hud-btn-ready">
           <span class="ready-dot"></span>
@@ -620,13 +649,22 @@
 
   <!-- CINEMATIC VICTORY OVERLAY -->
   <div id="winner-modal" class="victory-cinematic-overlay hidden">
-    <div id="winner-name-display" class="victory-winner-left">OPERATOR WINS</div>
+    <div class="victory-left-column">
+      <div id="victory-standings-card" class="victory-standings-card">
+        <div id="victory-standings-header" class="victory-standings-header">FINAL SERIES STANDINGS</div>
+        <div id="victory-standings-list" class="victory-standings-list"></div>
+      </div>
+      <div id="winner-name-display" class="victory-winner-left">OPERATOR WINS</div>
+    </div>
     <div class="victory-actions-right">
       <button id="btn-victory-leave" class="hud-btn victory-leave-btn" type="button">
         LEAVE ROOM
       </button>
+      <button id="btn-victory-arena" class="hud-btn victory-leave-btn" type="button">
+        BACK TO ARENA
+      </button>
       <button id="btn-play-again" class="hud-btn hud-btn-primary victory-next-right" type="button">
-        NEXT MATCH
+        <span id="victory-play-again-text">REMATCH NOW</span>
         <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
       </button>
     </div>

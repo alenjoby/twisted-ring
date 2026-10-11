@@ -2063,6 +2063,93 @@ body, html {
   display: none !important;
 }
 
+.victory-left-column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  pointer-events: auto;
+  max-width: min(320px, 88vw);
+}
+
+.victory-standings-card {
+  width: 100%;
+  min-width: 220px;
+  background: rgba(11, 14, 22, 0.86);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 10px 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.victory-standings-card.hidden {
+  display: none !important;
+}
+
+.victory-standings-header {
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--accent-gold);
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 5px;
+}
+
+.victory-standings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.victory-standing-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.victory-standing-row.rank-1 {
+  background: rgba(255, 204, 0, 0.14);
+  border: 1px solid rgba(255, 204, 0, 0.35);
+  color: #ffffff;
+}
+
+.victory-standing-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.victory-rank-badge {
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
+  font-size: 9.5px;
+  font-weight: 800;
+  color: var(--accent-gold);
+}
+
+.victory-standing-pts {
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--accent-gold);
+  white-space: nowrap;
+}
+
 .victory-winner-left {
   pointer-events: auto;
   font-family: 'Montserrat', 'Satoshi', sans-serif;
@@ -2082,6 +2169,7 @@ body, html {
 .victory-actions-right {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   pointer-events: auto;
 }

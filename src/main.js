@@ -27,9 +27,11 @@ const CONFIG = {
   maxPlayersPerRoom: 5
 };
 
-let currentPhase = 'LOBBY'; // 'LOBBY' | 'STEALTH' | 'REVEAL' | 'SHRINK' | 'VICTORY'
+let currentPhase = 'LOBBY'; // 'LOBBY' | 'STEALTH' | 'REVEAL' | 'SHRINK' | 'ROUND_END' | 'VICTORY'
 let countdownTime = CONFIG.countdownSeconds;
 let currentRound = 1;
+let totalSeriesRounds = 1;
+let currentSeriesRound = 1;
 let arenaRadius = CONFIG.initialArenaRadius;
 let currentRoomId = 'sector_1';
 let currentSquadName = 'ALPHA DOGS';
@@ -39,6 +41,26 @@ let timeDilationFactor = 1.0;
 let footstepTimer = 0;
 let localPlayerDeployed = false;
 let revealWatchdogTimer = null;
+
+function formatRoundPillLabel() {
+  if (totalSeriesRounds > 1) {
+    return `ROUND ${currentSeriesRound}/${totalSeriesRounds}`;
+  }
+  return `ROUND 0${currentRound}`;
+}
+
+function syncSeriesRoundsUI() {
+  const pill = document.getElementById('roster-round-pill');
+  if (pill) pill.innerText = formatRoundPillLabel();
+  const squadRoundsVal = document.getElementById('squad-rounds-val');
+  if (squadRoundsVal) {
+    squadRoundsVal.innerText = totalSeriesRounds === 1 ? '1 ROUND' : `${totalSeriesRounds} ROUNDS`;
+  }
+  const friendsSelect = document.getElementById('friends-rounds-select');
+  if (friendsSelect && String(friendsSelect.value) !== String(totalSeriesRounds)) {
+    friendsSelect.value = String(totalSeriesRounds);
+  }
+}
 
 function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -860,7 +882,8 @@ const supabaseManager = new SupabaseManager({
         roundTime: CONFIG.countdownSeconds,
         maxSquad: CONFIG.maxPlayersPerRoom,
         arenaTheme: currentArenaTheme,
-        matchModifier: currentMatchModifier
+        matchModifier: currentMatchModifier,
+        seriesRounds: totalSeriesRounds
       });
     }
   },
@@ -946,6 +969,12 @@ const supabaseManager = new SupabaseManager({
   },
   onRoundSync: (data) => {
     if (data?.senderId && currentHostId && data.senderId !== currentHostId) return;
+    if (data?.totalSeriesRounds) {
+      totalSeriesRounds = parseInt(data.totalSeriesRounds, 10) || 1;
+    }
+    if (data?.seriesRound && data.seriesRound !== currentSeriesRound) {
+      prepareNextSeriesRound(data.seriesRound, totalSeriesRounds);
+    }
     if (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END' || currentPhase === 'SHRINK') {
       currentRound = data.round || currentRound;
       currentRoundSyncEpoch = data;
@@ -995,10 +1024,18 @@ const supabaseManager = new SupabaseManager({
   },
   onRoomSettings: (settings) => {
     if (settings?.senderId && currentHostId && settings.senderId !== currentHostId) return;
-    if (settings.roundTime) CONFIG.countdownSeconds = settings.roundTime;
+    if (settings.roundTime) {
+      CONFIG.countdownSeconds = settings.roundTime;
+      const timerVal = document.getElementById('squad-timer-val');
+      if (timerVal) timerVal.innerText = `${settings.roundTime}S`;
+    }
     if (settings.maxSquad) CONFIG.maxPlayersPerRoom = settings.maxSquad;
     if (settings.arenaTheme) applyArenaTheme(settings.arenaTheme);
     if (settings.matchModifier) applyMatchModifier(settings.matchModifier);
+    if (settings.seriesRounds) {
+      totalSeriesRounds = parseInt(settings.seriesRounds, 10) || 1;
+      syncSeriesRoundsUI();
+    }
     if (settings.squadName) {
       currentSquadName = settings.squadName;
       const title = document.getElementById('squad-room-title');
@@ -1007,7 +1044,18 @@ const supabaseManager = new SupabaseManager({
   },
   onGameReset: (data) => {
     if (data?.senderId && currentHostId && data.senderId !== currentHostId) return;
-    resetGame();
+    resetGame({ resetScores: data?.resetScores !== false });
+    if (data?.autoLaunch && isLocalHost) {
+      setTimeout(() => {
+        if (currentPhase === 'LOBBY') {
+          if (currentRoomId.startsWith('custom_')) {
+            launchFriendsSquadMatch();
+          } else {
+            startRound(true);
+          }
+        }
+      }, 450);
+    }
   },
   onRoomStateChange: (state) => {
     if (state.roomId && state.roomId !== currentRoomId) {
@@ -1119,9 +1167,58 @@ function cycleSpectatorTarget(direction = 1) {
 document.getElementById('btn-spec-prev')?.addEventListener('click', () => cycleSpectatorTarget(-1));
 document.getElementById('btn-spec-next')?.addEventListener('click', () => cycleSpectatorTarget(1));
 
-let lastAppliedVerdictRound = 0;
+let lastAppliedVerdictRound = '';
 let lastVerdictWasAuthoritative = false;
 let roundTransitionTimer = null;
+
+function prepareNextSeriesRound(nextSeriesRound, nextTotalRounds = totalSeriesRounds) {
+  timeDilationFactor = 1.0;
+  deactivateSpectatorMode();
+  if (stealthCountdownInterval) {
+    clearInterval(stealthCountdownInterval);
+    stealthCountdownInterval = null;
+  }
+  if (revealWatchdogTimer) {
+    clearTimeout(revealWatchdogTimer);
+    revealWatchdogTimer = null;
+  }
+  if (roundTransitionTimer) {
+    clearTimeout(roundTransitionTimer);
+    roundTransitionTimer = null;
+  }
+
+  currentSeriesRound = nextSeriesRound;
+  if (nextTotalRounds) totalSeriesRounds = nextTotalRounds;
+  currentRound = 1;
+  lastAppliedVerdictRound = '';
+  lastVerdictWasAuthoritative = false;
+  arenaRadius = CONFIG.initialArenaRadius;
+  if (arena) arena.resetRadius(arenaRadius);
+  consecutiveStalemates = 0;
+
+  let i = 0;
+  players.forEach(p => {
+    if (p.baseScale && p.fbxModel) {
+      p.fbxModel.scale.setScalar(p.baseScale);
+      p.fbxModel.position.y = p.baseOffsetY || 0;
+    } else if (p.originalScale && p.fbxModel) {
+      p.fbxModel.scale.setScalar(p.originalScale);
+      p.fbxModel.position.y = p.baseOffsetY || 0;
+    }
+    p.setLaserActive(false);
+    const spawnPos = getRadialSpawnPosition(i, Math.max(1, players.size));
+    p.hasReceivedMovePacket = false;
+    p.revive(spawnPos);
+    p.lookAtTarget(new THREE.Vector3(0, 0, 0));
+    p.setVisible(true);
+    if (p.htmlTag) p.htmlTag.classList.remove('hidden');
+    i++;
+  });
+
+  currentPhase = 'ROUND_END';
+  syncSeriesRoundsUI();
+  updateScoreboard();
+}
 
 function startRound(broadcast = true, syncEpoch = null) {
   if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END' && currentPhase !== 'SHRINK') return;
@@ -1147,10 +1244,11 @@ function startRound(broadcast = true, syncEpoch = null) {
 
   // PHASE 1: RECON (1.5 seconds) - All players visible to observe trajectories
   currentPhase = 'RECON';
-  roundPillEl.innerText = `ROUND 0${currentRound}`;
+  updateHostStartButtonUI();
+  syncSeriesRoundsUI();
   clockPhaseLabel.innerText = 'RECONNAISSANCE';
   clockGuidanceText.innerText = 'OBSERVE OPERATOR POSITIONS // PREPARE AIM';
-  showBanner('RECONNAISSANCE PHASE', 1400);
+  showBanner(totalSeriesRounds > 1 ? `ROUND ${currentSeriesRound} OF ${totalSeriesRounds} // RECONNAISSANCE` : 'RECONNAISSANCE PHASE', 1400);
 
   // Reveal all alive players so everyone sees where everyone is
   players.forEach(p => {
@@ -1167,6 +1265,8 @@ function startRound(broadcast = true, syncEpoch = null) {
 
   if (broadcast) {
     supabaseManager.broadcastRoundStart(currentRound, {
+      seriesRound: currentSeriesRound,
+      totalSeriesRounds,
       serverStartTime: now,
       reconDuration,
       stealthDuration
@@ -1387,16 +1487,66 @@ function evaluateHostVerdict(isAuthoritative = true) {
 
   const eliminatedIds = [...new Set(hitList.map(h => h.targetId))];
   const survivors = alivePlayers.filter(p => !eliminatedIds.includes(p.id));
-  const isGameOver = survivors.length <= 1;
-  const winnerId = isGameOver ? (survivors.length === 1 ? survivors[0].id : null) : null;
-  const winnerDanceKey = isGameOver ? pickRandomVictoryDance() : null;
+  const isRoundComplete = survivors.length <= 1;
+  const roundWinnerId = isRoundComplete ? (survivors.length === 1 ? survivors[0].id : null) : null;
+  const roundDanceKey = isRoundComplete ? pickRandomVictoryDance() : null;
+  const isGameOver = isRoundComplete && (currentSeriesRound >= totalSeriesRounds);
+
+  // Compute authoritative projected scores across all players
+  const projectedScores = {};
+  players.forEach(p => {
+    projectedScores[p.id] = {
+      score: p.score || 0,
+      wins: p.wins || 0,
+      winStreak: p.winStreak || 0
+    };
+  });
+  hitList.forEach(({ shooterId }) => {
+    if (projectedScores[shooterId]) {
+      projectedScores[shooterId].score += 100;
+    }
+  });
+  if (isRoundComplete) {
+    Object.keys(projectedScores).forEach(pid => {
+      if (roundWinnerId && pid === roundWinnerId) {
+        projectedScores[pid].score += 250;
+        projectedScores[pid].wins += 1;
+        projectedScores[pid].winStreak += 1;
+      } else {
+        projectedScores[pid].winStreak = 0;
+      }
+    });
+  }
+
+  let winnerId = null;
+  let topLeaderIds = [];
+  if (isGameOver) {
+    if (totalSeriesRounds > 1) {
+      const scoreEntries = Object.entries(projectedScores);
+      const maxScore = scoreEntries.reduce((max, [, val]) => Math.max(max, val.score), 0);
+      topLeaderIds = scoreEntries
+        .filter(([, val]) => val.score === maxScore && maxScore > 0)
+        .map(([pid]) => pid);
+      if (topLeaderIds.length === 1) {
+        winnerId = topLeaderIds[0];
+      } else {
+        winnerId = null;
+      }
+    } else {
+      winnerId = roundWinnerId;
+    }
+  }
+
+  const winnerDanceKey = isGameOver ? (roundDanceKey || pickRandomVictoryDance()) : null;
 
   let drawShowcase = null;
   if (isGameOver && !winnerId) {
-    const drawCandidateIds = [...eliminatedIds];
+    const drawCandidateIds = (totalSeriesRounds > 1 && topLeaderIds.length >= 2)
+      ? [...topLeaderIds]
+      : [...eliminatedIds];
     if (drawCandidateIds.length < 2) {
       const sortedIds = Array.from(players.values())
-        .sort((a, b) => b.score - a.score)
+        .sort((a, b) => (projectedScores[b.id]?.score || 0) - (projectedScores[a.id]?.score || 0))
         .map(p => p.id);
       for (const pid of sortedIds) {
         if (drawCandidateIds.length >= Math.min(3, players.size)) break;
@@ -1424,12 +1574,19 @@ function evaluateHostVerdict(isAuthoritative = true) {
   }
 
   const verdict = {
+    verdictKey: `${currentSeriesRound}_${currentRound}`,
     round: currentRound,
+    seriesRound: currentSeriesRound,
+    totalSeriesRounds,
     isAuthoritative,
     eliminatedIds,
     hits: hitList,
     lockedCoords: Object.fromEntries(lockedPlayerCoords),
     ringRadius: newRingRadius,
+    isRoundComplete,
+    roundWinnerId,
+    roundDanceKey,
+    projectedScores,
     isGameOver,
     winnerId,
     winnerDanceKey,
@@ -1447,14 +1604,19 @@ function evaluateHostVerdict(isAuthoritative = true) {
 function applyRoundVerdict(verdict) {
   if (!verdict) return;
   const isAuth = verdict.isAuthoritative !== false;
-  if (verdict.round && lastAppliedVerdictRound === verdict.round) {
+  const vKey = verdict.verdictKey || `${verdict.seriesRound || currentSeriesRound}_${verdict.round || currentRound}`;
+  if (vKey && lastAppliedVerdictRound === vKey) {
     // Ignore duplicate verdict for the same round unless an authoritative Host verdict is overriding a local watchdog fallback
     if (lastVerdictWasAuthoritative || !isAuth) return;
   }
-  if (verdict.round) {
-    lastAppliedVerdictRound = verdict.round;
+  if (vKey) {
+    lastAppliedVerdictRound = vKey;
     lastVerdictWasAuthoritative = isAuth;
   }
+  if (verdict.seriesRound) currentSeriesRound = verdict.seriesRound;
+  if (verdict.totalSeriesRounds) totalSeriesRounds = verdict.totalSeriesRounds;
+  syncSeriesRoundsUI();
+
   if (revealWatchdogTimer) {
     clearTimeout(revealWatchdogTimer);
     revealWatchdogTimer = null;
@@ -1482,12 +1644,37 @@ function applyRoundVerdict(verdict) {
     p.setLaserActive(false);
   });
 
-  // Score awards
-  if (verdict.hits) {
-    verdict.hits.forEach(({ shooterId }) => {
-      const shooter = players.get(shooterId);
-      if (shooter) shooter.score += 100;
+  // Apply authoritative projected scores if present, otherwise fallback to local score calculation
+  if (verdict.projectedScores && typeof verdict.projectedScores === 'object') {
+    players.forEach(p => {
+      const ps = verdict.projectedScores[p.id];
+      if (ps) {
+        p.score = ps.score;
+        p.wins = ps.wins;
+        p.winStreak = ps.winStreak;
+      }
+      updateNameTag(p);
     });
+  } else {
+    if (verdict.hits) {
+      verdict.hits.forEach(({ shooterId }) => {
+        const shooter = players.get(shooterId);
+        if (shooter) shooter.score += 100;
+      });
+    }
+    if (verdict.isRoundComplete || verdict.isGameOver) {
+      const rWinId = verdict.roundWinnerId !== undefined ? verdict.roundWinnerId : verdict.winnerId;
+      players.forEach(p => {
+        if (rWinId && p.id === rWinId) {
+          p.wins = (p.wins || 0) + 1;
+          p.winStreak = (p.winStreak || 0) + 1;
+          p.score += 250;
+        } else {
+          p.winStreak = 0;
+        }
+        updateNameTag(p);
+      });
+    }
   }
 
   let someoneDied = false;
@@ -1510,37 +1697,23 @@ function applyRoundVerdict(verdict) {
     triggerDeathVignette(localPlayerEliminated ? 1400 : 700, localPlayerEliminated);
   }
 
-  // Track match wins and streaks when game concludes
-  if (verdict.isGameOver) {
-    players.forEach(p => {
-      if (verdict.winnerId && p.id === verdict.winnerId) {
-        p.wins = (p.wins || 0) + 1;
-        p.winStreak = (p.winStreak || 0) + 1;
-        p.score += 150;
-      } else {
-        p.winStreak = 0;
-      }
-      updateNameTag(p);
-    });
-
-    // Dramatic slow-motion final elimination finish
-    if (someoneDied) {
-      timeDilationFactor = 0.32;
-      audioSystem.playSlowMoFinish();
-      setTimeout(() => {
-        timeDilationFactor = 1.0;
-      }, 1100);
-    }
+  // Dramatic slow-motion on round or match conclusion
+  if ((verdict.isRoundComplete || verdict.isGameOver) && someoneDied) {
+    timeDilationFactor = 0.32;
+    audioSystem.playSlowMoFinish();
+    setTimeout(() => {
+      timeDilationFactor = 1.0;
+    }, 1100);
   }
 
   updateScoreboard();
 
-  // If local player was eliminated, activate spectator mode
-  if (localPlayer && !localPlayer.isAlive && !verdict.isGameOver) {
+  // If local player was eliminated and the current round is still ongoing, activate spectator mode
+  if (localPlayer && !localPlayer.isAlive && !verdict.isRoundComplete && !verdict.isGameOver) {
     activateSpectatorMode();
   }
 
-  // After animation delay, process game over or next round shrink
+  // After animation delay, process game over, next series round, or next shrink wave
   roundTransitionTimer = setTimeout(() => {
     roundTransitionTimer = null;
     timeDilationFactor = 1.0;
@@ -1548,6 +1721,36 @@ function applyRoundVerdict(verdict) {
       deactivateSpectatorMode();
       const winner = verdict.winnerId ? (players.get(verdict.winnerId) || localPlayer) : null;
       presentWinner(winner, verdict.winnerDanceKey, verdict.drawShowcase);
+    } else if (verdict.isRoundComplete) {
+      // Intermediate Round in a Multi-Round Series finished!
+      deactivateSpectatorMode();
+      currentPhase = 'ROUND_END';
+      const roundWinner = verdict.roundWinnerId ? players.get(verdict.roundWinnerId) : null;
+      const sortedStandings = Array.from(players.values()).sort((a, b) => b.score - a.score);
+      const seriesLeader = sortedStandings[0];
+      const leaderText = seriesLeader ? `LEADER: ${seriesLeader.name.toUpperCase()} (${seriesLeader.score} PTS)` : '';
+
+      if (roundWinner) {
+        roundWinner.playAction(verdict.roundDanceKey || pickRandomVictoryDance(), 0.2);
+        audioSystem.playVictoryFanfare();
+        clockPhaseLabel.innerText = `ROUND ${currentSeriesRound}/${totalSeriesRounds} COMPLETE`;
+        clockGuidanceText.innerText = `${roundWinner.name.toUpperCase()} WON ROUND (+250 PTS) // ${leaderText}`;
+        showBanner(`ROUND ${currentSeriesRound}/${totalSeriesRounds}: ${roundWinner.name.toUpperCase()} (+250 PTS) // ${leaderText}`, 3400);
+      } else {
+        clockPhaseLabel.innerText = `ROUND ${currentSeriesRound}/${totalSeriesRounds} DRAW`;
+        clockGuidanceText.innerText = `NO SURVIVORS // ${leaderText}`;
+        showBanner(`ROUND ${currentSeriesRound}/${totalSeriesRounds} DRAW // ${leaderText}`, 3400);
+      }
+
+      const nextSR = currentSeriesRound + 1;
+      roundTransitionTimer = setTimeout(() => {
+        roundTransitionTimer = null;
+        if (currentPhase === 'VICTORY') return;
+        prepareNextSeriesRound(nextSR, totalSeriesRounds);
+        if (isLocalHost) {
+          startRound(true);
+        }
+      }, 3600);
     } else {
       currentPhase = 'SHRINK';
       arenaRadius = verdict.ringRadius;
@@ -1566,17 +1769,52 @@ function applyRoundVerdict(verdict) {
       }
 
       currentRound = verdict.round + 1;
-      roundPillEl.innerText = `ROUND 0${currentRound}`;
+      syncSeriesRoundsUI();
 
       // Only the host triggers the next round start
       setTimeout(() => {
-        if (isLocalHost) {
+        if (isLocalHost && currentPhase === 'SHRINK') {
           currentPhase = 'LOBBY';
           startRound(true);
         }
       }, 3000);
     }
   }, 2200);
+}
+
+function renderVictoryStandings() {
+  const card = document.getElementById('victory-standings-card');
+  const header = document.getElementById('victory-standings-header');
+  const list = document.getElementById('victory-standings-list');
+  if (!card || !list) return;
+
+  if (header) {
+    header.innerText = totalSeriesRounds > 1
+      ? `FINAL SERIES STANDINGS (${totalSeriesRounds} ROUNDS)`
+      : 'MATCH STANDINGS';
+  }
+
+  const sorted = Array.from(players.values()).sort((a, b) => {
+    if ((b.score || 0) !== (a.score || 0)) return (b.score || 0) - (a.score || 0);
+    return (b.wins || 0) - (a.wins || 0);
+  });
+
+  list.innerHTML = '';
+  sorted.forEach((p, idx) => {
+    const row = document.createElement('div');
+    const isTop = idx === 0 && (p.score || 0) > 0;
+    row.className = `victory-standing-row ${isTop ? 'rank-1' : ''}`;
+    const winsBadge = totalSeriesRounds > 1 ? ` (${p.wins || 0}W)` : '';
+    row.innerHTML = `
+      <div class="victory-standing-left">
+        <span class="victory-rank-badge">#${idx + 1}</span>
+        <span>${esc(p.name.toUpperCase())}${winsBadge}</span>
+      </div>
+      <span class="victory-standing-pts">${p.score || 0} PTS</span>
+    `;
+    list.appendChild(row);
+  });
+  card.classList.remove('hidden');
 }
 
 // WINNER PODIUM CELEBRATION PRESENTATION
@@ -1593,7 +1831,7 @@ function presentWinner(winner, danceKeyOverride = null, drawShowcase = null) {
     bannerTimer = null;
   }
 
-  // Hide ALL buttons, HUD overlays, banners, vignettes, and modals so ONLY winner name and NEXT button are visible
+  // Hide ALL buttons, HUD overlays, banners, vignettes, and modals so ONLY winner overlay is visible
   document.getElementById('event-banner')?.classList.remove('active');
   document.getElementById('death-vignette')?.classList.remove('active', 'critical');
   document.getElementById('ui-overlay')?.classList.add('hidden');
@@ -1611,6 +1849,11 @@ function presentWinner(winner, danceKeyOverride = null, drawShowcase = null) {
 
   const modal = document.getElementById('winner-modal');
   const nameDisplay = document.getElementById('winner-name-display');
+  const playAgainText = document.getElementById('victory-play-again-text');
+  if (playAgainText) {
+    playAgainText.innerText = isLocalHost ? 'REMATCH NOW' : 'READY FOR REMATCH';
+  }
+  renderVictoryStandings();
 
   if (!winner) {
     let drawFinalists = [];
@@ -1684,7 +1927,7 @@ function presentWinner(winner, danceKeyOverride = null, drawShowcase = null) {
 
     clockPhaseLabel.innerText = 'MATCH CONCLUDED';
     clockGuidanceText.innerText = 'MUTUAL DESTRUCTION // NO SURVIVORS';
-    if (nameDisplay) nameDisplay.innerText = 'DRAW';
+    if (nameDisplay) nameDisplay.innerText = totalSeriesRounds > 1 ? 'SERIES DRAW' : 'DRAW';
     if (modal) modal.classList.remove('hidden');
     audioSystem.playVictoryFanfare();
     return;
@@ -1739,12 +1982,16 @@ function presentWinner(winner, danceKeyOverride = null, drawShowcase = null) {
   ringSpot.target.position.set(0, 1.2, 0);
   ringSpot.intensity = 6.0;
 
-  // Show minimal left Winner Name and right NEXT button
-  if (nameDisplay) nameDisplay.innerText = `${winner.name.toUpperCase()} WINS`;
+  // Show Winner Name and total points
+  if (nameDisplay) {
+    nameDisplay.innerText = totalSeriesRounds > 1
+      ? `${winner.name.toUpperCase()} WINS SERIES // ${winner.score || 0} PTS`
+      : `${winner.name.toUpperCase()} WINS`;
+  }
   if (modal) modal.classList.remove('hidden');
 }
 
-function resetGame() {
+function resetGame({ resetScores = true } = {}) {
   timeDilationFactor = 1.0;
   deactivateSpectatorMode();
   if (stealthCountdownInterval) {
@@ -1795,11 +2042,17 @@ function resetGame() {
       p.fbxModel.scale.setScalar(p.originalScale);
       p.fbxModel.position.y = p.baseOffsetY || 0;
     }
+    if (resetScores) {
+      p.score = 0;
+      p.wins = 0;
+    }
     p.setLaserActive(false);
+    updateNameTag(p);
   });
 
+  currentSeriesRound = 1;
   currentRound = 1;
-  lastAppliedVerdictRound = 0;
+  lastAppliedVerdictRound = '';
   lastVerdictWasAuthoritative = false;
   arenaRadius = CONFIG.initialArenaRadius;
   if (arena) arena.resetRadius(arenaRadius);
@@ -1817,14 +2070,17 @@ function resetGame() {
   });
 
   currentPhase = 'LOBBY';
-  timerEl.innerText = '05';
-  roundPillEl.innerText = 'ROUND 01';
+  timerEl.innerText = CONFIG.countdownSeconds.toString().padStart(2, '0');
+  syncSeriesRoundsUI();
   clockPhaseLabel.innerText = 'PREPARATION';
-  clockGuidanceText.innerText = 'CLICK READY UP TO START MATCH';
+  clockGuidanceText.innerText = currentRoomId.startsWith('custom_')
+    ? (isLocalHost ? 'CLICK START MATCH OR READY UP' : 'CLICK READY UP // WAITING FOR HOST')
+    : 'CLICK READY UP TO START MATCH';
   
   isLocalReady = false;
   supabaseManager.setReady(false);
   updateReadyButtonUI();
+  updateHostStartButtonUI();
   updateScoreboard();
 }
 
@@ -1909,6 +2165,25 @@ function updateReadyButtonUI() {
   }
 }
 
+function updateHostStartButtonUI() {
+  const hudHostBtn = document.getElementById('btn-hud-host-start');
+  const hudHostText = document.getElementById('hud-host-start-text');
+  if (!hudHostBtn) return;
+
+  const isPrivate = currentRoomId.startsWith('custom_');
+  const inLobbyPhase = (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END');
+  if (isPrivate && isLocalHost && inLobbyPhase) {
+    hudHostBtn.classList.remove('hidden');
+    const realConnectedCount = 1 + supabaseManager.connectedPlayers.size;
+    if (hudHostText) {
+      hudHostText.innerText = realConnectedCount >= 2 ? 'START MATCH' : 'START MATCH (MIN 2)';
+    }
+    hudHostBtn.style.opacity = realConnectedCount >= 2 ? '1' : '0.65';
+  } else {
+    hudHostBtn.classList.add('hidden');
+  }
+}
+
 function launchFriendsSquadMatch() {
   if (!isLocalHost) {
     showBanner('ONLY THE SQUAD HOST CAN LAUNCH THE MATCH', 2000);
@@ -1924,6 +2199,15 @@ function launchFriendsSquadMatch() {
   if (currentRoomId.startsWith('custom_')) {
     clearPracticeBots();
   }
+  currentSeriesRound = 1;
+  currentRound = 1;
+  players.forEach(p => {
+    p.score = 0;
+    p.wins = 0;
+    updateNameTag(p);
+  });
+  updateScoreboard();
+  syncSeriesRoundsUI();
   updateDemoBotsButtonUI();
   supabaseManager.broadcastForceStart();
   closeFriendsHub();
@@ -1936,6 +2220,15 @@ function handleRemoteSquadLaunch() {
   if (currentRoomId.startsWith('custom_')) {
     clearPracticeBots();
   }
+  currentSeriesRound = 1;
+  currentRound = 1;
+  players.forEach(p => {
+    p.score = 0;
+    p.wins = 0;
+    updateNameTag(p);
+  });
+  updateScoreboard();
+  syncSeriesRoundsUI();
   updateDemoBotsButtonUI();
   closeFriendsHub();
   document.getElementById('welcome-screen')?.classList.add('hidden');
@@ -1951,7 +2244,7 @@ function handleRemoteSquadLaunch() {
 
 function checkAllPlayersReady(playersList) {
   // STRICT PRIVATE MODE RULE: Private lobbies ('custom_*') NEVER auto-start!
-  // They ONLY start when there are 2+ players AND the Host explicitly clicks LAUNCH MATCH.
+  // They ONLY start when there are 2+ players AND the Host explicitly clicks START MATCH / LAUNCH MATCH.
   if (currentRoomId.startsWith('custom_')) {
     if (readyCountdownInterval) {
       clearInterval(readyCountdownInterval);
@@ -2019,6 +2312,7 @@ function updateFriendsHubRoster(state) {
   const hostVal = document.getElementById('squad-host-status-val');
   const launchBtn = document.getElementById('btn-friends-host-launch');
   const waitingNotice = document.getElementById('friends-waiting-notice');
+  const hostRoundsRow = document.getElementById('friends-host-rounds-row');
 
   if (countVal) countVal.innerText = `${state.count}/${state.max || CONFIG.maxPlayersPerRoom}`;
   if (hostVal) {
@@ -2030,6 +2324,15 @@ function updateFriendsHubRoster(state) {
       hostVal.className = 'status-val';
     }
   }
+
+  if (hostRoundsRow) {
+    if (state.isHost) {
+      hostRoundsRow.classList.remove('hidden');
+    } else {
+      hostRoundsRow.classList.add('hidden');
+    }
+  }
+  syncSeriesRoundsUI();
 
   if (launchBtn) {
     if (state.isHost) {
@@ -2045,6 +2348,8 @@ function updateFriendsHubRoster(state) {
       if (waitingNotice) waitingNotice.classList.remove('hidden');
     }
   }
+
+  updateHostStartButtonUI();
 
   if (rosterGrid && state.players) {
     rosterGrid.innerHTML = '';
@@ -2123,6 +2428,7 @@ function updateRoomUI(state) {
   if (roomCountEl) roomCountEl.innerText = `${state.count}/${state.max || CONFIG.maxPlayersPerRoom} PLAYERS`;
 
   updateDemoBotsButtonUI();
+  updateHostStartButtonUI();
 
   if (playersListEl && state.players) {
     playersListEl.innerHTML = '';
@@ -2224,10 +2530,14 @@ function executeDeployment(deployment) {
 
   if (deployment.type === 'public') {
     currentRoomId = 'sector_1';
+    totalSeriesRounds = 1;
+    currentSeriesRound = 1;
+    syncSeriesRoundsUI();
     clearPracticeBots();
     updateDemoBotsButtonUI();
     isLocalReady = false;
     updateReadyButtonUI();
+    updateHostStartButtonUI();
     supabaseManager.joinRoom(currentRoomId, {
       id: myId,
       name: playerName,
@@ -2246,10 +2556,15 @@ function executeDeployment(deployment) {
     const maxPlayers = deployment.maxPlayers || 5;
     const arenaTheme = deployment.arenaTheme || 'cyber_gold';
     const matchModifier = deployment.matchModifier || 'standard';
+    const seriesRounds = deployment.seriesRounds || 3;
+    currentSquadName = squadName;
+    totalSeriesRounds = seriesRounds;
+    currentSeriesRound = 1;
     CONFIG.countdownSeconds = roundTime;
     CONFIG.maxPlayersPerRoom = maxPlayers;
     applyArenaTheme(arenaTheme);
     applyMatchModifier(matchModifier);
+    syncSeriesRoundsUI();
 
     const code = generateRoomCode();
     currentRoomId = `custom_${code}`;
@@ -2272,10 +2587,12 @@ function executeDeployment(deployment) {
       hostVal.className = 'status-val text-gold';
     }
     document.getElementById('btn-friends-host-launch')?.classList.remove('hidden');
+    document.getElementById('friends-host-rounds-row')?.classList.remove('hidden');
     document.getElementById('friends-waiting-notice')?.classList.add('hidden');
 
     isLocalReady = false;
     updateReadyButtonUI();
+    updateHostStartButtonUI();
 
     supabaseManager.joinRoom(currentRoomId, {
       id: myId,
@@ -2293,7 +2610,8 @@ function executeDeployment(deployment) {
         roundTime,
         maxSquad: maxPlayers,
         arenaTheme,
-        matchModifier
+        matchModifier,
+        seriesRounds
       });
     }, 500);
 
@@ -2301,6 +2619,9 @@ function executeDeployment(deployment) {
   } else if (deployment.type === 'join_squad') {
     const code = deployment.code;
     currentRoomId = `custom_${code}`;
+    totalSeriesRounds = 3;
+    currentSeriesRound = 1;
+    syncSeriesRoundsUI();
     clearPracticeBots();
     updateDemoBotsButtonUI();
 
@@ -2317,10 +2638,12 @@ function executeDeployment(deployment) {
       hostVal.className = 'status-val';
     }
     document.getElementById('btn-friends-host-launch')?.classList.add('hidden');
+    document.getElementById('friends-host-rounds-row')?.classList.add('hidden');
     document.getElementById('friends-waiting-notice')?.classList.remove('hidden');
 
     isLocalReady = false;
     updateReadyButtonUI();
+    updateHostStartButtonUI();
 
     supabaseManager.joinRoom(currentRoomId, {
       id: myId,
@@ -2397,11 +2720,12 @@ document.getElementById('btn-deploy-public')?.addEventListener('click', () => {
 document.getElementById('btn-confirm-create-squad')?.addEventListener('click', () => {
   audioSystem.init();
   const squadName = document.getElementById('create-squad-name')?.value.trim() || 'ALPHA DOGS';
-  const roundTime = parseInt(document.getElementById('create-timer-select')?.value) || 5;
-  const maxPlayers = parseInt(document.getElementById('create-max-players-select')?.value) || 5;
+  const seriesRounds = parseInt(document.getElementById('create-rounds-select')?.value, 10) || 3;
+  const roundTime = parseInt(document.getElementById('create-timer-select')?.value, 10) || 5;
+  const maxPlayers = parseInt(document.getElementById('create-max-players-select')?.value, 10) || 5;
   const arenaTheme = document.getElementById('create-theme-select')?.value || 'cyber_gold';
   const matchModifier = document.getElementById('create-modifier-select')?.value || 'standard';
-  pendingDeployment = { type: 'create_squad', squadName, roundTime, maxPlayers, arenaTheme, matchModifier };
+  pendingDeployment = { type: 'create_squad', squadName, seriesRounds, roundTime, maxPlayers, arenaTheme, matchModifier };
   document.getElementById('mode-select-screen')?.classList.add('hidden');
   openCharacterSelectScreen();
 });
@@ -2485,9 +2809,27 @@ document.getElementById('btn-friends-change-char')?.addEventListener('click', ()
 // 4. Friends Squad Hub
 document.getElementById('btn-friends-ready')?.addEventListener('click', toggleReady);
 document.getElementById('btn-friends-host-launch')?.addEventListener('click', launchFriendsSquadMatch);
+document.getElementById('btn-hud-host-start')?.addEventListener('click', launchFriendsSquadMatch);
+
+document.getElementById('friends-rounds-select')?.addEventListener('change', (e) => {
+  if (!isLocalHost) return;
+  const val = parseInt(e.target.value, 10) || 3;
+  totalSeriesRounds = val;
+  syncSeriesRoundsUI();
+  supabaseManager.broadcastRoomSettings({
+    squadName: currentSquadName,
+    roundTime: CONFIG.countdownSeconds,
+    maxSquad: CONFIG.maxPlayersPerRoom,
+    arenaTheme: currentArenaTheme,
+    matchModifier: currentMatchModifier,
+    seriesRounds: totalSeriesRounds
+  });
+  showBanner(`SERIES LENGTH SET TO ${totalSeriesRounds === 1 ? '1 ROUND' : totalSeriesRounds + ' ROUNDS'}`, 1800);
+});
 
 document.getElementById('btn-close-friends-hub')?.addEventListener('click', () => {
   closeFriendsHub();
+  updateHostStartButtonUI();
   if (!localPlayerDeployed) {
     deployPlayerSkyDrop();
   } else {
@@ -2588,10 +2930,14 @@ document.getElementById('btn-quick-play')?.addEventListener('click', () => {
   audioSystem.init();
   lobbyModal.classList.remove('active');
   currentRoomId = 'sector_1';
+  totalSeriesRounds = 1;
+  currentSeriesRound = 1;
+  syncSeriesRoundsUI();
   clearPracticeBots();
   updateDemoBotsButtonUI();
   isLocalReady = false;
   updateReadyButtonUI();
+  updateHostStartButtonUI();
   supabaseManager.joinRoom(currentRoomId, {
     id: myId,
     name: playerName,
@@ -2610,6 +2956,9 @@ document.getElementById('btn-create-private')?.addEventListener('click', () => {
   lobbyModal.classList.remove('active');
   const code = generateRoomCode();
   currentRoomId = `custom_${code}`;
+  totalSeriesRounds = 3;
+  currentSeriesRound = 1;
+  syncSeriesRoundsUI();
   clearPracticeBots();
   updateDemoBotsButtonUI();
   isLocalHost = true;
@@ -2625,9 +2974,11 @@ document.getElementById('btn-create-private')?.addEventListener('click', () => {
     hostVal.className = 'status-val text-gold';
   }
   document.getElementById('btn-friends-host-launch')?.classList.remove('hidden');
+  document.getElementById('friends-host-rounds-row')?.classList.remove('hidden');
   document.getElementById('friends-waiting-notice')?.classList.add('hidden');
   isLocalReady = false;
   updateReadyButtonUI();
+  updateHostStartButtonUI();
   supabaseManager.joinRoom(currentRoomId, {
     id: myId,
     name: playerName,
@@ -2647,6 +2998,9 @@ document.getElementById('btn-join-private')?.addEventListener('click', () => {
   if (!code) return;
   lobbyModal.classList.remove('active');
   currentRoomId = `custom_${code}`;
+  totalSeriesRounds = 3;
+  currentSeriesRound = 1;
+  syncSeriesRoundsUI();
   clearPracticeBots();
   updateDemoBotsButtonUI();
   isLocalHost = false;
@@ -2661,9 +3015,11 @@ document.getElementById('btn-join-private')?.addEventListener('click', () => {
     hostVal.className = 'status-val';
   }
   document.getElementById('btn-friends-host-launch')?.classList.add('hidden');
+  document.getElementById('friends-host-rounds-row')?.classList.add('hidden');
   document.getElementById('friends-waiting-notice')?.classList.remove('hidden');
   isLocalReady = false;
   updateReadyButtonUI();
+  updateHostStartButtonUI();
   supabaseManager.joinRoom(currentRoomId, {
     id: myId,
     name: playerName,
@@ -2708,19 +3064,56 @@ document.getElementById('btn-save-name')?.addEventListener('click', () => {
   }
 });
 
-// Winner Overlay Actions
+// Winner Overlay Actions: One-Click Rematch Now & Back to Arena
 document.getElementById('btn-play-again')?.addEventListener('click', () => {
+  audioSystem.init();
   if (isLocalHost) {
-    resetGame();
-    supabaseManager.broadcastGameReset();
+    resetGame({ resetScores: true });
+    supabaseManager.broadcastGameReset({ resetScores: true, autoLaunch: true });
+    const realConnectedCount = 1 + supabaseManager.connectedPlayers.size;
+    const canLaunchNow = currentRoomId.startsWith('custom_')
+      ? (realConnectedCount >= 2)
+      : (players.size >= 2);
+    if (canLaunchNow) {
+      setTimeout(() => {
+        if (currentPhase === 'LOBBY') {
+          if (currentRoomId.startsWith('custom_')) {
+            launchFriendsSquadMatch();
+          } else {
+            startRound(true);
+          }
+        }
+      }, 450);
+    } else if (currentRoomId.startsWith('custom_')) {
+      showBanner('NEED AT LEAST 2 PLAYERS TO START REMATCH', 2000);
+    }
   } else {
-    supabaseManager.requestGameReset();
-    showBanner('REQUESTED NEXT MATCH FROM HOST...', 2000);
+    resetGame({ resetScores: true });
+    isLocalReady = true;
+    if (localPlayer) {
+      localPlayer.setReady(true);
+      updateNameTag(localPlayer);
+    }
+    supabaseManager.setReady(true);
+    updateReadyButtonUI();
+    supabaseManager.requestGameReset({ resetScores: true, autoLaunch: true });
+    showBanner('READY FOR REMATCH // LAUNCHING WITH HOST...', 2000);
+  }
+});
+
+document.getElementById('btn-victory-arena')?.addEventListener('click', () => {
+  audioSystem.init();
+  if (isLocalHost) {
+    resetGame({ resetScores: true });
+    supabaseManager.broadcastGameReset({ resetScores: true, autoLaunch: false });
+  } else {
+    resetGame({ resetScores: true });
+    supabaseManager.requestGameReset({ resetScores: true, autoLaunch: false });
   }
 });
 
 document.getElementById('btn-victory-leave')?.addEventListener('click', () => {
-  resetGame();
+  resetGame({ resetScores: true });
   clearPracticeBots();
   supabaseManager.leaveRoom();
   document.getElementById('winner-modal')?.classList.add('hidden');
