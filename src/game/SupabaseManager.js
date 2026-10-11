@@ -61,9 +61,11 @@ export class SupabaseManager {
     this.roomId = null;
     this.myPlayerInfo = null;
     this.hostId = null;
+    this.knownHostId = null;
     this.isHost = false;
     this.hasTrackedPresence = false;
     this.connectedPlayers = new Map();
+    this.pendingLeaveTimers = new Map();
     this.maxPublicSectorPlayers = 5;
     this.isOverflowing = false;
     this.isConfigured = false;
@@ -186,6 +188,7 @@ export class SupabaseManager {
     this.roomId = roomId;
     this.isOverflowing = false;
     this.hasTrackedPresence = false;
+    this.knownHostId = this.myPlayerInfo?.isCreator ? this.myPlayerInfo.id : null;
     console.log(`[Supabase] Connecting to room: ${roomId}`);
 
     if (this.isConfigured && this.client) {
@@ -197,111 +200,150 @@ export class SupabaseManager {
         }
       });
 
+      const emitRoomStateFromPresence = () => {
+        if (!this.channel || this.roomId !== roomId) return;
+        const state = this.channel.presenceState();
+        const stateKeys = Object.keys(state);
+
+        // Guard against premature empty sync before our presence subscription finishes on non-creator clients
+        if (!this.hasTrackedPresence && stateKeys.length === 0 && !this.myPlayerInfo?.isCreator) {
+          return;
+        }
+
+        const uniqueMap = new Map();
+
+        for (const key of stateKeys) {
+          const presences = state[key];
+          if (presences && presences.length > 0) {
+            const p = presences[0];
+            if (p && p.id) {
+              uniqueMap.set(p.id, p);
+              if (this.pendingLeaveTimers.has(p.id)) {
+                clearTimeout(this.pendingLeaveTimers.get(p.id));
+                this.pendingLeaveTimers.delete(p.id);
+              }
+            }
+          }
+        }
+        if (this.myPlayerInfo && !uniqueMap.has(this.myPlayerInfo.id)) {
+          uniqueMap.set(this.myPlayerInfo.id, this.myPlayerInfo);
+        }
+
+        // Preserve any connected players that are momentarily re-tracking via channel.track()
+        for (const [id, existingPlayer] of this.connectedPlayers.entries()) {
+          if (!uniqueMap.has(id)) {
+            uniqueMap.set(id, existingPlayer);
+            if (!this.pendingLeaveTimers.has(id)) {
+              const timer = setTimeout(() => {
+                this.pendingLeaveTimers.delete(id);
+                if (!this.channel || this.roomId !== roomId) return;
+                const currentState = this.channel.presenceState();
+                const stillGone = !Object.values(currentState).some(
+                  arr => Array.isArray(arr) && arr.some(pr => pr && pr.id === id)
+                );
+                if (stillGone && this.connectedPlayers.has(id)) {
+                  this.connectedPlayers.delete(id);
+                  if (this.onPlayerLeft) {
+                    try { this.onPlayerLeft(id); } catch (e) { console.error(e); }
+                  }
+                  emitRoomStateFromPresence();
+                }
+              }, 1600);
+              this.pendingLeaveTimers.set(id, timer);
+            }
+          }
+        }
+
+        const activeList = this.sortRosterList(Array.from(uniqueMap.values()));
+
+        // Public Sector 5-Player Auto-Scaling Overflow Check
+        if (
+          roomId.startsWith('sector_') &&
+          (activeList.length > this.maxPublicSectorPlayers || this.connectedPlayers.size > this.maxPublicSectorPlayers)
+        ) {
+          const myIndex = activeList.findIndex(p => p.id === this.myPlayerInfo.id);
+          if (myIndex >= this.maxPublicSectorPlayers) {
+            if (!this.isOverflowing) {
+              this.isOverflowing = true;
+              const sectorNum = parseInt(roomId.replace('sector_', ''), 10) || 1;
+              const nextRoomId = 'sector_' + (sectorNum + 1);
+              this.joinRoom(nextRoomId, { ...this.myPlayerInfo, isCreator: false, joinedAt: Date.now() });
+            }
+            return;
+          }
+        }
+
+        const sectorList = roomId.startsWith('sector_')
+          ? activeList.slice(0, this.maxPublicSectorPlayers)
+          : activeList;
+
+        for (const p of sectorList) {
+          if (p.id !== this.myPlayerInfo.id && !this.connectedPlayers.has(p.id)) {
+            this.connectedPlayers.set(p.id, p);
+            if (this.onPlayerJoined) {
+              try { this.onPlayerJoined(p); } catch (e) { console.error('[Supabase] onPlayerJoined error:', e); }
+            }
+          } else if (p.id !== this.myPlayerInfo.id && this.connectedPlayers.has(p.id)) {
+            const existing = this.connectedPlayers.get(p.id);
+            Object.assign(existing, p);
+          }
+        }
+
+        // Elect authoritative host:
+        // In Private Mode ('custom_*'), ONLY the room creator (isCreator === true) can ever be Host.
+        if (roomId.startsWith('custom_')) {
+          const creator = sectorList.find(p => p.isCreator === true);
+          if (creator) {
+            this.knownHostId = creator.id;
+          }
+          this.hostId = this.knownHostId || (this.myPlayerInfo?.isCreator ? this.myPlayerInfo.id : (sectorList.find(p => p.id !== this.myPlayerInfo.id)?.id || null));
+          this.isHost = (this.myPlayerInfo?.isCreator === true);
+        } else {
+          this.hostId = sectorList.length > 0 ? sectorList[0].id : this.myPlayerInfo.id;
+          this.isHost = (this.myPlayerInfo.id === this.hostId);
+        }
+
+        sectorList.forEach(p => {
+          p.isHost = (p.id === this.hostId);
+        });
+
+        if (this.onRoomStateChange) {
+          this.onRoomStateChange({
+            roomId: this.roomId,
+            count: sectorList.length,
+            max: this.maxPublicSectorPlayers,
+            players: sectorList,
+            hostId: this.hostId,
+            isHost: this.isHost
+          });
+        }
+      };
+
       // 1. Presence Sync (tracks who is in the room, max 5 with auto-overflow for public sectors)
       this.channel
         .on('presence', { event: 'sync' }, () => {
-          const state = this.channel.presenceState();
-          const stateKeys = Object.keys(state);
-
-          // Guard against premature empty sync before our presence subscription finishes on non-creator clients
-          if (!this.hasTrackedPresence && stateKeys.length === 0 && !this.myPlayerInfo?.isCreator) {
-            return;
-          }
-
-          const uniqueMap = new Map();
-
-          for (const key of stateKeys) {
-            const presences = state[key];
-            if (presences && presences.length > 0) {
-              const p = presences[0];
-              if (p && p.id) {
-                uniqueMap.set(p.id, p);
-              }
-            }
-          }
-          if (this.myPlayerInfo && !uniqueMap.has(this.myPlayerInfo.id)) {
-            uniqueMap.set(this.myPlayerInfo.id, this.myPlayerInfo);
-          }
-
-          const activeList = this.sortRosterList(Array.from(uniqueMap.values()));
-
-          // Public Sector 5-Player Auto-Scaling Overflow Check
-          if (
-            roomId.startsWith('sector_') &&
-            (activeList.length > this.maxPublicSectorPlayers || this.connectedPlayers.size > this.maxPublicSectorPlayers)
-          ) {
-            const myIndex = activeList.findIndex(p => p.id === this.myPlayerInfo.id);
-            if (myIndex >= this.maxPublicSectorPlayers) {
-              if (!this.isOverflowing) {
-                this.isOverflowing = true;
-                const sectorNum = parseInt(roomId.replace('sector_', ''), 10) || 1;
-                const nextRoomId = 'sector_' + (sectorNum + 1);
-                this.joinRoom(nextRoomId, { ...this.myPlayerInfo, isCreator: false, joinedAt: Date.now() });
-              }
-              return;
-            }
-          }
-
-          const sectorList = roomId.startsWith('sector_')
-            ? activeList.slice(0, this.maxPublicSectorPlayers)
-            : activeList;
-
-          for (const p of sectorList) {
-            if (p.id !== this.myPlayerInfo.id && !this.connectedPlayers.has(p.id)) {
-              this.connectedPlayers.set(p.id, p);
-              if (this.onPlayerJoined) this.onPlayerJoined(p);
-            } else if (p.id !== this.myPlayerInfo.id && this.connectedPlayers.has(p.id)) {
-              const existing = this.connectedPlayers.get(p.id);
-              Object.assign(existing, p);
-            }
-          }
-
-          // Check if anyone left
-          for (const [id] of this.connectedPlayers.entries()) {
-            if (!sectorList.find(p => p.id === id)) {
-              this.connectedPlayers.delete(id);
-              if (this.onPlayerLeft) this.onPlayerLeft(id);
-            }
-          }
-
-          // Elect authoritative host: room creator in private rooms, or earliest joined player
-          if (roomId.startsWith('custom_') && !this.myPlayerInfo?.isCreator && sectorList.length === 1 && !this.hasTrackedPresence) {
-            this.hostId = null;
-            this.isHost = false;
-          } else {
-            this.hostId = sectorList.length > 0 ? sectorList[0].id : this.myPlayerInfo.id;
-            this.isHost = (this.myPlayerInfo.id === this.hostId);
-          }
-
-          sectorList.forEach(p => {
-            p.isHost = (p.id === this.hostId);
-          });
-
-          if (this.onRoomStateChange) {
-            this.onRoomStateChange({
-              roomId: this.roomId,
-              count: sectorList.length,
-              max: this.maxPublicSectorPlayers,
-              players: sectorList,
-              hostId: this.hostId,
-              isHost: this.isHost
-            });
-          }
+          emitRoomStateFromPresence();
         })
         .on('presence', { event: 'join' }, ({ newPresences }) => {
           newPresences.forEach(p => {
+            if (!p || !p.id) return;
+            if (this.pendingLeaveTimers.has(p.id)) {
+              clearTimeout(this.pendingLeaveTimers.get(p.id));
+              this.pendingLeaveTimers.delete(p.id);
+            }
             if (roomId.startsWith('sector_') && (this.connectedPlayers.size + 1) >= this.maxPublicSectorPlayers) {
               return;
             }
             if (p.id !== this.myPlayerInfo.id && !this.connectedPlayers.has(p.id)) {
               this.connectedPlayers.set(p.id, p);
-              if (this.onPlayerJoined) this.onPlayerJoined(p);
+              if (this.onPlayerJoined) {
+                try { this.onPlayerJoined(p); } catch (e) { console.error('[Supabase] onPlayerJoined error:', e); }
+              }
             }
           });
         })
         .on('presence', { event: 'leave' }, () => {
-          // Note: channel.track() emits a transient leave+join pair during ready state updates.
-          // True player departures are authoritatively handled in 'sync' above to prevent false disconnects.
+          // Handled with debounce in 'sync' above to prevent channel.track() flicker disconnects
         });
 
       // 2. Broadcast Events (Movement, Aim, Shooting, Round Sync, Ready, Force Start, Lock, Verdict, Settings)
@@ -374,8 +416,9 @@ export class SupabaseManager {
       // Subscribe and track presence
       this.channel.subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          this.hasTrackedPresence = true;
           await this.channel.track(this.myPlayerInfo);
+          this.hasTrackedPresence = true;
+          emitRoomStateFromPresence();
           console.log(`[Supabase] Successfully tracked presence in ${roomId}`);
         }
       });
@@ -542,9 +585,13 @@ export class SupabaseManager {
       ? activeList.slice(0, this.maxPublicSectorPlayers)
       : activeList;
 
-    if (this.roomId && this.roomId.startsWith('custom_') && !this.myPlayerInfo?.isCreator && sectorList.length === 1 && !this.hasTrackedPresence) {
-      this.hostId = null;
-      this.isHost = false;
+    if (this.roomId && this.roomId.startsWith('custom_')) {
+      const creator = sectorList.find(p => p.isCreator === true);
+      if (creator) {
+        this.knownHostId = creator.id;
+      }
+      this.hostId = this.knownHostId || (this.myPlayerInfo?.isCreator ? this.myPlayerInfo.id : (sectorList.find(p => p.id !== this.myPlayerInfo.id)?.id || null));
+      this.isHost = (this.myPlayerInfo?.isCreator === true);
     } else {
       this.hostId = sectorList.length > 0 ? sectorList[0].id : this.myPlayerInfo.id;
       this.isHost = (this.myPlayerInfo.id === this.hostId);
@@ -572,12 +619,12 @@ export class SupabaseManager {
     this.myPlayerInfo.isReady = isReady;
 
     if (this.channel && this.isConfigured) {
-      await this.channel.track(this.myPlayerInfo);
       this.channel.send({
         type: 'broadcast',
         event: 'player-ready',
         payload: { id: this.myPlayerInfo.id, isReady }
       });
+      await this.channel.track(this.myPlayerInfo);
     } else if (this.localBc) {
       this.localBc.postMessage({
         type: 'player-ready',
@@ -736,43 +783,48 @@ export class SupabaseManager {
 
   broadcastLockPacket(payload) {
     if (!payload.senderId) payload.senderId = this.myPlayerInfo?.id;
-    if (this.channel && this.isConfigured) {
-      this.channel.send({
-        type: 'broadcast',
-        event: 'lock-packet',
-        payload
-      });
-    } else if (this.localBc) {
-      this.localBc.postMessage({
-        type: 'lock-packet',
-        data: payload
-      });
-    }
+    const sendPacket = () => {
+      if (this.channel && this.isConfigured) {
+        this.channel.send({
+          type: 'broadcast',
+          event: 'lock-packet',
+          payload
+        });
+      } else if (this.localBc) {
+        this.localBc.postMessage({
+          type: 'lock-packet',
+          data: payload
+        });
+      }
+    };
+    sendPacket();
+    setTimeout(sendPacket, 120);
   }
 
   broadcastRoundVerdict(payload) {
     payload.senderId = this.myPlayerInfo?.id;
-    if (this.channel && this.isConfigured) {
-      this.channel.send({
-        type: 'broadcast',
-        event: 'round-verdict',
-        payload
-      });
-    } else if (this.localBc) {
-      this.localBc.postMessage({
-        type: 'round-verdict',
-        data: payload
-      });
-    }
+    const sendVerdict = () => {
+      if (this.channel && this.isConfigured) {
+        this.channel.send({
+          type: 'broadcast',
+          event: 'round-verdict',
+          payload
+        });
+      } else if (this.localBc) {
+        this.localBc.postMessage({
+          type: 'round-verdict',
+          data: payload
+        });
+      }
+    };
+    sendVerdict();
+    setTimeout(sendVerdict, 180);
   }
 
   broadcastRoomSettings(settings) {
     settings.senderId = this.myPlayerInfo?.id;
     if (this.myPlayerInfo) {
       this.myPlayerInfo.settings = settings;
-      if (this.channel && this.isConfigured) {
-        this.channel.track(this.myPlayerInfo).catch(() => {});
-      }
     }
     if (this.channel && this.isConfigured) {
       this.channel.send({
@@ -821,6 +873,10 @@ export class SupabaseManager {
   }
 
   async leaveRoom() {
+    for (const timer of this.pendingLeaveTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.pendingLeaveTimers.clear();
     if (this.channel) {
       if (this.isConfigured) {
         await this.channel.untrack();
@@ -843,6 +899,7 @@ export class SupabaseManager {
     this.connectedPlayers.clear();
     this.roomId = null;
     this.hostId = null;
+    this.knownHostId = null;
     this.isHost = false;
   }
 

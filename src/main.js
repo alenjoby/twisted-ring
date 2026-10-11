@@ -520,8 +520,15 @@ function addRemotePlayer(id, name, pos = null, characterId = 'ajp') {
     characterId: characterId || 'ajp'
   });
 
+  // Register immediately in players Map so p can never become an untracked orphan in scene
+  players.set(id, p);
+
   const spawnIndex = getPlayerSpawnIndex(id);
-  const spawnPos = pos || getRadialSpawnPosition(spawnIndex, Math.max(5, players.size + 1));
+  const fallbackPos = getRadialSpawnPosition(spawnIndex, Math.max(5, players.size));
+  const spawnPos = (pos && typeof pos.x === 'number' && typeof pos.z === 'number')
+    ? new THREE.Vector3(pos.x, typeof pos.y === 'number' ? pos.y : 0, pos.z)
+    : fallbackPos;
+
   p.group.position.copy(spawnPos);
   p.targetPos = spawnPos.clone();
   p.lookAtTarget(new THREE.Vector3(0, 0, 0));
@@ -529,9 +536,12 @@ function addRemotePlayer(id, name, pos = null, characterId = 'ajp') {
   p.isHost = (id === currentHostId);
   p.setLaserActive(currentPhase === 'STEALTH' || currentPhase === 'REVEAL');
 
-  players.set(id, p);
   createNameTag(p);
   updateNameTag(p);
+  if (currentPhase === 'VICTORY') {
+    p.setVisible(false);
+    if (p.htmlTag) p.htmlTag.classList.add('hidden');
+  }
   updateScoreboard();
   return p;
 }
@@ -761,15 +771,26 @@ renderer.domElement.addEventListener('pointerdown', () => {
 let hasAimedSinceStop = false;
 const _scratchCameraFacePos = new THREE.Vector3();
 
-window.addEventListener('mousemove', (e) => {
-  if (isModalActive()) return;
-  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+function updateAimFromScreenCoords(clientX, clientY) {
+  mouse.x = (clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(clientY / window.innerHeight) * 2 + 1;
 
   raycaster.setFromCamera(mouse, camera);
   raycaster.ray.intersectPlane(raycastPlane, aimPoint);
   if (currentPhase === 'STEALTH') {
     hasAimedSinceStop = true;
+  }
+}
+
+window.addEventListener('mousemove', (e) => {
+  if (isModalActive()) return;
+  updateAimFromScreenCoords(e.clientX, e.clientY);
+});
+
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (isModalActive()) return;
+  if (e.button === 0 || e.pointerType === 'touch') {
+    updateAimFromScreenCoords(e.clientX, e.clientY);
   }
 });
 
@@ -845,22 +866,20 @@ if (joystickZone) {
 }
 
 // Touch controls for mobile aiming (ignores joystick touch)
-window.addEventListener('touchmove', (e) => {
+function handleMobileAimTouch(e) {
   if (isModalActive()) return;
   for (let i = 0; i < e.touches.length; i++) {
     const t = e.touches[i];
     if (t.identifier !== joystickTouchId) {
-      mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-      raycaster.ray.intersectPlane(raycastPlane, aimPoint);
-      if (currentPhase === 'STEALTH') {
-        hasAimedSinceStop = true;
-      }
+      if (joystickZone && joystickZone.contains(t.target)) continue;
+      updateAimFromScreenCoords(t.clientX, t.clientY);
       break;
     }
   }
-}, { passive: true });
+}
+
+window.addEventListener('touchstart', handleMobileAimTouch, { passive: true });
+window.addEventListener('touchmove', handleMobileAimTouch, { passive: true });
 
 // Emote HUD buttons & Map Theme cycle button
 document.querySelectorAll('#hud-emote-bar .emote-btn').forEach(btn => {
@@ -1174,10 +1193,16 @@ document.getElementById('btn-spec-prev')?.addEventListener('click', () => cycleS
 document.getElementById('btn-spec-next')?.addEventListener('click', () => cycleSpectatorTarget(1));
 
 let lastAppliedVerdictRound = 0;
+let lastVerdictWasAuthoritative = false;
+let roundTransitionTimer = null;
 
 function startRound(broadcast = true, syncEpoch = null) {
   if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END' && currentPhase !== 'SHRINK') return;
   audioSystem.init();
+  if (roundTransitionTimer) {
+    clearTimeout(roundTransitionTimer);
+    roundTransitionTimer = null;
+  }
   if (localPlayer && localPlayer.isAlive) {
     deactivateSpectatorMode();
   } else if (localPlayer && !localPlayer.isAlive) {
@@ -1231,6 +1256,12 @@ function startRound(broadcast = true, syncEpoch = null) {
     clockPhaseLabel.innerText = 'PREDICTION LOCK';
     clockGuidanceText.innerText = 'OPPONENTS CONCEALED // GHOST SILHOUETTES MARKED';
     showBanner('PREDICTION LOCKDOWN', 1200);
+
+    // Initialize aimPoint along localPlayer's current facing direction so laser doesn't snap to (0,0,0) before aiming
+    if (localPlayer && !hasAimedSinceStop) {
+      _scratchForward.set(0, 0, 1).applyAxisAngle(_yAxis, localPlayer.rotationY).normalize();
+      aimPoint.copy(localPlayer.group.position).addScaledVector(_scratchForward, 8.0);
+    }
 
     // Conceal opponents and generate ghost silhouettes at their positions; turn on aiming lasers
     players.forEach(p => {
@@ -1348,24 +1379,24 @@ function executeReveal() {
 
   audioSystem.playLaserShot();
 
-  // 2. Authoritative host referee evaluates hits with generous 480ms grace window for peer lock packets
+  // 2. Authoritative host referee evaluates hits with 520ms grace window for peer lock packets
   if (isLocalHost) {
     setTimeout(() => {
-      evaluateHostVerdict();
-    }, 480);
+      evaluateHostVerdict(true);
+    }, 520);
   } else {
-    // Watchdog fallback in case host disconnected mid-verdict
+    // Watchdog fallback ONLY if host completely disconnected for 3.6 seconds
     if (revealWatchdogTimer) clearTimeout(revealWatchdogTimer);
     revealWatchdogTimer = setTimeout(() => {
       if (currentPhase === 'REVEAL') {
-        console.warn('Host verdict timeout - evaluating fallback or awaiting migration');
-        evaluateHostVerdict();
+        console.warn('Host verdict timeout - evaluating local fallback');
+        evaluateHostVerdict(false);
       }
-    }, 2400);
+    }, 3600);
   }
 }
 
-function evaluateHostVerdict() {
+function evaluateHostVerdict(isAuthoritative = true) {
   const hitList = [];
   const alivePlayers = Array.from(players.values()).filter(p => p.isAlive);
 
@@ -1414,8 +1445,8 @@ function evaluateHostVerdict() {
         const closestPoint = ray.origin.clone().add(ray.direction.clone().multiplyScalar(proj));
         const horizDist = Math.hypot(closestPoint.x - targetPos.x, closestPoint.z - targetPos.z);
 
-        // Horizontal cylinder hitbox radius 0.85m - only strike the closest obstacle/player along the ray
-        if (horizDist <= 0.85 && proj < minProj) {
+        // Horizontal cylinder hitbox radius 0.90m - only strike the closest obstacle/player along the ray
+        if (horizDist <= 0.90 && proj < minProj) {
           minProj = proj;
           closestTarget = target;
         }
@@ -1445,6 +1476,7 @@ function evaluateHostVerdict() {
 
   const verdict = {
     round: currentRound,
+    isAuthoritative,
     eliminatedIds,
     hits: hitList,
     lockedCoords: Object.fromEntries(lockedPlayerCoords),
@@ -1455,20 +1487,31 @@ function evaluateHostVerdict() {
     survivors: survivors.map(s => s.id)
   };
 
-  // Broadcast authoritative verdict to all connected peers
-  supabaseManager.broadcastRoundVerdict(verdict);
+  // Only the authoritative Host broadcasts the verdict to all connected peers
+  if (isAuthoritative) {
+    supabaseManager.broadcastRoundVerdict(verdict);
+  }
   applyRoundVerdict(verdict);
 }
 
 function applyRoundVerdict(verdict) {
   if (!verdict) return;
-  if (verdict.round && lastAppliedVerdictRound === verdict.round) return;
+  const isAuth = verdict.isAuthoritative !== false;
+  if (verdict.round && lastAppliedVerdictRound === verdict.round) {
+    // Ignore duplicate verdict for the same round unless an authoritative Host verdict is overriding a local watchdog fallback
+    if (lastVerdictWasAuthoritative || !isAuth) return;
+  }
   if (verdict.round) {
     lastAppliedVerdictRound = verdict.round;
+    lastVerdictWasAuthoritative = isAuth;
   }
   if (revealWatchdogTimer) {
     clearTimeout(revealWatchdogTimer);
     revealWatchdogTimer = null;
+  }
+  if (roundTransitionTimer) {
+    clearTimeout(roundTransitionTimer);
+    roundTransitionTimer = null;
   }
   // Snap all remote players to the authoritative locked coordinates used in the verdict
   if (verdict.lockedCoords && typeof verdict.lockedCoords === 'object') {
@@ -1484,7 +1527,10 @@ function applyRoundVerdict(verdict) {
       }
     });
   }
-  players.forEach(p => p.setLaserActive(false));
+  players.forEach(p => {
+    p.removeGhostSilhouette();
+    p.setLaserActive(false);
+  });
 
   // Score awards
   if (verdict.hits) {
@@ -1496,7 +1542,8 @@ function applyRoundVerdict(verdict) {
 
   let someoneDied = false;
   let localPlayerEliminated = false;
-  verdict.eliminatedIds.forEach(targetId => {
+  const eliminatedSet = new Set(verdict.eliminatedIds || []);
+  eliminatedSet.forEach(targetId => {
     const target = players.get(targetId);
     if (target && target.isAlive) {
       target.die();
@@ -1544,7 +1591,8 @@ function applyRoundVerdict(verdict) {
   }
 
   // After animation delay, process game over or next round shrink
-  setTimeout(() => {
+  roundTransitionTimer = setTimeout(() => {
+    roundTransitionTimer = null;
     timeDilationFactor = 1.0;
     if (verdict.isGameOver) {
       deactivateSpectatorMode();
@@ -1585,7 +1633,10 @@ function applyRoundVerdict(verdict) {
 function presentWinner(winner, danceKeyOverride = null) {
   currentPhase = 'VICTORY';
   timeDilationFactor = 1.0;
-  players.forEach(p => p.setLaserActive(false));
+  players.forEach(p => {
+    p.removeGhostSilhouette();
+    p.setLaserActive(false);
+  });
 
   if (bannerTimer) {
     clearTimeout(bannerTimer);
@@ -1611,6 +1662,10 @@ function presentWinner(winner, danceKeyOverride = null) {
   const nameDisplay = document.getElementById('winner-name-display');
 
   if (!winner) {
+    players.forEach(p => {
+      p.setVisible(false);
+      if (p.htmlTag) p.htmlTag.classList.add('hidden');
+    });
     clockPhaseLabel.innerText = 'MATCH CONCLUDED';
     clockGuidanceText.innerText = 'MUTUAL DESTRUCTION // NO SURVIVORS';
     if (nameDisplay) nameDisplay.innerText = 'DRAW';
@@ -1622,10 +1677,14 @@ function presentWinner(winner, danceKeyOverride = null) {
   clockPhaseLabel.innerText = 'MATCH CONCLUDED';
   clockGuidanceText.innerText = `${winner.name.toUpperCase()} WINS`;
 
-  // Hide defeated opponents so spotlight is solely on the champion
+  // Hide defeated opponents so spotlight is solely on the champion, and ensure champion is visible
   players.forEach(p => {
     if (p.id !== winner.id) {
       p.setVisible(false);
+      if (p.htmlTag) p.htmlTag.classList.add('hidden');
+    } else {
+      p.isAlive = true;
+      p.setVisible(true);
       if (p.htmlTag) p.htmlTag.classList.add('hidden');
     }
   });
@@ -1672,6 +1731,22 @@ function presentWinner(winner, danceKeyOverride = null) {
 function resetGame() {
   timeDilationFactor = 1.0;
   deactivateSpectatorMode();
+  if (stealthCountdownInterval) {
+    clearInterval(stealthCountdownInterval);
+    stealthCountdownInterval = null;
+  }
+  if (readyCountdownInterval) {
+    clearInterval(readyCountdownInterval);
+    readyCountdownInterval = null;
+  }
+  if (revealWatchdogTimer) {
+    clearTimeout(revealWatchdogTimer);
+    revealWatchdogTimer = null;
+  }
+  if (roundTransitionTimer) {
+    clearTimeout(roundTransitionTimer);
+    roundTransitionTimer = null;
+  }
   const winnerModal = document.getElementById('winner-modal');
   if (winnerModal) winnerModal.classList.add('hidden');
 
@@ -1708,6 +1783,7 @@ function resetGame() {
 
   currentRound = 1;
   lastAppliedVerdictRound = 0;
+  lastVerdictWasAuthoritative = false;
   arenaRadius = CONFIG.initialArenaRadius;
   if (arena) arena.resetRadius(arenaRadius);
   consecutiveStalemates = 0;
@@ -1719,6 +1795,7 @@ function resetGame() {
     p.revive(spawnPos);
     p.lookAtTarget(new THREE.Vector3(0, 0, 0));
     p.setVisible(true);
+    if (p.htmlTag) p.htmlTag.classList.remove('hidden');
     i++;
   });
 
@@ -1812,8 +1889,17 @@ function updateReadyButtonUI() {
 }
 
 function launchFriendsSquadMatch() {
-  if (!isLocalHost) return;
+  if (!isLocalHost) {
+    showBanner('ONLY THE SQUAD HOST CAN LAUNCH THE MATCH', 2000);
+    return;
+  }
   audioSystem.init();
+  const realConnectedCount = 1 + supabaseManager.connectedPlayers.size;
+  if (currentRoomId.startsWith('custom_') && realConnectedCount < 2) {
+    audioSystem.playUnreadyClick();
+    showBanner('NEED AT LEAST 2 PLAYERS TO LAUNCH MATCH', 2200);
+    return;
+  }
   if (currentRoomId.startsWith('custom_')) {
     clearPracticeBots();
   }
@@ -1843,16 +1929,24 @@ function handleRemoteSquadLaunch() {
 }
 
 function checkAllPlayersReady(playersList) {
+  // STRICT PRIVATE MODE RULE: Private lobbies ('custom_*') NEVER auto-start!
+  // They ONLY start when there are 2+ players AND the Host explicitly clicks LAUNCH MATCH.
+  if (currentRoomId.startsWith('custom_')) {
+    if (readyCountdownInterval) {
+      clearInterval(readyCountdownInterval);
+      readyCountdownInterval = null;
+    }
+    return;
+  }
+
   const count = playersList ? playersList.length : 1;
   const isSolo = (count === 1);
   const totalActivePlayers = Math.max(count, players.size);
-  const isPrivateRoom = currentRoomId.startsWith('custom_');
 
   if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END') return;
 
-  // In Private Mode, require at least 2 real players for automatic Ready-Up launch (Host can still click LAUNCH MATCH anytime).
   // In Public Mode, require at least 2 total participants (2+ real players or 1 player + demo bots).
-  const hasEnoughParticipants = isPrivateRoom ? (count >= 2) : (totalActivePlayers >= 2);
+  const hasEnoughParticipants = (totalActivePlayers >= 2);
   const allReady = hasEnoughParticipants && (isSolo
     ? isLocalReady
     : (playersList && playersList.every(p => p.isReady === true)));
@@ -1876,9 +1970,6 @@ function checkAllPlayersReady(playersList) {
         readyCountdownInterval = null;
         document.getElementById('lobby-modal')?.classList.remove('active');
         closeFriendsHub();
-        if (currentRoomId.startsWith('custom_')) {
-          clearPracticeBots();
-        }
         updateDemoBotsButtonUI();
         deployPlayerSkyDrop();
         if (isLocalHost || isSolo) {
@@ -1923,6 +2014,11 @@ function updateFriendsHubRoster(state) {
     if (state.isHost) {
       launchBtn.classList.remove('hidden');
       if (waitingNotice) waitingNotice.classList.add('hidden');
+      const spanEl = launchBtn.querySelector('span');
+      if (spanEl) {
+        spanEl.innerText = (state.count >= 2) ? 'LAUNCH MATCH' : 'WAITING FOR FRIENDS (MIN 2)';
+      }
+      launchBtn.style.opacity = (state.count >= 2) ? '1' : '0.6';
     } else {
       launchBtn.classList.add('hidden');
       if (waitingNotice) waitingNotice.classList.remove('hidden');
@@ -1977,10 +2073,12 @@ function updateRoomUI(state) {
   isLocalHost = !!state.isHost;
   currentHostId = state.hostId;
 
-  if (!wasHost && isLocalHost) {
+  const isPrivate = state.roomId.startsWith('custom_');
+
+  if (!wasHost && isLocalHost && !isPrivate) {
     showBanner('YOU ARE NOW THE SQUAD HOST', 2000);
     if (currentPhase === 'INPUT_FREEZE' || currentPhase === 'REVEAL') {
-      evaluateHostVerdict();
+      evaluateHostVerdict(true);
     } else if (currentPhase === 'SHRINK') {
       setTimeout(() => {
         if (isLocalHost && currentPhase === 'SHRINK') {
@@ -1996,7 +2094,6 @@ function updateRoomUI(state) {
     updateNameTag(localPlayer);
   }
 
-  const isPrivate = state.roomId.startsWith('custom_');
   const displayTitle = isPrivate 
     ? `CUSTOM SQUAD: ${state.roomId.replace('custom_', '')}` 
     : `PUBLIC SECTOR: ${state.roomId.toUpperCase()}`;
@@ -2631,6 +2728,13 @@ function animate() {
 
       localPlayer.rotationY += diff * Math.min(1.0, 16.0 * delta);
       localPlayer.group.rotation.y = localPlayer.rotationY;
+
+      // Keep aimPoint projected along current walking direction so stopping movement preserves laser aim
+      aimPoint.set(
+        localPlayer.group.position.x + Math.sin(localPlayer.rotationY) * 8,
+        0,
+        localPlayer.group.position.z + Math.cos(localPlayer.rotationY) * 8
+      );
 
       // Dynamic animation speed sync to completely eliminate foot sliding:
       // Basic Locomotion Pack walking cadence matches ground speed

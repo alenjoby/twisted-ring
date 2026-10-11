@@ -475,6 +475,7 @@ export class Character {
   die() {
     this.isAlive = false;
     this.laserActive = false;
+    this.removeGhostSilhouette();
     this.playAction('death', 0.1);
     if (this.laserBeam) this.laserBeam.visible = false;
     if (this.laserDot) this.laserDot.visible = false;
@@ -484,6 +485,7 @@ export class Character {
   revive(spawnPos) {
     this.isAlive = true;
     this.laserActive = false;
+    this.removeGhostSilhouette();
     this.group.position.copy(spawnPos);
     this.group.rotation.set(0, 0, 0);
     this.playAction('idle', 0.2);
@@ -493,6 +495,9 @@ export class Character {
 
   setVisible(visible) {
     this.isVisible = !!visible;
+    if (!this.isVisible) {
+      this.removeGhostSilhouette();
+    }
     this.group.visible = this.isVisible;
     if (this.laserBeam) this.laserBeam.visible = this.isVisible && this.isAlive && this.laserActive;
     if (this.laserDot) this.laserDot.visible = this.isVisible && this.isAlive && this.laserActive;
