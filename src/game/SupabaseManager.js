@@ -52,6 +52,8 @@ export class SupabaseManager {
     this.hostId = null;
     this.isHost = false;
     this.connectedPlayers = new Map();
+    this.maxPublicSectorPlayers = 5;
+    this.isOverflowing = false;
     this.isConfigured = false;
     this.lastMoveTime = 0;
     this.moveThrottleMs = 50; // ~20Hz updates for fluid real-time sync
@@ -94,18 +96,18 @@ export class SupabaseManager {
       }
     } else {
       this.isConfigured = false;
-      console.log('[Supabase] Running in local peer channel fallback mode (configure keys in Lobby for global network)');
+      console.log('[Supabase] Running in local peer channel fallback mode');
     }
   }
 
-  // Set local player info before connecting, preserving joinedAt
+  // Set local player info before connecting, preserving joinedAt unless explicitly updated
   setPlayerInfo(info) {
     if (!this.myPlayerInfo) {
-      this.myPlayerInfo = { ...info, joinedAt: Date.now() };
+      this.myPlayerInfo = { ...info, joinedAt: info?.joinedAt || Date.now() };
     } else {
-      const existingJoinedAt = this.myPlayerInfo.joinedAt || Date.now();
+      const nextJoinedAt = info?.joinedAt || this.myPlayerInfo.joinedAt || Date.now();
       Object.assign(this.myPlayerInfo, info);
-      this.myPlayerInfo.joinedAt = existingJoinedAt;
+      this.myPlayerInfo.joinedAt = nextJoinedAt;
     }
   }
 
@@ -129,10 +131,12 @@ export class SupabaseManager {
     }
   }
 
-  // Join a Room (Public or Private) with strict player limit
+  // Join a Room (Public or Private) with strict 5-player public sector auto-scaling
   async joinRoom(roomId, playerInfo = null) {
-    if (playerInfo) this.setPlayerInfo(playerInfo);
-    if (this.myPlayerInfo && !this.myPlayerInfo.joinedAt) {
+    this.maxPublicSectorPlayers = 5;
+    if (playerInfo) {
+      this.setPlayerInfo({ ...playerInfo, joinedAt: playerInfo.joinedAt || Date.now() });
+    } else if (this.myPlayerInfo) {
       this.myPlayerInfo.joinedAt = Date.now();
     }
     if (this.channel || this.localBc) {
@@ -140,6 +144,7 @@ export class SupabaseManager {
     }
 
     this.roomId = roomId;
+    this.isOverflowing = false;
     console.log(`[Supabase] Connecting to room: ${roomId}`);
 
     if (this.isConfigured && this.client) {
@@ -151,36 +156,28 @@ export class SupabaseManager {
         }
       });
 
-      // 1. Presence Sync (tracks who is in the room, max 5)
+      // 1. Presence Sync (tracks who is in the room, max 5 with auto-overflow for public sectors)
       this.channel
         .on('presence', { event: 'sync' }, () => {
           const state = this.channel.presenceState();
-          const activeList = [];
+          const uniqueMap = new Map();
 
           for (const key in state) {
             const presences = state[key];
             if (presences && presences.length > 0) {
               const p = presences[0];
-              activeList.push(p);
-              if (p.id !== this.myPlayerInfo.id && !this.connectedPlayers.has(p.id)) {
-                this.connectedPlayers.set(p.id, p);
-                if (this.onPlayerJoined) this.onPlayerJoined(p);
-              } else if (p.id !== this.myPlayerInfo.id && this.connectedPlayers.has(p.id)) {
-                const existing = this.connectedPlayers.get(p.id);
-                Object.assign(existing, p);
+              if (p && p.id) {
+                uniqueMap.set(p.id, p);
               }
             }
           }
-
-          // Check if anyone left
-          for (const [id, player] of this.connectedPlayers.entries()) {
-            if (!activeList.find(p => p.id === id)) {
-              this.connectedPlayers.delete(id);
-              if (this.onPlayerLeft) this.onPlayerLeft(id);
-            }
+          if (this.myPlayerInfo && !uniqueMap.has(this.myPlayerInfo.id)) {
+            uniqueMap.set(this.myPlayerInfo.id, this.myPlayerInfo);
           }
 
-          // Deterministic Host Election: Sort by joinedAt ascending, tiebreak with id
+          const activeList = Array.from(uniqueMap.values());
+
+          // Deterministic Host Election & Sector Queue Order: Sort by joinedAt ascending, tiebreak with id
           activeList.sort((a, b) => {
             const tA = a.joinedAt || 0;
             const tB = b.joinedAt || 0;
@@ -188,19 +185,58 @@ export class SupabaseManager {
             return (a.id || '').localeCompare(b.id || '');
           });
 
-          this.hostId = activeList.length > 0 ? activeList[0].id : this.myPlayerInfo.id;
+          // Public Sector 5-Player Auto-Scaling Overflow Check
+          if (
+            roomId.startsWith('sector_') &&
+            (activeList.length > this.maxPublicSectorPlayers || this.connectedPlayers.size > this.maxPublicSectorPlayers)
+          ) {
+            const myIndex = activeList.findIndex(p => p.id === this.myPlayerInfo.id);
+            if (myIndex >= this.maxPublicSectorPlayers) {
+              if (!this.isOverflowing) {
+                this.isOverflowing = true;
+                const sectorNum = parseInt(roomId.replace('sector_', ''), 10) || 1;
+                const nextRoomId = 'sector_' + (sectorNum + 1);
+                this.joinRoom(nextRoomId, { ...this.myPlayerInfo, joinedAt: Date.now() });
+              }
+              return;
+            }
+          }
+
+          const sectorList = roomId.startsWith('sector_')
+            ? activeList.slice(0, this.maxPublicSectorPlayers)
+            : activeList;
+
+          for (const p of sectorList) {
+            if (p.id !== this.myPlayerInfo.id && !this.connectedPlayers.has(p.id)) {
+              this.connectedPlayers.set(p.id, p);
+              if (this.onPlayerJoined) this.onPlayerJoined(p);
+            } else if (p.id !== this.myPlayerInfo.id && this.connectedPlayers.has(p.id)) {
+              const existing = this.connectedPlayers.get(p.id);
+              Object.assign(existing, p);
+            }
+          }
+
+          // Check if anyone left
+          for (const [id] of this.connectedPlayers.entries()) {
+            if (!sectorList.find(p => p.id === id)) {
+              this.connectedPlayers.delete(id);
+              if (this.onPlayerLeft) this.onPlayerLeft(id);
+            }
+          }
+
+          this.hostId = sectorList.length > 0 ? sectorList[0].id : this.myPlayerInfo.id;
           this.isHost = (this.myPlayerInfo.id === this.hostId);
 
-          activeList.forEach(p => {
+          sectorList.forEach(p => {
             p.isHost = (p.id === this.hostId);
           });
 
           if (this.onRoomStateChange) {
             this.onRoomStateChange({
               roomId: this.roomId,
-              count: activeList.length,
-              max: 5,
-              players: activeList,
+              count: sectorList.length,
+              max: this.maxPublicSectorPlayers,
+              players: sectorList,
               hostId: this.hostId,
               isHost: this.isHost
             });
@@ -208,6 +244,9 @@ export class SupabaseManager {
         })
         .on('presence', { event: 'join' }, ({ newPresences }) => {
           newPresences.forEach(p => {
+            if (roomId.startsWith('sector_') && (this.connectedPlayers.size + 1) >= this.maxPublicSectorPlayers) {
+              return;
+            }
             if (p.id !== this.myPlayerInfo.id && !this.connectedPlayers.has(p.id)) {
               this.connectedPlayers.set(p.id, p);
               if (this.onPlayerJoined) this.onPlayerJoined(p);
@@ -306,20 +345,51 @@ export class SupabaseManager {
         const { type, data } = event.data;
         if (!data || data.id === this.myPlayerInfo?.id) return;
 
-        if (type === 'player-joined') {
+        if (type === 'player-joined' || type === 'who-is-here') {
+          // Respond back to newcomer so they receive our presence immediately
+          if (this.localBc) {
+            this.localBc.postMessage({
+              type: 'player-present',
+              data: this.myPlayerInfo
+            });
+          }
+          // In public sectors, if 5 players are already present and newcomer joined later, do not add overflow newcomer
+          if (
+            roomId.startsWith('sector_') &&
+            (this.connectedPlayers.size + 1) >= this.maxPublicSectorPlayers &&
+            (data.joinedAt || 0) >= (this.myPlayerInfo?.joinedAt || 0)
+          ) {
+            return;
+          }
           if (!this.connectedPlayers.has(data.id)) {
             this.connectedPlayers.set(data.id, data);
             if (this.onPlayerJoined) this.onPlayerJoined(data);
             this.syncLocalRoomState();
           }
-          // Respond back to newcomer so they receive our presence immediately
-          this.localBc.postMessage({
-            type: 'player-present',
-            data: this.myPlayerInfo
-          });
-        } else if (type === 'player-present') {
+        } else if (type === 'player-present' || type === 'i-am-here') {
           if (!this.connectedPlayers.has(data.id)) {
             this.connectedPlayers.set(data.id, data);
+            const activeList = [this.myPlayerInfo, ...Array.from(this.connectedPlayers.values())];
+            activeList.sort((a, b) => {
+              const tA = a.joinedAt || 0;
+              const tB = b.joinedAt || 0;
+              if (tA !== tB) return tA - tB;
+              return (a.id || '').localeCompare(b.id || '');
+            });
+            const myIndex = activeList.findIndex(p => p.id === this.myPlayerInfo?.id);
+            if (
+              roomId.startsWith('sector_') &&
+              (activeList.length > this.maxPublicSectorPlayers || this.connectedPlayers.size > this.maxPublicSectorPlayers) &&
+              myIndex >= this.maxPublicSectorPlayers
+            ) {
+              if (!this.isOverflowing) {
+                this.isOverflowing = true;
+                const sectorNum = parseInt(roomId.replace('sector_', ''), 10) || 1;
+                const nextRoomId = 'sector_' + (sectorNum + 1);
+                this.joinRoom(nextRoomId, { ...this.myPlayerInfo, joinedAt: Date.now() });
+              }
+              return;
+            }
             if (this.onPlayerJoined) this.onPlayerJoined(data);
             this.syncLocalRoomState();
           }
@@ -380,10 +450,12 @@ export class SupabaseManager {
 
       // Announce presence locally
       setTimeout(() => {
-        this.localBc.postMessage({
-          type: 'player-joined',
-          data: this.myPlayerInfo
-        });
+        if (this.localBc && this.roomId === roomId) {
+          this.localBc.postMessage({
+            type: 'player-joined',
+            data: this.myPlayerInfo
+          });
+        }
       }, 300);
 
       this.syncLocalRoomState();
@@ -401,19 +473,40 @@ export class SupabaseManager {
       return (a.id || '').localeCompare(b.id || '');
     });
 
-    this.hostId = activeList.length > 0 ? activeList[0].id : this.myPlayerInfo.id;
+    if (
+      this.roomId &&
+      this.roomId.startsWith('sector_') &&
+      (activeList.length > this.maxPublicSectorPlayers || this.connectedPlayers.size > this.maxPublicSectorPlayers)
+    ) {
+      const myIndex = activeList.findIndex(p => p.id === this.myPlayerInfo?.id);
+      if (myIndex >= this.maxPublicSectorPlayers) {
+        if (!this.isOverflowing) {
+          this.isOverflowing = true;
+          const sectorNum = parseInt(this.roomId.replace('sector_', ''), 10) || 1;
+          const nextRoomId = 'sector_' + (sectorNum + 1);
+          this.joinRoom(nextRoomId, { ...this.myPlayerInfo, joinedAt: Date.now() });
+        }
+        return;
+      }
+    }
+
+    const sectorList = (this.roomId && this.roomId.startsWith('sector_'))
+      ? activeList.slice(0, this.maxPublicSectorPlayers)
+      : activeList;
+
+    this.hostId = sectorList.length > 0 ? sectorList[0].id : this.myPlayerInfo.id;
     this.isHost = (this.myPlayerInfo.id === this.hostId);
 
-    activeList.forEach(p => {
+    sectorList.forEach(p => {
       p.isHost = (p.id === this.hostId);
     });
 
     if (this.onRoomStateChange) {
       this.onRoomStateChange({
         roomId: this.roomId,
-        count: activeList.length,
-        max: 5,
-        players: activeList,
+        count: sectorList.length,
+        max: this.maxPublicSectorPlayers,
+        players: sectorList,
         hostId: this.hostId,
         isHost: this.isHost
       });

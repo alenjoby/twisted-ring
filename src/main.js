@@ -568,6 +568,8 @@ function spawnPracticeBots(count = 2) {
   const botNames = ['TARGET_VIPER', 'TARGET_PHANTOM', 'TARGET_SPECTRE', 'TARGET_APEX'];
   const botColors = [0x00f0ff, 0xff0055, 0x00ff88, 0xaa00ff];
   const botChars = pickRandomBotCharacters(count);
+  const existingCount = players.size;
+  const totalSlots = Math.max(5, existingCount + count);
   for (let i = 0; i < count; i++) {
     const botId = `bot_${i + 1}`;
     const p = new Character({
@@ -582,7 +584,7 @@ function spawnPracticeBots(count = 2) {
     p.isBot = true;
     p.isHost = false;
     p.isReady = true;
-    const spawnPos = getRadialSpawnPosition(i + 1, count + 1);
+    const spawnPos = getRadialSpawnPosition(existingCount + i, totalSlots);
     p.group.position.copy(spawnPos);
     p.targetPos = spawnPos.clone();
     p.lookAtTarget(new THREE.Vector3(0, 0, 0));
@@ -593,6 +595,7 @@ function spawnPracticeBots(count = 2) {
     practiceBots.push(p);
   }
   updateScoreboard();
+  updateDemoBotsButtonUI();
 }
 
 function clearPracticeBots() {
@@ -601,6 +604,54 @@ function clearPracticeBots() {
     if (players.has(bot.id)) {
       removeRemotePlayer(bot.id);
     }
+  }
+  updateDemoBotsButtonUI();
+}
+
+function updateDemoBotsButtonUI() {
+  const hudBtn = document.getElementById('btn-toggle-demo-bots');
+  const hudBtnText = document.getElementById('demo-bots-btn-text');
+  const lobbyBtn = document.getElementById('btn-lobby-demo-bots');
+  const lobbyBtnText = document.getElementById('lobby-demo-bots-text');
+
+  if (currentRoomId.startsWith('custom_')) {
+    hudBtn?.classList.add('hidden');
+    lobbyBtn?.classList.add('hidden');
+    if (practiceBots.length > 0) {
+      clearPracticeBots();
+    }
+    return;
+  }
+
+  if (currentRoomId.startsWith('sector_')) {
+    hudBtn?.classList.remove('hidden');
+    lobbyBtn?.classList.remove('hidden');
+  }
+
+  const label = practiceBots.length > 0 ? 'REMOVE DEMO BOTS' : 'ADD DEMO BOTS';
+  if (hudBtnText) hudBtnText.innerText = label;
+  if (lobbyBtnText) lobbyBtnText.innerText = label;
+}
+
+function toggleDemoBots() {
+  audioSystem.init();
+  audioSystem.playReadyClick();
+
+  if (currentRoomId.startsWith('custom_')) {
+    clearPracticeBots();
+    updateDemoBotsButtonUI();
+    return;
+  }
+
+  if (practiceBots.length === 0) {
+    const botsToAdd = Math.max(1, 5 - players.size);
+    spawnPracticeBots(botsToAdd);
+    updateDemoBotsButtonUI();
+    showBanner('DEMO PLAYERS ADDED TO SECTOR', 1800);
+  } else {
+    clearPracticeBots();
+    updateDemoBotsButtonUI();
+    showBanner('DEMO PLAYERS REMOVED', 1600);
   }
 }
 
@@ -846,8 +897,12 @@ document.getElementById('btn-reset-cam')?.addEventListener('click', () => {
 const supabaseManager = new SupabaseManager({
   onPlayerJoined: (data) => {
     if (data.id === myId || players.has(data.id)) return;
-    if (practiceBots.length > 0) {
-      clearPracticeBots();
+    if (practiceBots.length > 0 && players.size >= 5) {
+      const removedBot = practiceBots.pop();
+      if (removedBot && players.has(removedBot.id)) {
+        removeRemotePlayer(removedBot.id);
+      }
+      updateDemoBotsButtonUI();
     }
     addRemotePlayer(data.id, data.name || 'Operator', data.position, data.characterId || 'ajp');
     audioSystem.playPlayerJoined();
@@ -875,6 +930,13 @@ const supabaseManager = new SupabaseManager({
     if (!data || !data.id || data.id === myId) return;
     let p = players.get(data.id);
     if (!p) {
+      if (practiceBots.length > 0 && players.size >= 5) {
+        const removedBot = practiceBots.pop();
+        if (removedBot && players.has(removedBot.id)) {
+          removeRemotePlayer(removedBot.id);
+        }
+        updateDemoBotsButtonUI();
+      }
       p = addRemotePlayer(data.id, data.name || 'Operator', new THREE.Vector3(data.x, data.y, data.z), data.characterId || 'ajp');
     } else if (data.characterId && p.characterId !== data.characterId) {
       p.setCharacterId(data.characterId);
@@ -999,7 +1061,14 @@ const supabaseManager = new SupabaseManager({
     resetGame();
   },
   onRoomStateChange: (state) => {
-    if (state.players && state.max) {
+    if (state.roomId && state.roomId !== currentRoomId) {
+      currentRoomId = state.roomId;
+      if (currentRoomId.startsWith('sector_')) {
+        showBanner(`SECTOR FULL // ROUTED TO PUBLIC SECTOR ${currentRoomId.replace('sector_', '')}`, 2600);
+      }
+      updateDemoBotsButtonUI();
+    }
+    if (state.players && state.max && !currentRoomId.startsWith('sector_')) {
       const myIndex = state.players.findIndex(p => p.id === myId);
       if (myIndex >= state.max) {
         showBanner('SQUAD FULL // CAPACITY EXCEEDED', 3000);
@@ -1677,9 +1746,10 @@ function updateReadyButtonUI() {
 function launchFriendsSquadMatch() {
   if (!isLocalHost) return;
   audioSystem.init();
-  if (players.size === 1 && practiceBots.length === 0) {
-    spawnPracticeBots(2);
+  if (currentRoomId.startsWith('custom_')) {
+    clearPracticeBots();
   }
+  updateDemoBotsButtonUI();
   supabaseManager.broadcastForceStart();
   closeFriendsHub();
   deployPlayerSkyDrop();
@@ -1688,6 +1758,10 @@ function launchFriendsSquadMatch() {
 
 function handleRemoteSquadLaunch() {
   audioSystem.init();
+  if (currentRoomId.startsWith('custom_')) {
+    clearPracticeBots();
+  }
+  updateDemoBotsButtonUI();
   closeFriendsHub();
   document.getElementById('welcome-screen')?.classList.add('hidden');
   document.getElementById('mode-select-screen')?.classList.add('hidden');
@@ -1699,6 +1773,7 @@ function handleRemoteSquadLaunch() {
 function checkAllPlayersReady(playersList) {
   const count = playersList ? playersList.length : 1;
   const isSolo = (count === 1);
+  const totalActivePlayers = Math.max(count, players.size);
 
   if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END') return;
 
@@ -1706,9 +1781,9 @@ function checkAllPlayersReady(playersList) {
     ? isLocalReady 
     : (playersList && playersList.every(p => p.isReady === true));
 
-  if (allReady && !readyCountdownInterval) {
+  if (allReady && totalActivePlayers >= 1 && !readyCountdownInterval) {
     let launchCount = 3;
-    const modeLabel = isSolo ? 'TRAINING SIMULATION' : 'ALL OPERATORS READY';
+    const modeLabel = isSolo ? 'SOLO DEPLOYMENT' : 'ALL OPERATORS READY';
     clockPhaseLabel.innerText = 'LAUNCH IMMINENT';
     clockGuidanceText.innerText = `${modeLabel} // STARTING IN ${launchCount}S`;
     showBanner(`${modeLabel} // STARTING IN ${launchCount}S`, 1100);
@@ -1725,10 +1800,11 @@ function checkAllPlayersReady(playersList) {
         readyCountdownInterval = null;
         document.getElementById('lobby-modal')?.classList.remove('active');
         closeFriendsHub();
-        deployPlayerSkyDrop();
-        if (isSolo && practiceBots.length === 0) {
-          spawnPracticeBots(2);
+        if (currentRoomId.startsWith('custom_')) {
+          clearPracticeBots();
         }
+        updateDemoBotsButtonUI();
+        deployPlayerSkyDrop();
         if (isLocalHost) {
           startRound(true);
         } else {
@@ -1848,6 +1924,8 @@ function updateRoomUI(state) {
   if (roomNameEl) roomNameEl.innerText = `CONNECTED: ${displayTitle}`;
   if (roomCountEl) roomCountEl.innerText = `${state.count}/${state.max || CONFIG.maxPlayersPerRoom} PLAYERS`;
 
+  updateDemoBotsButtonUI();
+
   if (playersListEl && state.players) {
     playersListEl.innerHTML = '';
     state.players.forEach(p => {
@@ -1946,6 +2024,8 @@ function executeDeployment(deployment) {
 
   if (deployment.type === 'public') {
     currentRoomId = 'sector_1';
+    clearPracticeBots();
+    updateDemoBotsButtonUI();
     isLocalReady = false;
     updateReadyButtonUI();
     supabaseManager.joinRoom(currentRoomId, {
@@ -1972,6 +2052,8 @@ function executeDeployment(deployment) {
 
     const code = generateRoomCode();
     currentRoomId = `custom_${code}`;
+    clearPracticeBots();
+    updateDemoBotsButtonUI();
 
     openFriendsHub();
 
@@ -2008,6 +2090,8 @@ function executeDeployment(deployment) {
   } else if (deployment.type === 'join_squad') {
     const code = deployment.code;
     currentRoomId = `custom_${code}`;
+    clearPracticeBots();
+    updateDemoBotsButtonUI();
 
     openFriendsHub();
 
@@ -2193,6 +2277,7 @@ document.getElementById('btn-friends-copy-link')?.addEventListener('click', () =
 });
 
 document.getElementById('btn-friends-leave')?.addEventListener('click', () => {
+  clearPracticeBots();
   supabaseManager.leaveRoom();
   closeFriendsHub();
   document.getElementById('mode-select-screen')?.classList.remove('hidden');
@@ -2202,6 +2287,8 @@ document.getElementById('btn-friends-leave')?.addEventListener('click', () => {
 // 4. In-Game HUD Controls
 document.getElementById('btn-ready-toggle')?.addEventListener('click', toggleReady);
 document.getElementById('btn-lobby-ready')?.addEventListener('click', toggleReady);
+document.getElementById('btn-toggle-demo-bots')?.addEventListener('click', toggleDemoBots);
+document.getElementById('btn-lobby-demo-bots')?.addEventListener('click', toggleDemoBots);
 
 document.getElementById('btn-sound')?.addEventListener('click', () => {
   audioSystem.init();
@@ -2220,6 +2307,7 @@ const nameInput = document.getElementById('player-name-input');
 if (nameInput) nameInput.value = playerName;
 
 document.getElementById('btn-lobby')?.addEventListener('click', () => {
+  updateDemoBotsButtonUI();
   lobbyModal.classList.add('active');
 });
 
@@ -2227,10 +2315,22 @@ document.getElementById('btn-close-lobby')?.addEventListener('click', () => {
   lobbyModal.classList.remove('active');
 });
 
+document.getElementById('btn-copy-link')?.addEventListener('click', () => {
+  const code = currentRoomId.startsWith('custom_') ? currentRoomId.replace('custom_', '') : currentRoomId;
+  const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${code}`;
+  navigator.clipboard.writeText(inviteUrl).then(() => {
+    showBanner('ROOM INVITE LINK COPIED', 2000);
+  }).catch(() => {
+    showBanner(`ROOM CODE: ${code}`, 2000);
+  });
+});
+
 document.getElementById('btn-quick-play')?.addEventListener('click', () => {
   audioSystem.init();
   lobbyModal.classList.remove('active');
   currentRoomId = 'sector_1';
+  clearPracticeBots();
+  updateDemoBotsButtonUI();
   isLocalReady = false;
   updateReadyButtonUI();
   supabaseManager.joinRoom(currentRoomId, {
@@ -2238,6 +2338,7 @@ document.getElementById('btn-quick-play')?.addEventListener('click', () => {
     name: playerName,
     color: 0xffcc00,
     isReady: false,
+    characterId: selectedCharacterId,
     position: localPlayer.group.position
   });
   deployPlayerSkyDrop();
@@ -2249,6 +2350,8 @@ document.getElementById('btn-create-private')?.addEventListener('click', () => {
   lobbyModal.classList.remove('active');
   const code = generateRoomCode();
   currentRoomId = `custom_${code}`;
+  clearPracticeBots();
+  updateDemoBotsButtonUI();
   openFriendsHub();
   const titleEl = document.getElementById('squad-room-title');
   if (titleEl) titleEl.innerText = 'ALPHA DOGS';
@@ -2261,6 +2364,7 @@ document.getElementById('btn-create-private')?.addEventListener('click', () => {
     name: playerName,
     color: 0xffcc00,
     isReady: false,
+    characterId: selectedCharacterId,
     position: localPlayer.group.position
   });
   showBanner(`PRIVATE SQUAD ESTABLISHED: ${code}`, 2000);
@@ -2273,6 +2377,8 @@ document.getElementById('btn-join-private')?.addEventListener('click', () => {
   if (!code) return;
   lobbyModal.classList.remove('active');
   currentRoomId = `custom_${code}`;
+  clearPracticeBots();
+  updateDemoBotsButtonUI();
   openFriendsHub();
   const titleEl = document.getElementById('squad-room-title');
   if (titleEl) titleEl.innerText = `SQUAD ${code}`;
@@ -2285,12 +2391,14 @@ document.getElementById('btn-join-private')?.addEventListener('click', () => {
     name: playerName,
     color: 0xffcc00,
     isReady: false,
+    characterId: selectedCharacterId,
     position: localPlayer.group.position
   });
   showBanner(`JOINING SQUAD: ${code}`, 2000);
 });
 
 document.getElementById('btn-leave-room')?.addEventListener('click', () => {
+  clearPracticeBots();
   supabaseManager.leaveRoom();
   lobbyModal.classList.remove('active');
   closeFriendsHub();
@@ -2562,62 +2670,7 @@ window.addEventListener('resize', () => {
   renderer.setSize(viewWidth, viewHeight);
 });
 
-// --- NETWORK UPLINK & LATENCY MONITORING ---
-function updateUplinkUI() {
-  const chip = document.getElementById('hud-uplink-chip');
-  const label = document.getElementById('uplink-label');
-  const modeText = document.getElementById('uplink-mode-text');
-  const isCloud = supabaseManager.isConfigured;
-
-  if (chip) {
-    if (isCloud) chip.classList.add('is-cloud');
-    else chip.classList.remove('is-cloud');
-  }
-  if (label) label.innerText = isCloud ? 'CLOUD' : 'PEER';
-  if (modeText) modeText.innerText = isCloud ? 'UPLINK: CLOUD WEBSOCKET (WSS)' : 'UPLINK: LOCAL PEER CHANNEL';
-  const meta = document.querySelector('.uplink-status-meta');
-  if (meta) {
-    if (isCloud) meta.classList.add('is-cloud');
-    else meta.classList.remove('is-cloud');
-  }
-}
-
-document.getElementById('btn-toggle-uplink-inputs')?.addEventListener('click', () => {
-  const drawer = document.getElementById('uplink-inputs-drawer');
-  drawer?.classList.toggle('hidden');
-});
-
-document.getElementById('btn-save-uplink')?.addEventListener('click', async () => {
-  const url = document.getElementById('cfg-supabase-url')?.value.trim();
-  const key = document.getElementById('cfg-supabase-key')?.value.trim();
-  if (!url || !key) {
-    showBanner('ENTER SUPABASE URL & KEY', 2000);
-    return;
-  }
-  showBanner('CONNECTING CLOUD WEBSOCKET...', 2000);
-  const success = await supabaseManager.reconnectWithCredentials(url, key);
-  updateUplinkUI();
-  if (success) {
-    showBanner('UPLINK ESTABLISHED: CLOUD WEBSOCKET', 2500);
-    document.getElementById('uplink-inputs-drawer')?.classList.add('hidden');
-  } else {
-    showBanner('CONNECTION FAILED // CHECK CREDENTIALS', 2500);
-  }
-});
-
-// Pre-fill existing credentials if in storage
-const existingUrl = safeStorage.getItem('supabase_url');
-const existingKey = safeStorage.getItem('supabase_anon_key');
-if (existingUrl) {
-  const urlInput = document.getElementById('cfg-supabase-url');
-  if (urlInput) urlInput.value = existingUrl;
-}
-if (existingKey) {
-  const keyInput = document.getElementById('cfg-supabase-key');
-  if (keyInput) keyInput.value = existingKey;
-}
-
-updateUplinkUI();
+updateDemoBotsButtonUI();
 supabaseManager.startPingInterval();
 
 animate();
