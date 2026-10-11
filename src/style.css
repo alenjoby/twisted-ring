@@ -60,21 +60,21 @@ body, html {
 .floating-name-tag {
   position: absolute;
   transform: translate(-50%, -50%);
-  background: rgba(10, 13, 20, 0.85);
-  backdrop-filter: blur(10px);
-  border-radius: 14px;
-  padding: 3px 10px;
+  background: rgba(10, 13, 20, 0.78);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  padding: 2px 8px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   font-family: 'Montserrat', 'Satoshi', sans-serif;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: #fff;
   white-space: nowrap;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  transition: opacity 0.2s;
+  transition: opacity 0.2s ease;
   will-change: transform;
   pointer-events: none;
   z-index: 50;
@@ -82,6 +82,10 @@ body, html {
 
 .floating-name-tag.local {
   border-color: rgba(255, 204, 0, 0.5);
+}
+
+.floating-name-tag.combat-dim {
+  opacity: 0.45;
 }
 
 .floating-name-tag.hidden {
@@ -768,7 +772,7 @@ body, html {
 
 .char-3d-viewport {
   width: 100%;
-  height: 340px;
+  height: clamp(200px, 34vh, 320px);
   border-radius: 12px;
   background: radial-gradient(circle at 50% 42%, rgba(0, 240, 255, 0.14) 0%, rgba(8, 11, 18, 0.88) 80%);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -840,11 +844,10 @@ body, html {
     min-width: 230px;
   }
   .char-3d-viewport {
-    height: 280px;
+    height: clamp(180px, 30vh, 250px);
   }
 }
 
-/* SCREEN 4: FRIENDS SQUAD HUB MODAL */
 /* SCREEN 4: FRIENDS SQUAD HUB MODAL (Widescreen Horizontal Layout) */
 .modal-box.friends-hub-box {
   width: min(920px, 94vw);
@@ -865,6 +868,13 @@ body, html {
   margin-bottom: 16px;
   padding-bottom: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.friends-hub-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .friends-horizontal-columns {
@@ -1023,27 +1033,49 @@ body, html {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 24px 32px;
+  padding: 18px 24px;
 }
 
-/* --- TOP HEADER NAVIGATION --- */
+/* --- TOP HEADER NAVIGATION (True 3-Column Grid so Clock is Always Centered) --- */
 .hud-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  width: 100%;
 }
 
-/* SQUAD / OPERATOR PANEL (Left) */
+/* SQUAD / OPERATOR PANEL (Left, Compact & Collapsible) */
 .hud-roster-panel {
-  background: var(--panel-bg);
-  backdrop-filter: blur(20px);
+  justify-self: start;
+  background: rgba(14, 17, 24, 0.82);
+  backdrop-filter: blur(16px);
   border: 1px solid var(--panel-border);
-  border-radius: 10px;
-  padding: 16px 20px;
-  min-width: 280px;
+  border-radius: 9px;
+  padding: 9px 12px;
+  width: 218px;
+  max-width: 100%;
   pointer-events: auto;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   position: relative;
+  transition: width 0.2s ease, padding 0.2s ease, background 0.2s ease;
+}
+
+.hud-roster-panel.collapsed {
+  width: auto;
+  padding: 7px 11px;
+}
+
+.hud-roster-panel.collapsed .roster-items {
+  display: none !important;
+}
+
+.hud-roster-panel.collapsed .roster-meta {
+  margin-bottom: 0;
+}
+
+.hud-roster-panel.collapsed #roster-collapse-icon {
+  transform: rotate(180deg);
 }
 
 /* Yellow accent bracket in top-left */
@@ -1051,8 +1083,8 @@ body, html {
   content: '';
   position: absolute;
   top: -1px;
-  left: 12px;
-  width: 32px;
+  left: 10px;
+  width: 26px;
   height: 2px;
   background: var(--accent-lime);
 }
@@ -1061,41 +1093,91 @@ body, html {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.roster-meta:hover .roster-label {
+  color: #ffffff;
+}
+
+.roster-meta-left,
+.roster-meta-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .roster-label {
   font-family: 'Montserrat', 'Satoshi', sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
   color: var(--text-dim);
   text-transform: uppercase;
+  transition: color 0.15s ease;
+}
+
+.roster-count-pill {
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  padding: 1px 6px;
+  border-radius: 10px;
 }
 
 .roster-round-pill {
   font-family: 'Satoshi', 'Montserrat', sans-serif;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   background: var(--accent-lime-dim);
   color: var(--accent-lime);
   border: 1px solid rgba(255, 204, 0, 0.3);
-  padding: 2px 8px;
+  padding: 1px 6px;
   border-radius: 4px;
+  white-space: nowrap;
+}
+
+.roster-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-dim);
+  transition: all 0.2s ease;
+}
+
+.roster-meta:hover .roster-collapse-btn {
+  background: rgba(255, 204, 0, 0.18);
+  color: var(--accent-lime);
+}
+
+#roster-collapse-icon {
+  transition: transform 0.2s ease;
 }
 
 .roster-items {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  max-height: 185px;
+  overflow-y: auto;
 }
 
 .roster-entry {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  border-radius: 6px;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 5px;
   background: var(--panel-bg-subtle);
   border: 1px solid transparent;
   transition: all 0.2s ease;
@@ -1114,14 +1196,17 @@ body, html {
 .entry-name-box {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .entry-indicator {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--accent-lime);
+  flex-shrink: 0;
 }
 
 .entry-indicator.dead {
@@ -1129,28 +1214,35 @@ body, html {
 }
 
 .entry-name {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--text-white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .entry-score {
   font-family: 'Montserrat', 'Satoshi', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 800;
   color: var(--accent-lime);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .entry-score.dead {
   color: var(--accent-rose);
 }
 
-/* --- CENTER COMBAT CLOCK (Clean Floating Text & Number Only — No Boxed HUD) --- */
+/* --- CENTER COMBAT CLOCK & STACKED BANNERS --- */
 .hud-clock-center {
+  justify-self: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   pointer-events: none;
+  z-index: 30;
 }
 
 .clock-bracket-frame {
@@ -1166,9 +1258,9 @@ body, html {
 
 .clock-phase-label {
   font-family: 'Montserrat', 'Satoshi', sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 3px;
+  letter-spacing: 2.5px;
   color: var(--accent-lime);
   text-transform: uppercase;
   margin-bottom: 2px;
@@ -1183,7 +1275,7 @@ body, html {
 
 .clock-number {
   font-family: 'Montserrat', 'Satoshi', sans-serif;
-  font-size: 52px;
+  font-size: 48px;
   font-weight: 800;
   line-height: 1;
   color: #ffffff;
@@ -1195,132 +1287,50 @@ body, html {
 }
 
 .clock-guidance-pill {
-  margin-top: 4px;
+  margin-top: 3px;
   background: transparent;
   border: none;
   padding: 0;
   font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 1.5px;
+  letter-spacing: 1.4px;
   color: rgba(255, 255, 255, 0.82);
   text-transform: uppercase;
+  text-align: center;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
 }
 
-/* --- TOP RIGHT CONTROLS --- */
-.hud-actions-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  pointer-events: auto;
-}
-
-.hud-btn {
-  background: var(--panel-bg);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--panel-border);
-  color: var(--text-white);
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.hud-btn:hover {
-  background: rgba(28, 35, 50, 0.85);
-  border-color: var(--panel-border-bright);
-}
-
-.hud-btn-primary {
-  background: var(--accent-lime);
-  color: #0c0e14;
-  border-color: var(--accent-lime);
-  font-weight: 800;
-  box-shadow: 0 0 20px rgba(255, 204, 0, 0.3);
-}
-
-.hud-btn-primary:hover {
-  background: #e4ff33;
-  color: #0c0e14;
-  box-shadow: 0 0 30px rgba(255, 204, 0, 0.5);
-  transform: translateY(-1px);
-}
-
-.hud-btn-icon {
-  padding: 10px;
-  border-radius: 8px;
-}
-
-/* --- TOP EVENT BANNER (Clean floating text, never a heavy HUD box) --- */
-#event-banner {
-  position: absolute;
-  top: 96px;
-  left: 50%;
-  transform: translate(-50%, -8px) scale(0.96);
-  font-family: 'Montserrat', 'Satoshi', sans-serif;
-  font-size: 15px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 2.5px;
-  text-align: center;
-  color: var(--accent-lime);
-  padding: 4px 12px;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.95), 0 0 20px rgba(0, 0, 0, 0.85);
-  opacity: 0;
-  pointer-events: none;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: 100;
-}
-
-#event-banner.active {
-  opacity: 1;
-  transform: translate(-50%, 0) scale(1);
-}
-
-/* --- SPECTATOR DRONE NAVIGATION BAR --- */
+/* --- SPECTATOR DRONE NAVIGATION BAR (Stacked cleanly inside .hud-clock-center) --- */
 .spectator-bar {
-  position: absolute;
-  top: 104px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
+  margin-top: 8px;
   z-index: 95;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: rgba(11, 14, 22, 0.92);
   backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 204, 0, 0.35);
-  padding: 6px 16px;
+  padding: 5px 14px;
   border-radius: 20px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 15px rgba(255, 204, 0, 0.15);
   pointer-events: auto;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .spectator-bar.hidden {
+  display: none !important;
   opacity: 0;
-  visibility: hidden;
   pointer-events: none;
-  transform: translate(-50%, -10px);
 }
 
 .spec-nav-btn {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: #fff;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1355,9 +1365,91 @@ body, html {
 
 .spec-name {
   font-family: 'Montserrat', 'Satoshi', sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
   color: #ffffff;
+}
+
+/* --- TOP EVENT BANNER (Stacks cleanly below clock & spectator bar without overlap) --- */
+#event-banner {
+  position: relative;
+  margin-top: 6px;
+  transform: translateY(-4px) scale(0.96);
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-align: center;
+  color: var(--accent-lime);
+  padding: 3px 10px;
+  background: rgba(10, 13, 20, 0.65);
+  border-radius: 6px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 100;
+}
+
+#event-banner.active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* --- TOP RIGHT CONTROLS --- */
+.hud-actions-right {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.hud-btn {
+  background: var(--panel-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--panel-border);
+  color: var(--text-white);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.hud-btn:hover {
+  background: rgba(28, 35, 50, 0.85);
+  border-color: var(--panel-border-bright);
+}
+
+.hud-btn-primary {
+  background: var(--accent-lime);
+  color: #0c0e14;
+  border-color: var(--accent-lime);
+  font-weight: 800;
+  box-shadow: 0 0 20px rgba(255, 204, 0, 0.3);
+}
+
+.hud-btn-primary:hover {
+  background: #e4ff33;
+  color: #0c0e14;
+  box-shadow: 0 0 30px rgba(255, 204, 0, 0.5);
+  transform: translateY(-1px);
+}
+
+.hud-btn-icon {
+  padding: 8px;
+  border-radius: 8px;
 }
 
 /* --- BOTTOM CONTROLS & CAMERA GUIDE --- */
@@ -1365,25 +1457,46 @@ body, html {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  gap: 12px;
+  width: 100%;
+}
+
+.hud-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.controls-toggle-btn {
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+}
+
+.controls-toggle-btn.active {
+  color: var(--accent-lime);
+  border-color: rgba(255, 204, 0, 0.45);
 }
 
 .hud-hint-pill {
   background: var(--panel-bg);
   backdrop-filter: blur(16px);
   border: 1px solid var(--panel-border);
-  padding: 8px 20px;
-  border-radius: 30px;
+  padding: 6px 14px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 14px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .hint-group {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 5px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--text-dim);
 }
@@ -1391,23 +1504,25 @@ body, html {
 .key-tag {
   background: rgba(255, 255, 255, 0.08);
   color: #ffffff;
-  padding: 2px 7px;
+  padding: 2px 6px;
   border-radius: 4px;
   font-family: 'Satoshi', 'Montserrat', sans-serif;
-  font-size: 10px;
+  font-size: 9px;
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .camera-mode-badge {
   font-family: 'Satoshi', 'Montserrat', sans-serif;
-  font-size: 11px;
-  color: var(--text-dark);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
-  padding: 6px 14px;
+  padding: 6px 11px;
   border-radius: 6px;
   pointer-events: auto;
   cursor: pointer;
+  white-space: nowrap;
   transition: color 0.2s, border-color 0.2s;
 }
 
@@ -1419,34 +1534,35 @@ body, html {
 .hud-footer-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
   pointer-events: auto;
+  margin-left: auto;
 }
 
 .hud-emote-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: var(--panel-bg);
   backdrop-filter: blur(16px);
   border: 1px solid var(--panel-border);
-  padding: 4px 8px;
-  border-radius: 8px;
+  padding: 3px 6px;
+  border-radius: 7px;
 }
 
 .emote-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text-dim);
   font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 10px;
   font-weight: 700;
-  padding: 4px 8px;
+  padding: 4px 7px;
   border-radius: 5px;
   cursor: pointer;
   transition: all 0.16s ease;
@@ -1461,27 +1577,27 @@ body, html {
 
 .streak-tag {
   font-family: 'Satoshi', 'Montserrat', sans-serif;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 800;
   color: #090c13;
   background: var(--accent-lime);
-  padding: 1px 6px;
+  padding: 1px 5px;
   border-radius: 4px;
-  letter-spacing: 0.5px;
-  margin-left: 6px;
+  letter-spacing: 0.4px;
+  margin-left: 4px;
 }
 
 .emote-bubble-tag {
   font-family: 'Montserrat', 'Satoshi', sans-serif;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   color: #090c13;
   background: #00f0ff;
-  padding: 2px 7px;
+  padding: 2px 6px;
   border-radius: 8px;
-  letter-spacing: 0.8px;
-  margin-left: 6px;
-  box-shadow: 0 0 12px rgba(0, 240, 255, 0.65);
+  letter-spacing: 0.6px;
+  margin-left: 5px;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.65);
 }
 
 /* ==========================================================================
@@ -1925,7 +2041,7 @@ body, html {
   flex: 1;
 }
 
-/* --- CINEMATIC VICTORY OVERLAY (Only Small Left Winner Name & Right Next Button) --- */
+/* --- CINEMATIC VICTORY OVERLAY --- */
 .victory-cinematic-overlay {
   position: fixed;
   inset: 0;
@@ -1935,6 +2051,8 @@ body, html {
   flex-direction: row;
   justify-content: space-between;
   align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
   padding: 28px 36px;
   background: transparent !important;
   backdrop-filter: none !important;
@@ -1961,6 +2079,23 @@ body, html {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65);
 }
 
+.victory-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.victory-leave-btn {
+  pointer-events: auto;
+  font-size: 11px !important;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 8px 14px !important;
+  border-radius: 8px !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65);
+}
+
 .victory-next-right {
   pointer-events: auto;
   font-size: 12px !important;
@@ -1981,99 +2116,108 @@ body, html {
    ========================================================================== */
 @media (pointer: coarse), (max-width: 900px), (max-height: 550px) {
   #ui-overlay {
-    padding: 12px 16px;
+    padding: 10px 14px;
   }
   .hud-header {
-    padding: 0;
-    gap: 10px;
-    align-items: flex-start;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
   }
   .hud-roster-panel {
-    display: none !important;
+    width: 180px;
+    padding: 6px 10px;
   }
-  #hud-uplink-chip {
-    display: none !important;
+  .hud-roster-panel.collapsed {
+    width: auto;
+    padding: 6px 9px;
   }
-  .hud-footer {
-    display: none !important;
+  .roster-label {
+    font-size: 9px;
   }
-  .hud-clock-center {
-    position: absolute;
-    top: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 20;
+  .roster-round-pill {
+    font-size: 9px;
+    padding: 1px 5px;
   }
   .clock-phase-label {
-    font-size: 11px;
-    letter-spacing: 2.2px;
+    font-size: 10px;
+    letter-spacing: 2px;
   }
   .clock-number {
-    font-size: 40px;
+    font-size: 36px;
   }
   .clock-guidance-pill {
-    font-size: 9px;
+    font-size: 8.5px;
     margin-top: 2px;
   }
   .hud-actions-right {
-    margin-left: auto;
-    gap: 6px;
-    z-index: 25;
+    gap: 5px;
   }
   .hud-actions-right .hud-btn {
-    padding: 7px 11px;
-    font-size: 10px;
+    padding: 6px 9px;
+    font-size: 9.5px;
     border-radius: 6px;
   }
   .hud-btn-icon {
-    padding: 7px !important;
+    padding: 6px !important;
   }
   #event-banner {
-    top: 76px;
-    font-size: 12px;
-    padding: 4px 10px;
+    font-size: 11px;
+    padding: 3px 8px;
   }
   .spectator-bar {
-    top: 80px;
     padding: 4px 10px;
-    gap: 8px;
+    gap: 6px;
+  }
+  .hud-footer-left {
+    display: none !important;
+  }
+  .hud-footer-right {
+    gap: 5px;
+  }
+  .emote-btn .key-tag {
+    display: none;
+  }
+  .emote-btn {
+    font-size: 9px;
+    padding: 4px 6px;
+  }
+  .camera-mode-badge {
+    font-size: 9px;
+    padding: 5px 8px;
   }
   .victory-cinematic-overlay {
-    padding: 18px 20px;
+    padding: 16px 18px;
   }
   .victory-winner-left {
     font-size: 11px;
     padding: 7px 12px;
   }
+  .victory-leave-btn,
   .victory-next-right {
-    font-size: 11px !important;
-    padding: 7px 14px !important;
+    font-size: 10px !important;
+    padding: 7px 12px !important;
   }
 }
 
-@media (max-width: 540px) {
+@media (max-width: 640px) {
   .hud-header {
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
+    grid-template-columns: auto 1fr;
+    gap: 6px;
   }
-  .hud-clock-center {
-    position: relative;
-    top: auto;
-    left: auto;
-    transform: none;
-    order: 1;
+  .hud-roster-panel {
+    grid-column: 1;
+    grid-row: 1;
   }
   .hud-actions-right {
-    order: 2;
-    margin-left: 0;
-    justify-content: center;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
   }
-  #event-banner {
-    top: 112px;
-  }
-  .spectator-bar {
-    top: 114px;
+  .hud-clock-center {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+    margin-top: 2px;
   }
 }
 

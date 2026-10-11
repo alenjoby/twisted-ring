@@ -1813,6 +1813,10 @@ function resetGame() {
 
 function updateScoreboard() {
   const listEl = document.getElementById('scoreboard-list');
+  const countPillEl = document.getElementById('roster-count-pill');
+  if (countPillEl) {
+    countPillEl.innerText = `${players.size}`;
+  }
   if (!listEl) return;
   listEl.innerHTML = '';
 
@@ -2156,9 +2160,11 @@ function openCharacterSelectScreen() {
   if (localPlayer) {
     localPlayer.setVisible(true);
     localPlayer.setCharacterId(selectedCharacterId);
-    localPlayer.group.position.set(0, 0, 0);
-    localPlayer.rotationY = 0;
-    localPlayer.group.rotation.y = 0;
+    if (!localPlayerDeployed) {
+      localPlayer.group.position.set(0, 0, 0);
+      localPlayer.rotationY = 0;
+      localPlayer.group.rotation.y = 0;
+    }
     localPlayer.playAction('idle', 0.15);
   }
   updateCharacterSelectUI();
@@ -2463,6 +2469,15 @@ document.getElementById('btn-friends-change-char')?.addEventListener('click', ()
 document.getElementById('btn-friends-ready')?.addEventListener('click', toggleReady);
 document.getElementById('btn-friends-host-launch')?.addEventListener('click', launchFriendsSquadMatch);
 
+document.getElementById('btn-close-friends-hub')?.addEventListener('click', () => {
+  closeFriendsHub();
+  if (!localPlayerDeployed) {
+    deployPlayerSkyDrop();
+  } else {
+    document.getElementById('ui-overlay')?.classList.remove('hidden');
+  }
+});
+
 document.getElementById('btn-friends-copy-link')?.addEventListener('click', () => {
   const code = currentRoomId.startsWith('custom_') ? currentRoomId.replace('custom_', '') : currentRoomId;
   const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${code}`;
@@ -2477,6 +2492,7 @@ document.getElementById('btn-friends-leave')?.addEventListener('click', () => {
   clearPracticeBots();
   supabaseManager.leaveRoom();
   closeFriendsHub();
+  document.getElementById('ui-overlay')?.classList.add('hidden');
   document.getElementById('mode-select-screen')?.classList.remove('hidden');
   showBanner('LEFT SQUAD FREQUENCY', 1600);
 });
@@ -2486,6 +2502,31 @@ document.getElementById('btn-ready-toggle')?.addEventListener('click', toggleRea
 document.getElementById('btn-lobby-ready')?.addEventListener('click', toggleReady);
 document.getElementById('btn-toggle-demo-bots')?.addEventListener('click', toggleDemoBots);
 document.getElementById('btn-lobby-demo-bots')?.addEventListener('click', toggleDemoBots);
+
+// Collapsible Top-Left Operators Scoreboard Panel
+const hudRosterPanel = document.getElementById('hud-roster-panel');
+const btnToggleRoster = document.getElementById('btn-toggle-roster');
+if (window.innerWidth <= 900) {
+  hudRosterPanel?.classList.add('collapsed');
+}
+btnToggleRoster?.addEventListener('click', () => {
+  hudRosterPanel?.classList.toggle('collapsed');
+});
+btnToggleRoster?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    hudRosterPanel?.classList.toggle('collapsed');
+  }
+});
+
+// Collapsible Bottom-Left Controls Drawer
+const btnToggleControls = document.getElementById('btn-toggle-controls');
+const hudControlsDrawer = document.getElementById('hud-controls-drawer');
+btnToggleControls?.addEventListener('click', () => {
+  if (!hudControlsDrawer) return;
+  const isHidden = hudControlsDrawer.classList.toggle('hidden');
+  btnToggleControls.classList.toggle('active', !isHidden);
+});
 
 document.getElementById('btn-sound')?.addEventListener('click', () => {
   audioSystem.init();
@@ -2505,7 +2546,11 @@ if (nameInput) nameInput.value = playerName;
 
 document.getElementById('btn-lobby')?.addEventListener('click', () => {
   updateDemoBotsButtonUI();
-  lobbyModal.classList.add('active');
+  if (currentRoomId.startsWith('custom_') && (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END')) {
+    openFriendsHub();
+  } else {
+    lobbyModal.classList.add('active');
+  }
 });
 
 document.getElementById('btn-close-lobby')?.addEventListener('click', () => {
@@ -2646,7 +2691,7 @@ document.getElementById('btn-save-name')?.addEventListener('click', () => {
   }
 });
 
-// Winner Play Again
+// Winner Overlay Actions
 document.getElementById('btn-play-again')?.addEventListener('click', () => {
   if (isLocalHost) {
     resetGame();
@@ -2655,6 +2700,16 @@ document.getElementById('btn-play-again')?.addEventListener('click', () => {
     supabaseManager.requestGameReset();
     showBanner('REQUESTED NEXT MATCH FROM HOST...', 2000);
   }
+});
+
+document.getElementById('btn-victory-leave')?.addEventListener('click', () => {
+  resetGame();
+  clearPracticeBots();
+  supabaseManager.leaveRoom();
+  document.getElementById('winner-modal')?.classList.add('hidden');
+  document.getElementById('ui-overlay')?.classList.add('hidden');
+  document.getElementById('mode-select-screen')?.classList.remove('hidden');
+  showBanner('LEFT MULTIPLAYER ROOM', 1600);
 });
 
 // --- RENDER & GAME ANIMATION LOOP ---
@@ -2815,6 +2870,7 @@ function animate() {
   if (arena) arena.update(scaledDelta);
 
   // Update HTML name tags (zero-allocation projection using static scratch vectors)
+  const isCombatPhase = (currentPhase === 'STEALTH' || currentPhase === 'INPUT_FREEZE' || currentPhase === 'REVEAL');
   players.forEach(p => {
     if (p.htmlTag) {
       if (p.isAlive && p.isVisible) {
@@ -2827,6 +2883,11 @@ function animate() {
           const y = (-(_scratchHeadPos.y * 0.5) + 0.5) * viewHeight;
           p.htmlTag.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
           p.htmlTag.classList.remove('hidden');
+          if (isCombatPhase && !p.activeEmoteText) {
+            p.htmlTag.classList.add('combat-dim');
+          } else {
+            p.htmlTag.classList.remove('combat-dim');
+          }
         } else {
           p.htmlTag.classList.add('hidden');
         }

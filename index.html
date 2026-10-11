@@ -107,7 +107,7 @@
             <span class="deploy-capacity">PRIVATE SQUAD</span>
           </div>
           <h3 class="deploy-card-title">CUSTOM SQUAD</h3>
-          <p class="deploy-card-desc">Create a private frequency with custom lobby settings or join a squad with a 5-digit code.</p>
+          <p class="deploy-card-desc">Create a private frequency with custom lobby settings or join a squad with a 6-digit code.</p>
           
           <div class="squad-tabs-nav">
             <button id="tab-create-squad" class="squad-tab active">CREATE ROOM</button>
@@ -167,7 +167,7 @@
           <div id="panel-join-squad" class="squad-panel hidden">
             <div class="squad-field">
               <label>Room Access Code</label>
-              <input type="text" id="join-squad-code-input" maxlength="6" placeholder="ENTER 5-DIGIT CODE" />
+              <input type="text" id="join-squad-code-input" maxlength="6" placeholder="ENTER 6-DIGIT CODE" />
             </div>
             <button id="btn-confirm-join-squad" class="hud-btn hud-btn-primary deploy-action-btn">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
@@ -278,9 +278,14 @@
           <div class="modal-tag">PRIVATE SQUAD FREQUENCY</div>
           <div id="squad-room-title" class="modal-title">ALPHA DOGS</div>
         </div>
-        <div class="room-code-chip">
-          <span class="code-label">ROOM CODE:</span>
-          <span id="squad-code-val" class="code-val">XYZ12</span>
+        <div class="friends-hub-header-right">
+          <div class="room-code-chip">
+            <span class="code-label">ROOM CODE:</span>
+            <span id="squad-code-val" class="code-val">XYZ123</span>
+          </div>
+          <button id="btn-close-friends-hub" class="hud-btn" type="button" title="View Arena">
+            VIEW ARENA
+          </button>
         </div>
       </div>
 
@@ -327,7 +332,7 @@
               <!-- Exclusive Host Launch Match Button -->
               <button id="btn-friends-host-launch" class="hud-btn hud-btn-primary flex-1 hidden">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                LAUNCH MATCH
+                <span id="friends-launch-btn-text">LAUNCH MATCH</span>
               </button>
             </div>
 
@@ -357,23 +362,28 @@
 
   <!-- In-Game HUD -->
   <div id="ui-overlay" class="hidden">
-    <!-- Tactical Event Ticker Banner -->
-    <div id="event-banner"></div>
-
     <!-- Top Header Navigation -->
     <header class="hud-header">
-      <!-- Squad Status Card (Left) -->
-      <div class="hud-roster-panel">
-        <div class="roster-meta">
-          <span class="roster-label">OPERATORS</span>
-          <span id="roster-round-pill" class="roster-round-pill">ROUND 01</span>
+      <!-- Squad Status Card (Left, Collapsible) -->
+      <div id="hud-roster-panel" class="hud-roster-panel">
+        <div id="btn-toggle-roster" class="roster-meta" role="button" tabindex="0" title="Click to Collapse or Expand Operators">
+          <div class="roster-meta-left">
+            <span class="roster-label">OPERATORS</span>
+            <span id="roster-count-pill" class="roster-count-pill">1</span>
+          </div>
+          <div class="roster-meta-right">
+            <span id="roster-round-pill" class="roster-round-pill">ROUND 01</span>
+            <span class="roster-collapse-btn" aria-hidden="true">
+              <svg id="roster-collapse-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+            </span>
+          </div>
         </div>
         <div id="scoreboard-list" class="roster-items">
           <!-- Dynamically Injected -->
         </div>
       </div>
 
-      <!-- Center Combat Clock -->
+      <!-- Center Combat Clock & Stacked Status Alerts -->
       <div class="hud-clock-center">
         <div class="clock-bracket-frame">
           <span id="clock-phase-label" class="clock-phase-label">PREPARATION</span>
@@ -384,6 +394,26 @@
         <div class="clock-guidance-pill">
           <span id="clock-guidance-text">OPPONENTS CONCEALED // LOCK AIM</span>
         </div>
+
+        <!-- Spectator Drone Bar (Stacks cleanly below clock when eliminated) -->
+        <div id="spectator-bar" class="spectator-bar hidden">
+          <button id="btn-spec-prev" class="spec-nav-btn" title="Previous Survivor">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <div class="spec-meta">
+            <span class="spec-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              SPECTATING
+            </span>
+            <span id="spec-target-name" class="spec-name">OPERATOR</span>
+          </div>
+          <button id="btn-spec-next" class="spec-nav-btn" title="Next Survivor">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+
+        <!-- Tactical Event Ticker Banner (Stacks cleanly below clock & spectator bar) -->
+        <div id="event-banner"></div>
       </div>
 
       <!-- Top Right Action Controls -->
@@ -397,30 +427,13 @@
         </button>
         <button id="btn-lobby" class="hud-btn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          ROOMS
+          <span>ROOMS</span>
         </button>
         <button id="btn-sound" class="hud-btn hud-btn-icon" title="Toggle Sound">
           <svg id="sound-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
         </button>
       </div>
     </header>
-
-    <!-- Spectator Drone Bar (Active When Local Player is Eliminated) -->
-    <div id="spectator-bar" class="spectator-bar hidden">
-      <button id="btn-spec-prev" class="spec-nav-btn" title="Previous Survivor">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <div class="spec-meta">
-        <span class="spec-badge">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          SPECTATING
-        </span>
-        <span id="spec-target-name" class="spec-name">OPERATOR</span>
-      </div>
-      <button id="btn-spec-next" class="spec-nav-btn" title="Next Survivor">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
-    </div>
 
     <!-- Mobile Virtual Touch Joystick (Active on Touch Devices) -->
     <div id="touch-joystick-zone" class="touch-joystick-zone">
@@ -431,29 +444,31 @@
 
     <!-- Bottom Controls & Navigation -->
     <footer class="hud-footer">
-      <div class="hud-hint-pill">
-        <div class="hint-group">
-          <span class="key-tag">W</span>
-          <span class="key-tag">A</span>
-          <span class="key-tag">S</span>
-          <span class="key-tag">D</span>
-          <span>MOVE</span>
-        </div>
-        <div class="hint-group">
-          <span class="key-tag">LEFT CLICK</span>
-          <span>AIM LASER</span>
-        </div>
-        <div class="hint-group">
-          <span class="key-tag">RIGHT DRAG</span>
-          <span>ROTATE CAMERA</span>
-        </div>
-        <div class="hint-group">
-          <span class="key-tag">SCROLL</span>
-          <span>ZOOM IN/OUT</span>
-        </div>
-        <div class="hint-group">
-          <span class="key-tag">R</span>
-          <span>READY</span>
+      <div class="hud-footer-left">
+        <button id="btn-toggle-controls" class="camera-mode-badge controls-toggle-btn" type="button" title="Show or Hide Controls">
+          <span id="controls-toggle-label">CONTROLS</span>
+        </button>
+        <div id="hud-controls-drawer" class="hud-hint-pill hidden">
+          <div class="hint-group">
+            <span class="key-tag">WASD</span>
+            <span>MOVE</span>
+          </div>
+          <div class="hint-group">
+            <span class="key-tag">CLICK</span>
+            <span>AIM</span>
+          </div>
+          <div class="hint-group">
+            <span class="key-tag">RIGHT DRAG</span>
+            <span>ORBIT</span>
+          </div>
+          <div class="hint-group">
+            <span class="key-tag">SCROLL</span>
+            <span>ZOOM</span>
+          </div>
+          <div class="hint-group">
+            <span class="key-tag">R</span>
+            <span>READY</span>
+          </div>
         </div>
       </div>
 
@@ -482,7 +497,7 @@
         </div>
 
         <div id="btn-reset-cam" class="camera-mode-badge">
-          <span>RESET CAMERA</span>
+          <span>RESET CAM</span>
         </div>
       </div>
     </footer>
@@ -577,7 +592,7 @@
                 <span class="mode-limit">FRIENDS ONLY</span>
               </div>
               <div class="mode-title">CUSTOM ROOM</div>
-              <div class="mode-desc">Create or join a private squad via 5-digit room code.</div>
+              <div class="mode-desc">Create or join a private squad via 6-digit room code.</div>
               <div class="private-actions">
                 <button id="btn-create-private" class="hud-btn mode-action-btn">
                   CREATE NEW CODE
@@ -594,13 +609,18 @@
     </div>
   </div>
 
-  <!-- CINEMATIC VICTORY OVERLAY (Only Winner Name on Left and Next Button on Right) -->
+  <!-- CINEMATIC VICTORY OVERLAY -->
   <div id="winner-modal" class="victory-cinematic-overlay hidden">
     <div id="winner-name-display" class="victory-winner-left">OPERATOR WINS</div>
-    <button id="btn-play-again" class="hud-btn hud-btn-primary victory-next-right">
-      NEXT
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-    </button>
+    <div class="victory-actions-right">
+      <button id="btn-victory-leave" class="hud-btn victory-leave-btn" type="button">
+        LEAVE ROOM
+      </button>
+      <button id="btn-play-again" class="hud-btn hud-btn-primary victory-next-right" type="button">
+        NEXT MATCH
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+    </div>
   </div>
 
   <script type="module" src="/src/main.js"></script>
