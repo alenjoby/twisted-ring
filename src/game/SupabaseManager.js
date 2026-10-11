@@ -21,9 +21,20 @@ export const safeStorage = {
   }
 };
 
-// Default / fallback configuration (Supports both Vite and Vercel Next.js integration variables)
-const DEFAULT_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || safeStorage.getItem('supabase_url') || 'https://mock.supabase.co';
-const DEFAULT_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || safeStorage.getItem('supabase_anon_key') || 'mock-key';
+// Default / fallback configuration (Supports Vite, Next.js, and standard SUPABASE_ environment variables)
+const DEFAULT_URL =
+  import.meta.env.VITE_SUPABASE_URL ||
+  import.meta.env.NEXT_PUBLIC_SUPABASE_URL ||
+  import.meta.env.SUPABASE_URL ||
+  safeStorage.getItem('supabase_url') ||
+  'https://mock.supabase.co';
+const DEFAULT_KEY =
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  import.meta.env.SUPABASE_ANON_KEY ||
+  import.meta.env.SUPABASE_KEY ||
+  safeStorage.getItem('supabase_anon_key') ||
+  'mock-key';
 
 export class SupabaseManager {
   constructor({ onPlayerJoined, onPlayerLeft, onPlayerMoved, onRoundSync, onReveal, onHit, onRoomStateChange, onPlayerReady, onForceStart, onLockPacket, onRoundVerdict, onRoomSettings, onPlayerRenamed, onGameReset, onPhaseLock, onLatencyUpdate, onPlayerEmote }) {
@@ -51,6 +62,7 @@ export class SupabaseManager {
     this.myPlayerInfo = null;
     this.hostId = null;
     this.isHost = false;
+    this.hasTrackedPresence = false;
     this.connectedPlayers = new Map();
     this.maxPublicSectorPlayers = 5;
     this.isOverflowing = false;
@@ -100,14 +112,38 @@ export class SupabaseManager {
     }
   }
 
-  // Set local player info before connecting, preserving joinedAt unless explicitly updated
+  // Deterministic sort: explicit room creator is ALWAYS index 0 (Host), then joinedAt ascending, then id
+  sortRosterList(list) {
+    list.sort((a, b) => {
+      const aCreator = a?.isCreator === true;
+      const bCreator = b?.isCreator === true;
+      if (aCreator !== bCreator) {
+        return aCreator ? -1 : 1;
+      }
+      const tA = a?.joinedAt || 0;
+      const tB = b?.joinedAt || 0;
+      if (tA !== tB) return tA - tB;
+      return (a?.id || '').localeCompare(b?.id || '');
+    });
+    return list;
+  }
+
+  // Set local player info before connecting, preserving joinedAt & isCreator unless explicitly updated
   setPlayerInfo(info) {
     if (!this.myPlayerInfo) {
-      this.myPlayerInfo = { ...info, joinedAt: info?.joinedAt || Date.now() };
+      this.myPlayerInfo = {
+        ...info,
+        isCreator: info?.isCreator === true,
+        joinedAt: info?.joinedAt || Date.now()
+      };
     } else {
       const nextJoinedAt = info?.joinedAt || this.myPlayerInfo.joinedAt || Date.now();
+      const nextIsCreator = (info && typeof info.isCreator === 'boolean')
+        ? info.isCreator
+        : (this.myPlayerInfo.isCreator === true);
       Object.assign(this.myPlayerInfo, info);
       this.myPlayerInfo.joinedAt = nextJoinedAt;
+      this.myPlayerInfo.isCreator = nextIsCreator;
     }
   }
 
@@ -135,7 +171,11 @@ export class SupabaseManager {
   async joinRoom(roomId, playerInfo = null) {
     this.maxPublicSectorPlayers = 5;
     if (playerInfo) {
-      this.setPlayerInfo({ ...playerInfo, joinedAt: playerInfo.joinedAt || Date.now() });
+      this.setPlayerInfo({
+        ...playerInfo,
+        isCreator: playerInfo.isCreator === true,
+        joinedAt: playerInfo.joinedAt || Date.now()
+      });
     } else if (this.myPlayerInfo) {
       this.myPlayerInfo.joinedAt = Date.now();
     }
@@ -145,6 +185,7 @@ export class SupabaseManager {
 
     this.roomId = roomId;
     this.isOverflowing = false;
+    this.hasTrackedPresence = false;
     console.log(`[Supabase] Connecting to room: ${roomId}`);
 
     if (this.isConfigured && this.client) {
@@ -160,9 +201,16 @@ export class SupabaseManager {
       this.channel
         .on('presence', { event: 'sync' }, () => {
           const state = this.channel.presenceState();
+          const stateKeys = Object.keys(state);
+
+          // Guard against premature empty sync before our presence subscription finishes on non-creator clients
+          if (!this.hasTrackedPresence && stateKeys.length === 0 && !this.myPlayerInfo?.isCreator) {
+            return;
+          }
+
           const uniqueMap = new Map();
 
-          for (const key in state) {
+          for (const key of stateKeys) {
             const presences = state[key];
             if (presences && presences.length > 0) {
               const p = presences[0];
@@ -175,15 +223,7 @@ export class SupabaseManager {
             uniqueMap.set(this.myPlayerInfo.id, this.myPlayerInfo);
           }
 
-          const activeList = Array.from(uniqueMap.values());
-
-          // Deterministic Host Election & Sector Queue Order: Sort by joinedAt ascending, tiebreak with id
-          activeList.sort((a, b) => {
-            const tA = a.joinedAt || 0;
-            const tB = b.joinedAt || 0;
-            if (tA !== tB) return tA - tB;
-            return (a.id || '').localeCompare(b.id || '');
-          });
+          const activeList = this.sortRosterList(Array.from(uniqueMap.values()));
 
           // Public Sector 5-Player Auto-Scaling Overflow Check
           if (
@@ -196,7 +236,7 @@ export class SupabaseManager {
                 this.isOverflowing = true;
                 const sectorNum = parseInt(roomId.replace('sector_', ''), 10) || 1;
                 const nextRoomId = 'sector_' + (sectorNum + 1);
-                this.joinRoom(nextRoomId, { ...this.myPlayerInfo, joinedAt: Date.now() });
+                this.joinRoom(nextRoomId, { ...this.myPlayerInfo, isCreator: false, joinedAt: Date.now() });
               }
               return;
             }
@@ -224,8 +264,14 @@ export class SupabaseManager {
             }
           }
 
-          this.hostId = sectorList.length > 0 ? sectorList[0].id : this.myPlayerInfo.id;
-          this.isHost = (this.myPlayerInfo.id === this.hostId);
+          // Elect authoritative host: room creator in private rooms, or earliest joined player
+          if (roomId.startsWith('custom_') && !this.myPlayerInfo?.isCreator && sectorList.length === 1 && !this.hasTrackedPresence) {
+            this.hostId = null;
+            this.isHost = false;
+          } else {
+            this.hostId = sectorList.length > 0 ? sectorList[0].id : this.myPlayerInfo.id;
+            this.isHost = (this.myPlayerInfo.id === this.hostId);
+          }
 
           sectorList.forEach(p => {
             p.isHost = (p.id === this.hostId);
@@ -328,6 +374,7 @@ export class SupabaseManager {
       // Subscribe and track presence
       this.channel.subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
+          this.hasTrackedPresence = true;
           await this.channel.track(this.myPlayerInfo);
           console.log(`[Supabase] Successfully tracked presence in ${roomId}`);
         }
@@ -365,17 +412,14 @@ export class SupabaseManager {
             this.connectedPlayers.set(data.id, data);
             if (this.onPlayerJoined) this.onPlayerJoined(data);
             this.syncLocalRoomState();
+          } else {
+            Object.assign(this.connectedPlayers.get(data.id), data);
+            this.syncLocalRoomState();
           }
         } else if (type === 'player-present' || type === 'i-am-here') {
           if (!this.connectedPlayers.has(data.id)) {
             this.connectedPlayers.set(data.id, data);
-            const activeList = [this.myPlayerInfo, ...Array.from(this.connectedPlayers.values())];
-            activeList.sort((a, b) => {
-              const tA = a.joinedAt || 0;
-              const tB = b.joinedAt || 0;
-              if (tA !== tB) return tA - tB;
-              return (a.id || '').localeCompare(b.id || '');
-            });
+            const activeList = this.sortRosterList([this.myPlayerInfo, ...Array.from(this.connectedPlayers.values())]);
             const myIndex = activeList.findIndex(p => p.id === this.myPlayerInfo?.id);
             if (
               roomId.startsWith('sector_') &&
@@ -386,11 +430,14 @@ export class SupabaseManager {
                 this.isOverflowing = true;
                 const sectorNum = parseInt(roomId.replace('sector_', ''), 10) || 1;
                 const nextRoomId = 'sector_' + (sectorNum + 1);
-                this.joinRoom(nextRoomId, { ...this.myPlayerInfo, joinedAt: Date.now() });
+                this.joinRoom(nextRoomId, { ...this.myPlayerInfo, isCreator: false, joinedAt: Date.now() });
               }
               return;
             }
             if (this.onPlayerJoined) this.onPlayerJoined(data);
+            this.syncLocalRoomState();
+          } else {
+            Object.assign(this.connectedPlayers.get(data.id), data);
             this.syncLocalRoomState();
           }
         } else if (type === 'player-moved') {
@@ -448,30 +495,31 @@ export class SupabaseManager {
         }
       };
 
-      // Announce presence locally
+      // Announce presence locally right away, then sync room state after peers respond
+      if (this.localBc && this.roomId === roomId) {
+        this.localBc.postMessage({
+          type: 'player-joined',
+          data: this.myPlayerInfo
+        });
+      }
       setTimeout(() => {
         if (this.localBc && this.roomId === roomId) {
-          this.localBc.postMessage({
-            type: 'player-joined',
-            data: this.myPlayerInfo
-          });
+          this.hasTrackedPresence = true;
+          this.syncLocalRoomState();
         }
-      }, 300);
+      }, 220);
 
-      this.syncLocalRoomState();
+      if (this.myPlayerInfo?.isCreator || roomId.startsWith('sector_')) {
+        this.hasTrackedPresence = true;
+        this.syncLocalRoomState();
+      }
     } catch (e) {
       console.warn('BroadcastChannel not supported', e);
     }
   }
 
   syncLocalRoomState() {
-    const activeList = [this.myPlayerInfo, ...Array.from(this.connectedPlayers.values())];
-    activeList.sort((a, b) => {
-      const tA = a.joinedAt || 0;
-      const tB = b.joinedAt || 0;
-      if (tA !== tB) return tA - tB;
-      return (a.id || '').localeCompare(b.id || '');
-    });
+    const activeList = this.sortRosterList([this.myPlayerInfo, ...Array.from(this.connectedPlayers.values())]);
 
     if (
       this.roomId &&
@@ -484,7 +532,7 @@ export class SupabaseManager {
           this.isOverflowing = true;
           const sectorNum = parseInt(this.roomId.replace('sector_', ''), 10) || 1;
           const nextRoomId = 'sector_' + (sectorNum + 1);
-          this.joinRoom(nextRoomId, { ...this.myPlayerInfo, joinedAt: Date.now() });
+          this.joinRoom(nextRoomId, { ...this.myPlayerInfo, isCreator: false, joinedAt: Date.now() });
         }
         return;
       }
@@ -494,8 +542,13 @@ export class SupabaseManager {
       ? activeList.slice(0, this.maxPublicSectorPlayers)
       : activeList;
 
-    this.hostId = sectorList.length > 0 ? sectorList[0].id : this.myPlayerInfo.id;
-    this.isHost = (this.myPlayerInfo.id === this.hostId);
+    if (this.roomId && this.roomId.startsWith('custom_') && !this.myPlayerInfo?.isCreator && sectorList.length === 1 && !this.hasTrackedPresence) {
+      this.hostId = null;
+      this.isHost = false;
+    } else {
+      this.hostId = sectorList.length > 0 ? sectorList[0].id : this.myPlayerInfo.id;
+      this.isHost = (this.myPlayerInfo.id === this.hostId);
+    }
 
     sectorList.forEach(p => {
       p.isHost = (p.id === this.hostId);

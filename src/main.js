@@ -472,6 +472,7 @@ function deployPlayerSkyDrop() {
     if (localPlayer.htmlTag) localPlayer.htmlTag.classList.remove('hidden');
     localPlayer.group.position.copy(spawnPos);
     localPlayer.lookAtTarget(new THREE.Vector3(defaultCamPos.x, 0, defaultCamPos.z));
+    supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY, true);
     localPlayer.animateSkyDrop(() => {
       audioSystem.playHitImpact();
       showBanner('DEPLOYED TO ARENA // READY UP TO ENGAGE', 2000);
@@ -928,6 +929,8 @@ const supabaseManager = new SupabaseManager({
   },
   onPlayerMoved: (data) => {
     if (!data || !data.id || data.id === myId) return;
+    if (currentPhase === 'INPUT_FREEZE' || currentPhase === 'REVEAL' || currentPhase === 'VICTORY') return;
+    if (!supabaseManager.connectedPlayers.has(data.id)) return;
     let p = players.get(data.id);
     if (!p) {
       if (practiceBots.length > 0 && players.size >= 5) {
@@ -942,6 +945,7 @@ const supabaseManager = new SupabaseManager({
       p.setCharacterId(data.characterId);
     }
     if (p && !p.isLocal) {
+      p.hasReceivedMovePacket = true;
       p.targetPos = new THREE.Vector3(data.x, data.y, data.z);
       p.targetRotY = data.rotY;
       if (data.isStopped) {
@@ -1027,6 +1031,7 @@ const supabaseManager = new SupabaseManager({
     executeReveal();
   },
   onLockPacket: (data) => {
+    if (!data || !data.id) return;
     lockedPlayerCoords.set(data.id, { x: data.x, y: data.y, z: data.z, rotY: data.rotY });
     const p = players.get(data.id);
     if (p && !p.isLocal) {
@@ -1039,10 +1044,8 @@ const supabaseManager = new SupabaseManager({
     }
   },
   onRoundVerdict: (verdict) => {
-    if (verdict?.senderId && currentHostId && verdict.senderId !== currentHostId) return;
-    if (!isLocalHost) {
-      applyRoundVerdict(verdict);
-    }
+    if (!verdict) return;
+    applyRoundVerdict(verdict);
   },
   onRoomSettings: (settings) => {
     if (settings?.senderId && currentHostId && settings.senderId !== currentHostId) return;
@@ -1078,6 +1081,33 @@ const supabaseManager = new SupabaseManager({
         document.getElementById('mode-select-screen')?.classList.remove('hidden');
         return;
       }
+    }
+    // Reconcile 3D players Map with authoritative room roster to prevent phantom/stacked models
+    if (state.players && Array.isArray(state.players)) {
+      const activeRosterIds = new Set(state.players.map(pl => pl.id));
+      Array.from(players.keys()).forEach(pid => {
+        if (pid === myId) return;
+        const existing = players.get(pid);
+        if (existing && !existing.isBot && !activeRosterIds.has(pid)) {
+          removeRemotePlayer(pid);
+        }
+      });
+      const totalSlots = Math.max(5, state.players.length);
+      state.players.forEach((pl, idx) => {
+        if (pl.id !== myId && !players.has(pl.id)) {
+          const spawnPos = getRadialSpawnPosition(idx, totalSlots);
+          addRemotePlayer(pl.id, pl.name || 'Operator', spawnPos, pl.characterId || 'ajp');
+        }
+        const char = players.get(pl.id);
+        if (char && currentPhase === 'LOBBY' && !char.hasReceivedMovePacket && (!char.isLocal || !wasMoving)) {
+          const podPos = getRadialSpawnPosition(idx, totalSlots);
+          char.group.position.copy(podPos);
+          if (!char.isLocal) {
+            char.targetPos = podPos.clone();
+          }
+          char.lookAtTarget(new THREE.Vector3(0, 0, 0));
+        }
+      });
     }
     updateRoomUI(state);
     updateFriendsHubRoster(state);
@@ -1142,6 +1172,8 @@ function cycleSpectatorTarget(direction = 1) {
 
 document.getElementById('btn-spec-prev')?.addEventListener('click', () => cycleSpectatorTarget(-1));
 document.getElementById('btn-spec-next')?.addEventListener('click', () => cycleSpectatorTarget(1));
+
+let lastAppliedVerdictRound = 0;
 
 function startRound(broadcast = true, syncEpoch = null) {
   if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END' && currentPhase !== 'SHRINK') return;
@@ -1256,6 +1288,10 @@ function freezeAndBroadcastLock() {
 
   // Record and broadcast local lock packet
   if (localPlayer) {
+    if (localPlayer.isAlive && hasAimedSinceStop) {
+      localPlayer.lookAtTarget(aimPoint);
+      localPlayer.updateLaser();
+    }
     lockedPlayerCoords.set(myId, {
       x: localPlayer.group.position.x,
       y: localPlayer.group.position.y,
@@ -1323,17 +1359,27 @@ function executeReveal() {
     revealWatchdogTimer = setTimeout(() => {
       if (currentPhase === 'REVEAL') {
         console.warn('Host verdict timeout - evaluating fallback or awaiting migration');
-        if (isLocalHost) {
-          evaluateHostVerdict();
-        }
+        evaluateHostVerdict();
       }
-    }, 3200);
+    }, 2400);
   }
 }
 
 function evaluateHostVerdict() {
   const hitList = [];
   const alivePlayers = Array.from(players.values()).filter(p => p.isAlive);
+
+  // Ensure every alive player has locked coordinates recorded for deterministic raycasting
+  alivePlayers.forEach(p => {
+    if (!lockedPlayerCoords.has(p.id)) {
+      lockedPlayerCoords.set(p.id, {
+        x: p.group.position.x,
+        y: p.group.position.y,
+        z: p.group.position.z,
+        rotY: p.rotationY
+      });
+    }
+  });
 
   alivePlayers.forEach(shooter => {
     let ray;
@@ -1358,18 +1404,18 @@ function evaluateHostVerdict() {
 
       const lockedTarget = lockedPlayerCoords.get(target.id);
       const targetPos = lockedTarget 
-        ? new THREE.Vector3(lockedTarget.x, lockedTarget.y + 1.25, lockedTarget.z)
-        : target.group.position.clone().add(new THREE.Vector3(0, 1.25, 0));
+        ? new THREE.Vector3(lockedTarget.x, lockedTarget.y + 1.35, lockedTarget.z)
+        : target.group.position.clone().add(new THREE.Vector3(0, 1.35, 0));
 
       const v = new THREE.Vector3().subVectors(targetPos, ray.origin);
       const proj = v.dot(ray.direction);
 
       if (proj > 0 && proj < ray.length) {
         const closestPoint = ray.origin.clone().add(ray.direction.clone().multiplyScalar(proj));
-        const dist = closestPoint.distanceTo(targetPos);
+        const horizDist = Math.hypot(closestPoint.x - targetPos.x, closestPoint.z - targetPos.z);
 
-        // Hitbox radius 0.72m - only strike the closest obstacle/player along the ray
-        if (dist <= 0.72 && proj < minProj) {
+        // Horizontal cylinder hitbox radius 0.85m - only strike the closest obstacle/player along the ray
+        if (horizDist <= 0.85 && proj < minProj) {
           minProj = proj;
           closestTarget = target;
         }
@@ -1401,6 +1447,7 @@ function evaluateHostVerdict() {
     round: currentRound,
     eliminatedIds,
     hits: hitList,
+    lockedCoords: Object.fromEntries(lockedPlayerCoords),
     ringRadius: newRingRadius,
     isGameOver,
     winnerId,
@@ -1414,9 +1461,28 @@ function evaluateHostVerdict() {
 }
 
 function applyRoundVerdict(verdict) {
+  if (!verdict) return;
+  if (verdict.round && lastAppliedVerdictRound === verdict.round) return;
+  if (verdict.round) {
+    lastAppliedVerdictRound = verdict.round;
+  }
   if (revealWatchdogTimer) {
     clearTimeout(revealWatchdogTimer);
     revealWatchdogTimer = null;
+  }
+  // Snap all remote players to the authoritative locked coordinates used in the verdict
+  if (verdict.lockedCoords && typeof verdict.lockedCoords === 'object') {
+    Object.entries(verdict.lockedCoords).forEach(([pid, coords]) => {
+      if (!coords || pid === myId) return;
+      const p = players.get(pid);
+      if (p && !p.isLocal) {
+        p.targetPos = new THREE.Vector3(coords.x, coords.y, coords.z);
+        p.targetRotY = coords.rotY;
+        p.group.position.copy(p.targetPos);
+        p.rotationY = coords.rotY;
+        p.group.rotation.y = coords.rotY;
+      }
+    });
   }
   players.forEach(p => p.setLaserActive(false));
 
@@ -1641,6 +1707,7 @@ function resetGame() {
   });
 
   currentRound = 1;
+  lastAppliedVerdictRound = 0;
   arenaRadius = CONFIG.initialArenaRadius;
   if (arena) arena.resetRadius(arenaRadius);
   consecutiveStalemates = 0;
@@ -1648,6 +1715,7 @@ function resetGame() {
   let i = 0;
   players.forEach(p => {
     const spawnPos = getRadialSpawnPosition(i, Math.max(1, players.size));
+    p.hasReceivedMovePacket = false;
     p.revive(spawnPos);
     p.lookAtTarget(new THREE.Vector3(0, 0, 0));
     p.setVisible(true);
@@ -1767,21 +1835,29 @@ function handleRemoteSquadLaunch() {
   document.getElementById('mode-select-screen')?.classList.add('hidden');
   document.getElementById('character-select-screen')?.classList.add('hidden');
   deployPlayerSkyDrop();
-  startRound(false);
+  setTimeout(() => {
+    if (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END') {
+      startRound(false);
+    }
+  }, 500);
 }
 
 function checkAllPlayersReady(playersList) {
   const count = playersList ? playersList.length : 1;
   const isSolo = (count === 1);
   const totalActivePlayers = Math.max(count, players.size);
+  const isPrivateRoom = currentRoomId.startsWith('custom_');
 
   if (currentPhase !== 'LOBBY' && currentPhase !== 'ROUND_END') return;
 
-  const allReady = isSolo 
-    ? isLocalReady 
-    : (playersList && playersList.every(p => p.isReady === true));
+  // In Private Mode, require at least 2 real players for automatic Ready-Up launch (Host can still click LAUNCH MATCH anytime).
+  // In Public Mode, require at least 2 total participants (2+ real players or 1 player + demo bots).
+  const hasEnoughParticipants = isPrivateRoom ? (count >= 2) : (totalActivePlayers >= 2);
+  const allReady = hasEnoughParticipants && (isSolo
+    ? isLocalReady
+    : (playersList && playersList.every(p => p.isReady === true)));
 
-  if (allReady && totalActivePlayers >= 1 && !readyCountdownInterval) {
+  if (allReady && !readyCountdownInterval) {
     let launchCount = 3;
     const modeLabel = isSolo ? 'SOLO DEPLOYMENT' : 'ALL OPERATORS READY';
     clockPhaseLabel.innerText = 'LAUNCH IMMINENT';
@@ -1805,10 +1881,14 @@ function checkAllPlayersReady(playersList) {
         }
         updateDemoBotsButtonUI();
         deployPlayerSkyDrop();
-        if (isLocalHost) {
+        if (isLocalHost || isSolo) {
           startRound(true);
         } else {
-          startRound(false);
+          setTimeout(() => {
+            if (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END') {
+              startRound(false);
+            }
+          }, 600);
         }
       }
     }, 1000);
@@ -2033,6 +2113,7 @@ function executeDeployment(deployment) {
       name: playerName,
       color: 0xffcc00,
       isReady: false,
+      isCreator: false,
       characterId: selectedCharacterId,
       position: localPlayer.group.position
     });
@@ -2055,6 +2136,8 @@ function executeDeployment(deployment) {
     clearPracticeBots();
     updateDemoBotsButtonUI();
 
+    isLocalHost = true;
+    currentHostId = myId;
     openFriendsHub();
 
     const titleEl = document.getElementById('squad-room-title');
@@ -2063,6 +2146,13 @@ function executeDeployment(deployment) {
     if (codeEl) codeEl.innerText = code;
     const timerVal = document.getElementById('squad-timer-val');
     if (timerVal) timerVal.innerText = `${roundTime}S`;
+    const hostVal = document.getElementById('squad-host-status-val');
+    if (hostVal) {
+      hostVal.innerText = 'YOU ARE HOST';
+      hostVal.className = 'status-val text-gold';
+    }
+    document.getElementById('btn-friends-host-launch')?.classList.remove('hidden');
+    document.getElementById('friends-waiting-notice')?.classList.add('hidden');
 
     isLocalReady = false;
     updateReadyButtonUI();
@@ -2072,6 +2162,7 @@ function executeDeployment(deployment) {
       name: playerName,
       color: 0xffcc00,
       isReady: false,
+      isCreator: true,
       characterId: selectedCharacterId,
       position: localPlayer.group.position
     });
@@ -2093,12 +2184,20 @@ function executeDeployment(deployment) {
     clearPracticeBots();
     updateDemoBotsButtonUI();
 
+    isLocalHost = false;
     openFriendsHub();
 
     const titleEl = document.getElementById('squad-room-title');
     if (titleEl) titleEl.innerText = `SQUAD ${code}`;
     const codeEl = document.getElementById('squad-code-val');
     if (codeEl) codeEl.innerText = code;
+    const hostVal = document.getElementById('squad-host-status-val');
+    if (hostVal) {
+      hostVal.innerText = 'SQUAD MEMBER';
+      hostVal.className = 'status-val';
+    }
+    document.getElementById('btn-friends-host-launch')?.classList.add('hidden');
+    document.getElementById('friends-waiting-notice')?.classList.remove('hidden');
 
     isLocalReady = false;
     updateReadyButtonUI();
@@ -2108,6 +2207,7 @@ function executeDeployment(deployment) {
       name: playerName,
       color: 0xffcc00,
       isReady: false,
+      isCreator: false,
       characterId: selectedCharacterId,
       position: localPlayer.group.position
     });
@@ -2338,6 +2438,7 @@ document.getElementById('btn-quick-play')?.addEventListener('click', () => {
     name: playerName,
     color: 0xffcc00,
     isReady: false,
+    isCreator: false,
     characterId: selectedCharacterId,
     position: localPlayer.group.position
   });
@@ -2352,11 +2453,20 @@ document.getElementById('btn-create-private')?.addEventListener('click', () => {
   currentRoomId = `custom_${code}`;
   clearPracticeBots();
   updateDemoBotsButtonUI();
+  isLocalHost = true;
+  currentHostId = myId;
   openFriendsHub();
   const titleEl = document.getElementById('squad-room-title');
   if (titleEl) titleEl.innerText = 'ALPHA DOGS';
   const codeEl = document.getElementById('squad-code-val');
   if (codeEl) codeEl.innerText = code;
+  const hostVal = document.getElementById('squad-host-status-val');
+  if (hostVal) {
+    hostVal.innerText = 'YOU ARE HOST';
+    hostVal.className = 'status-val text-gold';
+  }
+  document.getElementById('btn-friends-host-launch')?.classList.remove('hidden');
+  document.getElementById('friends-waiting-notice')?.classList.add('hidden');
   isLocalReady = false;
   updateReadyButtonUI();
   supabaseManager.joinRoom(currentRoomId, {
@@ -2364,6 +2474,7 @@ document.getElementById('btn-create-private')?.addEventListener('click', () => {
     name: playerName,
     color: 0xffcc00,
     isReady: false,
+    isCreator: true,
     characterId: selectedCharacterId,
     position: localPlayer.group.position
   });
@@ -2379,11 +2490,19 @@ document.getElementById('btn-join-private')?.addEventListener('click', () => {
   currentRoomId = `custom_${code}`;
   clearPracticeBots();
   updateDemoBotsButtonUI();
+  isLocalHost = false;
   openFriendsHub();
   const titleEl = document.getElementById('squad-room-title');
   if (titleEl) titleEl.innerText = `SQUAD ${code}`;
   const codeEl = document.getElementById('squad-code-val');
   if (codeEl) codeEl.innerText = code;
+  const hostVal = document.getElementById('squad-host-status-val');
+  if (hostVal) {
+    hostVal.innerText = 'SQUAD MEMBER';
+    hostVal.className = 'status-val';
+  }
+  document.getElementById('btn-friends-host-launch')?.classList.add('hidden');
+  document.getElementById('friends-waiting-notice')?.classList.remove('hidden');
   isLocalReady = false;
   updateReadyButtonUI();
   supabaseManager.joinRoom(currentRoomId, {
@@ -2391,6 +2510,7 @@ document.getElementById('btn-join-private')?.addEventListener('click', () => {
     name: playerName,
     color: 0xffcc00,
     isReady: false,
+    isCreator: false,
     characterId: selectedCharacterId,
     position: localPlayer.group.position
   });
@@ -2531,17 +2651,16 @@ function animate() {
       if (wasMoving) {
         // Immediate unthrottled stop packet dispatch to freeze remote visual drift
         wasMoving = false;
-        hasAimedSinceStop = false;
         localPlayer.playAction('idle', 0.22, 1.0);
         supabaseManager.broadcastMovement(localPlayer.group.position, localPlayer.rotationY, true);
       } else if (!localPlayer.activeEmoteText) {
         localPlayer.playAction('idle', 0.22, 1.0);
       }
 
-      // After walking is done, smoothly rotate character to face the camera (unless actively aiming laser in STEALTH)
+      // During STEALTH, always orient toward the aiming point so stopping movement never turns the laser away toward the camera
       const prevRot = localPlayer.rotationY;
-      if (currentPhase === 'STEALTH' && hasAimedSinceStop) {
-        localPlayer.lookAtTarget(aimPoint, delta, 16.0);
+      if (currentPhase === 'STEALTH') {
+        localPlayer.lookAtTarget(aimPoint, delta, 18.0);
       } else {
         _scratchCameraFacePos.set(camera.position.x, localPlayer.group.position.y, camera.position.z);
         localPlayer.lookAtTarget(_scratchCameraFacePos, delta, 14.0);
@@ -2560,7 +2679,7 @@ function animate() {
   // STRICT BOUNDARY ENFORCEMENT & REMOTE PLAYER SMOOTHING
   players.forEach(p => {
     if (!p.isLocal && p.targetPos && p.isAlive) {
-      if (currentPhase !== 'VICTORY') {
+      if (currentPhase !== 'VICTORY' && currentPhase !== 'INPUT_FREEZE' && currentPhase !== 'REVEAL') {
         const dist = p.group.position.distanceTo(p.targetPos);
         if (dist > 6.0) {
           p.group.position.copy(p.targetPos);
