@@ -2168,11 +2168,17 @@ body, html {
     padding: 4px 10px;
     gap: 6px;
   }
+  .hud-footer {
+    justify-content: center;
+  }
   .hud-footer-left {
     display: none !important;
   }
   .hud-footer-right {
     gap: 5px;
+    margin: 0 auto;
+    justify-content: center;
+    max-width: calc(100vw - 310px);
   }
   .emote-btn .key-tag {
     display: none;
@@ -2327,14 +2333,29 @@ body, html {
 }
 
 /* ==========================================================================
-   MOBILE VIRTUAL TOUCH JOYSTICK
+   MOBILE VIRTUAL TWIN-STICK JOYSTICKS (MOVE & AIM)
    ========================================================================== */
 .touch-joystick-zone {
   position: absolute;
-  left: 24px;
-  bottom: 24px;
-  width: 140px;
-  height: 140px;
+  left: 18px;
+  bottom: 18px;
+  width: 136px;
+  height: 136px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 250;
+  touch-action: none;
+  user-select: none;
+  pointer-events: auto;
+}
+
+.touch-aim-zone {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  width: 136px;
+  height: 136px;
   display: none;
   align-items: center;
   justify-content: center;
@@ -2345,14 +2366,15 @@ body, html {
 }
 
 @media (pointer: coarse), (max-width: 900px), (max-height: 550px) {
-  .touch-joystick-zone {
+  .touch-joystick-zone,
+  .touch-aim-zone {
     display: flex;
   }
 }
 
 .touch-joystick-base {
-  width: 110px;
-  height: 110px;
+  width: 108px;
+  height: 108px;
   border-radius: 50%;
   background: rgba(14, 18, 28, 0.55);
   border: 1.5px solid rgba(0, 240, 255, 0.35);
@@ -2365,14 +2387,78 @@ body, html {
 }
 
 .touch-joystick-thumb {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #00f0ff, #0088aa);
   border: 1.5px solid #ffffff;
   box-shadow: 0 0 14px rgba(0, 240, 255, 0.6);
   position: absolute;
   pointer-events: none;
+}
+
+.touch-aim-base {
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  background: rgba(14, 18, 28, 0.55);
+  border: 1.5px solid rgba(255, 42, 95, 0.45);
+  box-shadow: 0 0 20px rgba(255, 42, 95, 0.18), inset 0 0 16px rgba(0, 0, 0, 0.6);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.touch-aim-thumb {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ff2a5f, #aa0033);
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 14px rgba(255, 42, 95, 0.7);
+  position: absolute;
+  pointer-events: none;
+}
+
+.touch-stick-label {
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (max-width: 540px) {
+  .touch-joystick-zone {
+    width: 112px;
+    height: 112px;
+    left: 10px;
+    bottom: 12px;
+  }
+  .touch-aim-zone {
+    width: 112px;
+    height: 112px;
+    right: 10px;
+    bottom: 12px;
+  }
+  .touch-joystick-base,
+  .touch-aim-base {
+    width: 88px;
+    height: 88px;
+  }
+  .touch-joystick-thumb,
+  .touch-aim-thumb {
+    width: 36px;
+    height: 36px;
+  }
+  .hud-footer-right {
+    margin: 0 auto;
+    max-width: calc(100vw - 245px);
+  }
 }
 
 /* ==========================================================================

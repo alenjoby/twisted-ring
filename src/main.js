@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { assetManager, CHARACTER_DATA, VICTORY_DANCE_KEYS, pickRandomVictoryDance } from './game/AssetManager.js';
+import { assetManager, CHARACTER_DATA, VICTORY_DANCE_KEYS, pickRandomVictoryDance, DRAW_ANIM_KEYS, pickShuffledDrawAnims } from './game/AssetManager.js';
 import { Arena, ARENA_THEMES } from './game/Arena.js';
 import { Character } from './game/Character.js';
 import { audioSystem } from './game/AudioSystem.js';
 import { SupabaseManager, safeStorage } from './game/SupabaseManager.js';
+import { setupMobileControls } from './game/MobileControls.js';
 
 // HTML Entity Escaper & Sanitizer (XSS Mitigation)
 const esc = s => String(s ?? '').slice(0, 15).replace(/[&<>"']/g, c => ({
@@ -794,92 +795,18 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   }
 });
 
-// Virtual Touch Joystick Implementation for Mobile
-const joystickZone = document.getElementById('touch-joystick-zone');
-const joystickThumb = document.getElementById('touch-joystick-thumb');
-let joystickTouchId = null;
-let joystickCenter = { x: 0, y: 0 };
-const JOYSTICK_MAX_RADIUS = 38;
-
-function updateJoystick(clientX, clientY) {
-  const dx = clientX - joystickCenter.x;
-  const dy = clientY - joystickCenter.y;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  const clampedDist = Math.min(dist, JOYSTICK_MAX_RADIUS);
-  const angle = Math.atan2(dy, dx);
-  const thumbX = Math.cos(angle) * clampedDist;
-  const thumbY = Math.sin(angle) * clampedDist;
-  if (joystickThumb) {
-    joystickThumb.style.transform = `translate(${thumbX}px, ${thumbY}px)`;
-  }
-
-  const normX = dx / JOYSTICK_MAX_RADIUS;
-  const normY = dy / JOYSTICK_MAX_RADIUS;
-
-  keys.w = normY < -0.28;
-  keys.s = normY > 0.28;
-  keys.a = normX < -0.28;
-  keys.d = normX > 0.28;
-}
-
-if (joystickZone) {
-  joystickZone.addEventListener('touchstart', (e) => {
-    if (isModalActive()) return;
-    if (e.changedTouches.length > 0) {
-      const touch = e.changedTouches[0];
-      joystickTouchId = touch.identifier;
-      const rect = joystickZone.getBoundingClientRect();
-      joystickCenter.x = rect.left + rect.width / 2;
-      joystickCenter.y = rect.top + rect.height / 2;
-      updateJoystick(touch.clientX, touch.clientY);
-    }
-  }, { passive: true });
-
-  window.addEventListener('touchmove', (e) => {
-    if (joystickTouchId === null) return;
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      const touch = e.changedTouches[i];
-      if (touch.identifier === joystickTouchId) {
-        updateJoystick(touch.clientX, touch.clientY);
-        break;
-      }
-    }
-  }, { passive: true });
-
-  const endJoystick = (e) => {
-    if (joystickTouchId === null) return;
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      if (e.changedTouches[i].identifier === joystickTouchId) {
-        joystickTouchId = null;
-        if (joystickThumb) joystickThumb.style.transform = 'translate(0px, 0px)';
-        keys.w = false;
-        keys.a = false;
-        keys.s = false;
-        keys.d = false;
-        break;
-      }
-    }
-  };
-
-  window.addEventListener('touchend', endJoystick);
-  window.addEventListener('touchcancel', endJoystick);
-}
-
-// Touch controls for mobile aiming (ignores joystick touch)
-function handleMobileAimTouch(e) {
-  if (isModalActive()) return;
-  for (let i = 0; i < e.touches.length; i++) {
-    const t = e.touches[i];
-    if (t.identifier !== joystickTouchId) {
-      if (joystickZone && joystickZone.contains(t.target)) continue;
-      updateAimFromScreenCoords(t.clientX, t.clientY);
-      break;
-    }
-  }
-}
-
-window.addEventListener('touchstart', handleMobileAimTouch, { passive: true });
-window.addEventListener('touchmove', handleMobileAimTouch, { passive: true });
+// Dual-Stick 360-Degree Mobile Controls & Direct Arena Tap-to-Aim
+const analogMove = { active: false, aimStickActive: false, x: 0, z: 0 };
+const mobileControls = setupMobileControls({
+  controls,
+  camera,
+  rendererDom: renderer.domElement,
+  analogMove,
+  aimPoint,
+  getLocalPlayer: () => localPlayer,
+  isModalActive,
+  updateAimFromScreenCoords
+});
 
 // Emote HUD buttons & Map Theme cycle button
 document.querySelectorAll('#hud-emote-bar .emote-btn').forEach(btn => {
@@ -1464,6 +1391,28 @@ function evaluateHostVerdict(isAuthoritative = true) {
   const winnerId = isGameOver ? (survivors.length === 1 ? survivors[0].id : null) : null;
   const winnerDanceKey = isGameOver ? pickRandomVictoryDance() : null;
 
+  let drawShowcase = null;
+  if (isGameOver && !winnerId) {
+    const drawCandidateIds = [...eliminatedIds];
+    if (drawCandidateIds.length < 2) {
+      const sortedIds = Array.from(players.values())
+        .sort((a, b) => b.score - a.score)
+        .map(p => p.id);
+      for (const pid of sortedIds) {
+        if (drawCandidateIds.length >= Math.min(3, players.size)) break;
+        if (!drawCandidateIds.includes(pid)) {
+          drawCandidateIds.push(pid);
+        }
+      }
+    }
+    const finalDrawIds = drawCandidateIds.slice(0, 3);
+    const drawAnims = pickShuffledDrawAnims(finalDrawIds.length);
+    drawShowcase = finalDrawIds.map((playerId, idx) => ({
+      playerId,
+      animKey: drawAnims[idx % drawAnims.length]
+    }));
+  }
+
   let newRingRadius = arenaRadius;
   if (eliminatedIds.length > 0) {
     newRingRadius = Math.max(3.8, arenaRadius - CONFIG.shrinkPerRound);
@@ -1484,6 +1433,7 @@ function evaluateHostVerdict(isAuthoritative = true) {
     isGameOver,
     winnerId,
     winnerDanceKey,
+    drawShowcase,
     survivors: survivors.map(s => s.id)
   };
 
@@ -1597,7 +1547,7 @@ function applyRoundVerdict(verdict) {
     if (verdict.isGameOver) {
       deactivateSpectatorMode();
       const winner = verdict.winnerId ? (players.get(verdict.winnerId) || localPlayer) : null;
-      presentWinner(winner, verdict.winnerDanceKey);
+      presentWinner(winner, verdict.winnerDanceKey, verdict.drawShowcase);
     } else {
       currentPhase = 'SHRINK';
       arenaRadius = verdict.ringRadius;
@@ -1630,7 +1580,7 @@ function applyRoundVerdict(verdict) {
 }
 
 // WINNER PODIUM CELEBRATION PRESENTATION
-function presentWinner(winner, danceKeyOverride = null) {
+function presentWinner(winner, danceKeyOverride = null, drawShowcase = null) {
   currentPhase = 'VICTORY';
   timeDilationFactor = 1.0;
   players.forEach(p => {
@@ -1650,6 +1600,7 @@ function presentWinner(winner, danceKeyOverride = null) {
   document.getElementById('name-tags-container')?.classList.add('hidden');
   document.getElementById('spectator-bar')?.classList.add('hidden');
   document.getElementById('touch-joystick-zone')?.classList.add('hidden');
+  document.getElementById('touch-aim-zone')?.classList.add('hidden');
   document.getElementById('lobby-modal')?.classList.remove('active');
   document.getElementById('friends-hub-modal')?.classList.add('hidden');
   document.getElementById('friends-hub-modal')?.classList.remove('active');
@@ -1662,10 +1613,75 @@ function presentWinner(winner, danceKeyOverride = null) {
   const nameDisplay = document.getElementById('winner-name-display');
 
   if (!winner) {
+    let drawFinalists = [];
+    if (Array.isArray(drawShowcase) && drawShowcase.length > 0) {
+      const fallbackAnims = pickShuffledDrawAnims(3);
+      drawShowcase.slice(0, 3).forEach((entry, idx) => {
+        const p = entry && entry.playerId ? players.get(entry.playerId) : null;
+        if (p) {
+          const animKey = (entry.animKey && DRAW_ANIM_KEYS.includes(entry.animKey))
+            ? entry.animKey
+            : fallbackAnims[idx % fallbackAnims.length];
+          drawFinalists.push({ player: p, animKey });
+        }
+      });
+    }
+    if (drawFinalists.length === 0) {
+      const fallbackPlayers = Array.from(players.values()).slice(0, 3);
+      const fallbackAnims = pickShuffledDrawAnims(fallbackPlayers.length);
+      drawFinalists = fallbackPlayers.map((p, idx) => ({
+        player: p,
+        animKey: fallbackAnims[idx % fallbackAnims.length]
+      }));
+    }
+
+    const finalistIds = new Set(drawFinalists.map(item => item.player.id));
     players.forEach(p => {
-      p.setVisible(false);
-      if (p.htmlTag) p.htmlTag.classList.add('hidden');
+      if (!finalistIds.has(p.id)) {
+        p.setVisible(false);
+        if (p.htmlTag) p.htmlTag.classList.add('hidden');
+      }
     });
+
+    let stagePositions;
+    if (drawFinalists.length === 1) {
+      stagePositions = [new THREE.Vector3(0, 0, 0)];
+    } else if (drawFinalists.length === 2) {
+      stagePositions = [new THREE.Vector3(-1.15, 0, 0), new THREE.Vector3(1.15, 0, 0)];
+    } else {
+      stagePositions = [new THREE.Vector3(-1.4, 0, 0.25), new THREE.Vector3(0, 0, -0.35), new THREE.Vector3(1.4, 0, 0.25)];
+    }
+
+    drawFinalists.forEach((item, idx) => {
+      const p = item.player;
+      p.isAlive = true;
+      p.setVisible(true);
+      if (p.htmlTag) p.htmlTag.classList.add('hidden');
+      const stagePos = stagePositions[idx] || new THREE.Vector3(0, 0, 0);
+      p.group.position.copy(stagePos);
+      p.targetPos = stagePos.clone();
+      p.group.rotation.y = 0;
+      p.rotationY = 0;
+      p.targetRotY = 0;
+      if (p.fbxModel) {
+        if (!p.baseScale) {
+          p.baseScale = p.originalScale || p.fbxModel.scale.x;
+        }
+        p.fbxModel.scale.setScalar(p.baseScale * 1.12);
+        p.fbxModel.position.y = (p.baseOffsetY || 0) * 1.12;
+      }
+      p.playAction(item.animKey, 0.2);
+    });
+
+    camera.position.set(0, 2.15, 6.2);
+    controls.target.set(0, 1.05, 0);
+    controls.update();
+    victoryOrbitAngle = 0;
+
+    ringSpot.position.set(0, 10, 2);
+    ringSpot.target.position.set(0, 1.2, 0);
+    ringSpot.intensity = 6.0;
+
     clockPhaseLabel.innerText = 'MATCH CONCLUDED';
     clockGuidanceText.innerText = 'MUTUAL DESTRUCTION // NO SURVIVORS';
     if (nameDisplay) nameDisplay.innerText = 'DRAW';
@@ -1754,6 +1770,7 @@ function resetGame() {
   document.getElementById('ui-overlay')?.classList.remove('hidden');
   document.getElementById('name-tags-container')?.classList.remove('hidden');
   document.getElementById('touch-joystick-zone')?.classList.remove('hidden');
+  document.getElementById('touch-aim-zone')?.classList.remove('hidden');
 
   // Restore camera & spotlight
   camera.position.copy(defaultCamPos);
@@ -2729,6 +2746,8 @@ function animate() {
     keys.a = false;
     keys.s = false;
     keys.d = false;
+    if (analogMove.active) mobileControls.resetMoveJoystick();
+    if (analogMove.aimStickActive) mobileControls.resetAimJoystick();
   }
 
   // Local Player Movement & Aiming locking (Free during RECON, LOBBY, and STEALTH)
@@ -2739,11 +2758,17 @@ function animate() {
     if (keys.s) moveInput.z += 1;
     if (keys.a) moveInput.x -= 1;
     if (keys.d) moveInput.x += 1;
+    if (analogMove.active && (analogMove.x !== 0 || analogMove.z !== 0)) {
+      moveInput.x = analogMove.x;
+      moveInput.z = analogMove.z;
+    }
 
-    const isInputActive = (moveInput.lengthSq() > 0);
+    const inputLen = moveInput.length();
+    const isInputActive = (inputLen > 0.01);
     const targetVelocity = new THREE.Vector3(0, 0, 0);
 
     if (isInputActive) {
+      const speedScale = analogMove.active ? Math.min(1.0, inputLen) : 1.0;
       moveInput.normalize();
 
       // Convert to camera-relative movement
@@ -2754,13 +2779,13 @@ function animate() {
 
       const camRight = new THREE.Vector3().crossVectors(camForward, new THREE.Vector3(0, 1, 0)).normalize();
 
-      // W sets moveInput.z to -1. We want -1 to move ALONG camForward.
+      // W / up sets moveInput.z to -1. We want -1 to move ALONG camForward.
       const moveDir = new THREE.Vector3()
         .add(camRight.clone().multiplyScalar(moveInput.x))
         .add(camForward.clone().multiplyScalar(-moveInput.z))
         .normalize();
 
-      targetVelocity.copy(moveDir).multiplyScalar(CONFIG.playerSpeed);
+      targetVelocity.copy(moveDir).multiplyScalar(CONFIG.playerSpeed * speedScale);
     }
 
     // Natural acceleration and braking momentum (15x accel, 18x brake friction)
@@ -2775,21 +2800,26 @@ function animate() {
       hasAimedSinceStop = false;
       localPlayer.group.position.addScaledVector(localPlayerVelocity, delta);
 
-      // Smoothly orient player body towards movement direction
-      const moveAngle = Math.atan2(localPlayerVelocity.x, localPlayerVelocity.z);
-      let diff = moveAngle - localPlayer.rotationY;
-      while (diff < -Math.PI) diff += Math.PI * 2;
-      while (diff > Math.PI) diff -= Math.PI * 2;
+      if (analogMove.aimStickActive) {
+        // Twin-Stick Mode: Left stick moves while Right stick aims independently in 360 degrees
+        localPlayer.lookAtTarget(aimPoint, delta, 24.0);
+      } else {
+        // Smoothly orient player body towards movement direction
+        const moveAngle = Math.atan2(localPlayerVelocity.x, localPlayerVelocity.z);
+        let diff = moveAngle - localPlayer.rotationY;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
 
-      localPlayer.rotationY += diff * Math.min(1.0, 16.0 * delta);
-      localPlayer.group.rotation.y = localPlayer.rotationY;
+        localPlayer.rotationY += diff * Math.min(1.0, 16.0 * delta);
+        localPlayer.group.rotation.y = localPlayer.rotationY;
 
-      // Keep aimPoint projected along current walking direction so stopping movement preserves laser aim
-      aimPoint.set(
-        localPlayer.group.position.x + Math.sin(localPlayer.rotationY) * 8,
-        0,
-        localPlayer.group.position.z + Math.cos(localPlayer.rotationY) * 8
-      );
+        // Keep aimPoint projected along current walking direction so stopping movement preserves laser aim
+        aimPoint.set(
+          localPlayer.group.position.x + Math.sin(localPlayer.rotationY) * 8,
+          0,
+          localPlayer.group.position.z + Math.cos(localPlayer.rotationY) * 8
+        );
+      }
 
       // Dynamic animation speed sync to completely eliminate foot sliding:
       // Basic Locomotion Pack walking cadence matches ground speed

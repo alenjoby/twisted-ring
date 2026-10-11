@@ -60,6 +60,21 @@ export const VICTORY_DANCE_KEYS = [
   'dance_twerk'
 ];
 
+export const DRAW_ANIM_KEYS = [
+  'draw_crying',
+  'draw_punching',
+  'draw_zombie_crawl'
+];
+
+export function pickShuffledDrawAnims(count = 3) {
+  const pool = [...DRAW_ANIM_KEYS];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, Math.min(count, pool.length));
+}
+
 let _lastPickedDanceKey = null;
 export function pickRandomVictoryDance(excludeKey = _lastPickedDanceKey) {
   const pool = VICTORY_DANCE_KEYS.filter(k => k !== excludeKey);
@@ -152,7 +167,11 @@ class AssetManager {
       { key: 'dance_breakdance', url: '/ANIMATIONS/Breakdance Uprock Var 2.fbx', type: 'clip', inPlace: true },
       { key: 'dance_swing', url: '/ANIMATIONS/DANCE 2 - Swing Dancing.fbx', type: 'clip', inPlace: true },
       { key: 'dance_headspin', url: '/ANIMATIONS/DANCE 3 - Headspin Start.fbx', type: 'clip', inPlace: true },
-      { key: 'dance_twerk', url: '/assets/Dancing Twerk.fbx', type: 'clip', inPlace: true }
+      { key: 'dance_twerk', url: '/assets/Dancing Twerk.fbx', type: 'clip', inPlace: true },
+      // Draw Screen Animation Pool (crying, Punching, Zombie Crawl)
+      { key: 'draw_crying', url: '/ANIMATIONS/draw animations/crying.fbx', type: 'clip', inPlace: true },
+      { key: 'draw_punching', url: '/ANIMATIONS/draw animations/Punching.fbx', type: 'clip', inPlace: true },
+      { key: 'draw_zombie_crawl', url: '/ANIMATIONS/draw animations/Zombie Crawl.fbx', type: 'clip', inPlace: true }
     ];
 
     let loadedCount = 0;
