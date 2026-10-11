@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap');
 
 :root {
   --bg-main: #0b0b0b; /* True black/dark grey */
@@ -20,7 +21,7 @@
   margin: 0;
   padding: 0;
   user-select: none;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
 }
 
 .hidden {
@@ -66,7 +67,7 @@ body, html {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 11px;
   font-weight: 700;
   color: #fff;
@@ -106,7 +107,7 @@ body, html {
 }
 
 .name-tag-label {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -142,7 +143,7 @@ body, html {
 }
 
 .loader-tag {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 3px;
@@ -152,7 +153,7 @@ body, html {
 }
 
 .loader-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 42px;
   font-weight: 800;
   letter-spacing: 2px;
@@ -178,7 +179,7 @@ body, html {
 }
 
 .loader-status {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 12px;
   color: var(--text-dim);
   display: flex;
@@ -253,7 +254,7 @@ body, html {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 2px;
@@ -265,7 +266,7 @@ body, html {
 }
 
 .welcome-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 44px;
   font-weight: 800;
   letter-spacing: 3px;
@@ -319,7 +320,7 @@ body, html {
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
   color: #fff;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 16px;
   font-weight: 700;
   padding: 12px 16px;
@@ -346,7 +347,7 @@ body, html {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 10px;
   color: var(--text-dark);
   text-transform: uppercase;
@@ -385,7 +386,7 @@ body, html {
 }
 
 .mode-select-tag {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 2px;
@@ -394,7 +395,7 @@ body, html {
 }
 
 .mode-select-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 32px;
   font-weight: 800;
   letter-spacing: 2px;
@@ -453,7 +454,7 @@ body, html {
 }
 
 .deploy-badge {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 10px;
   font-weight: 800;
   padding: 3px 8px;
@@ -475,13 +476,13 @@ body, html {
 }
 
 .deploy-capacity {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 10px;
   color: var(--text-dim);
 }
 
 .deploy-card-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 22px;
   font-weight: 800;
   color: #fff;
@@ -532,7 +533,7 @@ body, html {
   background: transparent;
   border: none;
   color: var(--text-dim);
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
@@ -623,7 +624,7 @@ body, html {
 }
 
 .char-select-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 28px;
   font-weight: 800;
   letter-spacing: 1.5px;
@@ -745,7 +746,7 @@ body, html {
 }
 
 .char-name {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 18px;
   font-weight: 800;
   color: #fff;
@@ -785,7 +786,7 @@ body, html {
 }
 
 .char-status-badge {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 11px;
   font-weight: 800;
   padding: 6px 18px;
@@ -893,14 +894,14 @@ body, html {
 }
 
 .code-label {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 10px;
   font-weight: 700;
   color: var(--text-dim);
 }
 
 .code-val {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 16px;
   font-weight: 800;
   color: var(--accent-lime);
@@ -933,7 +934,7 @@ body, html {
 }
 
 .status-val {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 14px;
   font-weight: 800;
   color: #fff;
@@ -967,7 +968,7 @@ body, html {
 }
 
 .friends-waiting-notice {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 11px;
   color: #ffaa00;
   text-align: center;
@@ -1042,7 +1043,7 @@ body, html {
 }
 
 .roster-label {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 1.5px;
@@ -1051,7 +1052,7 @@ body, html {
 }
 
 .roster-round-pill {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 11px;
   font-weight: 600;
   background: var(--accent-lime-dim);
@@ -1112,7 +1113,7 @@ body, html {
 }
 
 .entry-score {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 14px;
   font-weight: 700;
   color: var(--accent-lime);
@@ -1142,7 +1143,7 @@ body, html {
 }
 
 .clock-phase-label {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 3px;
@@ -1159,7 +1160,7 @@ body, html {
 }
 
 .clock-number {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 52px;
   font-weight: 800;
   line-height: 1;
@@ -1176,7 +1177,7 @@ body, html {
   background: transparent;
   border: none;
   padding: 0;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1.5px;
@@ -1242,7 +1243,7 @@ body, html {
   top: 96px;
   left: 50%;
   transform: translate(-50%, -8px) scale(0.96);
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 15px;
   font-weight: 800;
   text-transform: uppercase;
@@ -1323,7 +1324,7 @@ body, html {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -1331,7 +1332,7 @@ body, html {
 }
 
 .spec-name {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 13px;
   font-weight: 800;
   color: #ffffff;
@@ -1370,13 +1371,13 @@ body, html {
   color: #ffffff;
   padding: 2px 7px;
   border-radius: 4px;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .camera-mode-badge {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 11px;
   color: var(--text-dark);
   background: var(--panel-bg);
@@ -1420,7 +1421,7 @@ body, html {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text-dim);
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 10px;
   font-weight: 700;
   padding: 4px 8px;
@@ -1437,7 +1438,7 @@ body, html {
 }
 
 .streak-tag {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 9px;
   font-weight: 800;
   color: #090c13;
@@ -1449,7 +1450,7 @@ body, html {
 }
 
 .emote-bubble-tag {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 10px;
   font-weight: 800;
   color: #090c13;
@@ -1513,7 +1514,7 @@ body, html {
 }
 
 .modal-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 20px;
   font-weight: 800;
   margin-bottom: 8px;
@@ -1548,7 +1549,7 @@ body, html {
   padding: 10px 14px;
   color: #fff;
   font-size: 13px;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   outline: none;
   transition: border-color 0.2s;
 }
@@ -1687,7 +1688,7 @@ body, html {
 }
 
 .mode-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 16px;
   font-weight: 800;
   margin-bottom: 6px;
@@ -1805,7 +1806,7 @@ body, html {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 8px;
   font-weight: 800;
   color: #ffcc00;
@@ -1908,7 +1909,7 @@ body, html {
 
 .victory-winner-left {
   pointer-events: auto;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', 'Satoshi', sans-serif;
   font-size: 13px;
   font-weight: 800;
   text-transform: uppercase;
@@ -2081,7 +2082,7 @@ body, html {
 
 .ping-tag {
   color: var(--accent-cyan);
-  font-family: monospace;
+  font-family: 'Satoshi', 'Montserrat', sans-serif;
   font-size: 9px;
   background: rgba(0, 240, 255, 0.1);
   padding: 1px 4px;
