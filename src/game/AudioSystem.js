@@ -1,8 +1,18 @@
+const AJP_SONG_FILES = [
+  '/CHARACTER-SONG/AJP SONG 1.mp3',
+  '/CHARACTER-SONG/AJP SONG 2.mp3',
+  '/CHARACTER-SONG/AJP SONG 3.mp3',
+  '/CHARACTER-SONG/AJP SONG 4.mp3'
+];
+
 // Web Audio API Synthesizer for procedural SFX
 class AudioSystem {
   constructor() {
     this.ctx = null;
     this.enabled = true;
+    this.ajpPlaylistQueue = [];
+    this.lastAjpSong = null;
+    this.currentAjpAudio = null;
   }
 
   init() {
@@ -326,6 +336,65 @@ class AudioSystem {
       osc.start(t);
       osc.stop(t + 1.05);
     } catch (e) {}
+  }
+
+  getNextAjpSongUrl() {
+    if (this.ajpPlaylistQueue.length === 0) {
+      const pool = [...AJP_SONG_FILES];
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      if (pool[0] === this.lastAjpSong && pool.length > 1) {
+        pool.push(pool.shift());
+      }
+      this.ajpPlaylistQueue = pool;
+    }
+    const nextSong = this.ajpPlaylistQueue.shift();
+    this.lastAjpSong = nextSong;
+    return nextSong;
+  }
+
+  playAjpCelebration() {
+    if (!this.enabled) return;
+    this.stopAjpCelebration();
+
+    try {
+      const url = this.getNextAjpSongUrl();
+      const audio = new Audio(url);
+      audio.volume = 0.85;
+      audio.loop = false;
+      this.currentAjpAudio = audio;
+      audio.play().catch(e => {
+        console.warn('[AudioSystem] AJP song play deferred:', e);
+      });
+    } catch (e) {
+      console.warn('[AudioSystem] Error playing AJP song:', e);
+    }
+  }
+
+  stopAjpCelebration() {
+    if (this.currentAjpAudio) {
+      try {
+        const audio = this.currentAjpAudio;
+        let vol = audio.volume;
+        const fadeInterval = setInterval(() => {
+          vol = Math.max(0, vol - 0.15);
+          audio.volume = vol;
+          if (vol <= 0.05) {
+            clearInterval(fadeInterval);
+            audio.pause();
+            audio.currentTime = 0;
+          }
+        }, 30);
+      } catch (e) {
+        try {
+          this.currentAjpAudio.pause();
+          this.currentAjpAudio.currentTime = 0;
+        } catch (err) {}
+      }
+      this.currentAjpAudio = null;
+    }
   }
 }
 

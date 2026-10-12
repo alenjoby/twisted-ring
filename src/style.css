@@ -1301,75 +1301,6 @@ body, html {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
 }
 
-/* --- SPECTATOR DRONE NAVIGATION BAR (Stacked cleanly inside .hud-clock-center) --- */
-.spectator-bar {
-  position: relative;
-  margin-top: 8px;
-  z-index: 95;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(11, 14, 22, 0.92);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 204, 0, 0.35);
-  padding: 5px 14px;
-  border-radius: 20px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 15px rgba(255, 204, 0, 0.15);
-  pointer-events: auto;
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.spectator-bar.hidden {
-  display: none !important;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.spec-nav-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #fff;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.spec-nav-btn:hover {
-  background: var(--accent-lime);
-  color: #0c0e14;
-  border-color: var(--accent-lime);
-  transform: scale(1.1);
-}
-
-.spec-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.spec-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: 'Satoshi', 'Montserrat', sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  color: #ffaa00;
-}
-
-.spec-name {
-  font-family: 'Montserrat', 'Satoshi', sans-serif;
-  font-size: 12px;
-  font-weight: 800;
-  color: #ffffff;
-}
-
 /* --- TOP EVENT BANNER (Stacks cleanly below clock & spectator bar without overlap) --- */
 #event-banner {
   position: relative;
@@ -2252,10 +2183,6 @@ body, html {
     font-size: 11px;
     padding: 3px 8px;
   }
-  .spectator-bar {
-    padding: 4px 10px;
-    gap: 6px;
-  }
   .hud-footer {
     justify-content: center;
   }
@@ -2671,5 +2598,52 @@ body, html {
   }
 }
 
+/* ==========================================================================
+   SMART TV 10-FOOT UI MODE & REMOTE D-PAD FOCUS HIGHLIGHTS
+   ========================================================================== */
+.smart-tv-mode .welcome-center-box,
+.smart-tv-mode .mode-select-box,
+.smart-tv-mode .char-select-box,
+.smart-tv-mode .modal-box {
+  transform: scale(1.06);
+}
 
+.smart-tv-mode .welcome-title {
+  font-size: 54px;
+}
 
+.smart-tv-mode .clock-number {
+  font-size: 54px;
+}
+
+.smart-tv-mode .clock-phase-label {
+  font-size: 13px;
+}
+
+.smart-tv-mode .hud-btn {
+  font-size: 13px;
+  padding: 10px 18px;
+}
+
+.smart-tv-mode .touch-joystick-zone,
+.smart-tv-mode .touch-aim-zone {
+  display: none !important;
+}
+
+/* High-Contrast TV D-Pad and Controller Focus Highlights */
+:focus-visible,
+.tv-focused {
+  outline: 3px solid #00f0ff !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 24px rgba(0, 240, 255, 0.95), inset 0 0 10px rgba(0, 240, 255, 0.45) !important;
+  transform: scale(1.04) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+  z-index: 100 !important;
+}
+
+.smart-tv-mode .char-card:focus,
+.smart-tv-mode .char-card.tv-focused {
+  border-color: #00f0ff !important;
+  box-shadow: 0 0 35px rgba(0, 240, 255, 0.7) !important;
+  transform: translateY(-8px) scale(1.04) !important;
+}

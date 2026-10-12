@@ -6,6 +6,7 @@ import { Character } from './game/Character.js';
 import { audioSystem } from './game/AudioSystem.js';
 import { SupabaseManager, safeStorage } from './game/SupabaseManager.js';
 import { setupMobileControls } from './game/MobileControls.js';
+import { SmartTVManager } from './game/SmartTVManager.js';
 
 // HTML Entity Escaper & Sanitizer (XSS Mitigation)
 const esc = s => String(s ?? '').slice(0, 15).replace(/[&<>"']/g, c => ({
@@ -251,7 +252,6 @@ const aimPoint = new THREE.Vector3();
 
 // Module-level static scratch vectors & cached viewport (Zero-allocation performance)
 const _scratchHeadPos = new THREE.Vector3();
-const _scratchSpecTarget = new THREE.Vector3();
 const _scratchForward = new THREE.Vector3();
 const _scratchRight = new THREE.Vector3();
 const _yAxis = new THREE.Vector3(0, 1, 0);
@@ -819,12 +819,6 @@ window.addEventListener('keydown', (e) => {
   if (k === '2') triggerLocalEmote('TAUNT');
   if (k === '3') triggerLocalEmote('DANCE');
   if (k === '4') triggerLocalEmote('JUMP');
-
-  // Spectator mode arrow navigation
-  if (localPlayer && !localPlayer.isAlive && spectatingPlayerId) {
-    if (k === 'arrowleft') cycleSpectatorTarget(-1);
-    if (k === 'arrowright') cycleSpectatorTarget(1);
-  }
 });
 
 window.addEventListener('keyup', (e) => {
@@ -881,6 +875,15 @@ const mobileControls = setupMobileControls({
   getLocalPlayer: () => localPlayer,
   isModalActive,
   updateAimFromScreenCoords
+});
+
+// Smart TV D-Pad Remote Navigation & Bluetooth Gamepad Controller
+const smartTVManager = new SmartTVManager({
+  analogMove,
+  aimPoint,
+  camera,
+  getLocalPlayer: () => localPlayer,
+  renderer
 });
 
 // Emote HUD buttons & Map Theme cycle button
@@ -1183,50 +1186,13 @@ function showBanner(text, duration = 1800) {
 }
 
 let consecutiveStalemates = 0;
-let spectatingPlayerId = null;
-const spectatorBar = document.getElementById('spectator-bar');
-const specTargetName = document.getElementById('spec-target-name');
-
-function activateSpectatorMode() {
-  const livingSurvivors = Array.from(players.values()).filter(p => p.isAlive && p.id !== myId);
-  if (livingSurvivors.length === 0) return;
-
-  spectatingPlayerId = livingSurvivors[0].id;
-  if (spectatorBar) spectatorBar.classList.remove('hidden');
-  if (specTargetName) specTargetName.innerText = livingSurvivors[0].name.toUpperCase();
-}
-
-function deactivateSpectatorMode() {
-  spectatingPlayerId = null;
-  if (spectatorBar) spectatorBar.classList.add('hidden');
-}
-
-function cycleSpectatorTarget(direction = 1) {
-  const livingSurvivors = Array.from(players.values()).filter(p => p.isAlive && p.id !== myId);
-  if (livingSurvivors.length === 0) {
-    deactivateSpectatorMode();
-    return;
-  }
-
-  let currentIndex = livingSurvivors.findIndex(p => p.id === spectatingPlayerId);
-  if (currentIndex === -1) currentIndex = 0;
-
-  const nextIndex = (currentIndex + direction + livingSurvivors.length) % livingSurvivors.length;
-  const nextTarget = livingSurvivors[nextIndex];
-  spectatingPlayerId = nextTarget.id;
-  if (specTargetName) specTargetName.innerText = nextTarget.name.toUpperCase();
-}
-
-document.getElementById('btn-spec-prev')?.addEventListener('click', () => cycleSpectatorTarget(-1));
-document.getElementById('btn-spec-next')?.addEventListener('click', () => cycleSpectatorTarget(1));
-
 let lastAppliedVerdictRound = '';
 let lastVerdictWasAuthoritative = false;
 let roundTransitionTimer = null;
 
 function prepareNextSeriesRound(nextSeriesRound, nextTotalRounds = totalSeriesRounds) {
   timeDilationFactor = 1.0;
-  deactivateSpectatorMode();
+  audioSystem.stopAjpCelebration();
   if (stealthCountdownInterval) {
     clearInterval(stealthCountdownInterval);
     stealthCountdownInterval = null;
@@ -1279,11 +1245,6 @@ function startRound(broadcast = true, syncEpoch = null) {
   if (roundTransitionTimer) {
     clearTimeout(roundTransitionTimer);
     roundTransitionTimer = null;
-  }
-  if (localPlayer && localPlayer.isAlive) {
-    deactivateSpectatorMode();
-  } else if (localPlayer && !localPlayer.isAlive) {
-    activateSpectatorMode();
   }
   document.getElementById('lobby-modal')?.classList.remove('active');
   document.getElementById('friends-hub-modal')?.classList.add('hidden');
@@ -1761,9 +1722,10 @@ function applyRoundVerdict(verdict) {
 
   updateScoreboard();
 
-  // If local player was eliminated and the current round is still ongoing, activate spectator mode
+  // If local player was eliminated and the current round is still ongoing, update guidance
   if (localPlayer && !localPlayer.isAlive && !verdict.isRoundComplete && !verdict.isGameOver) {
-    activateSpectatorMode();
+    clockGuidanceText.innerText = 'ELIMINATED // OBSERVING ARENA';
+    showBanner('ELIMINATED // ROUND IN PROGRESS', 2200);
   }
 
   // After animation delay, process game over, next series round, or next shrink wave
@@ -1771,12 +1733,10 @@ function applyRoundVerdict(verdict) {
     roundTransitionTimer = null;
     timeDilationFactor = 1.0;
     if (verdict.isGameOver) {
-      deactivateSpectatorMode();
       const winner = verdict.winnerId ? (players.get(verdict.winnerId) || localPlayer) : null;
       presentWinner(winner, verdict.winnerDanceKey, verdict.drawShowcase);
     } else if (verdict.isRoundComplete) {
       // Intermediate Round in a Multi-Round Series finished!
-      deactivateSpectatorMode();
       currentPhase = 'ROUND_END';
       const roundWinner = verdict.roundWinnerId ? players.get(verdict.roundWinnerId) : null;
       const sortedStandings = Array.from(players.values()).sort((a, b) => b.score - a.score);
@@ -1785,7 +1745,12 @@ function applyRoundVerdict(verdict) {
 
       if (roundWinner) {
         roundWinner.playAction(verdict.roundDanceKey || pickRandomVictoryDance(), 0.2);
-        audioSystem.playVictoryFanfare();
+        const isAjpRoundWinner = (roundWinner.characterId === 'ajp' || (roundWinner.isLocal && selectedCharacterId === 'ajp'));
+        if (isAjpRoundWinner) {
+          audioSystem.playAjpCelebration();
+        } else {
+          audioSystem.playVictoryFanfare();
+        }
         clockPhaseLabel.innerText = `ROUND ${currentSeriesRound}/${totalSeriesRounds} COMPLETE`;
         clockGuidanceText.innerText = `${roundWinner.name.toUpperCase()} WON ROUND (+250 PTS) // ${leaderText}`;
         showBanner(`ROUND ${currentSeriesRound}/${totalSeriesRounds}: ${roundWinner.name.toUpperCase()} (+250 PTS) // ${leaderText}`, 3400);
@@ -1889,7 +1854,6 @@ function presentWinner(winner, danceKeyOverride = null, drawShowcase = null) {
   document.getElementById('death-vignette')?.classList.remove('active', 'critical');
   document.getElementById('ui-overlay')?.classList.add('hidden');
   document.getElementById('name-tags-container')?.classList.add('hidden');
-  document.getElementById('spectator-bar')?.classList.add('hidden');
   document.getElementById('touch-joystick-zone')?.classList.add('hidden');
   document.getElementById('touch-aim-zone')?.classList.add('hidden');
   document.getElementById('lobby-modal')?.classList.remove('active');
@@ -1982,7 +1946,16 @@ function presentWinner(winner, danceKeyOverride = null, drawShowcase = null) {
     clockGuidanceText.innerText = 'MUTUAL DESTRUCTION // NO SURVIVORS';
     if (nameDisplay) nameDisplay.innerText = totalSeriesRounds > 1 ? 'SERIES DRAW' : 'DRAW';
     if (modal) modal.classList.remove('hidden');
-    audioSystem.playVictoryFanfare();
+
+    const isAjpInDraw = drawFinalists.some(item => {
+      const p = item.player;
+      return p && (p.characterId === 'ajp' || (p.isLocal && selectedCharacterId === 'ajp'));
+    });
+    if (isAjpInDraw) {
+      audioSystem.playAjpCelebration();
+    } else {
+      audioSystem.playVictoryFanfare();
+    }
     return;
   }
 
@@ -2023,8 +1996,13 @@ function presentWinner(winner, danceKeyOverride = null, drawShowcase = null) {
   controls.update();
   victoryOrbitAngle = 0;
 
-  // Play Victory Fanfare and Randomized Celebration Dance across all 4 dance animations
-  audioSystem.playVictoryFanfare();
+  // Play Victory Celebration: if champion is AJP, play AJP song rotation, else standard fanfare
+  const isAjpWinner = (winner.characterId === 'ajp' || (winner.isLocal && selectedCharacterId === 'ajp'));
+  if (isAjpWinner) {
+    audioSystem.playAjpCelebration();
+  } else {
+    audioSystem.playVictoryFanfare();
+  }
   const danceKey = (danceKeyOverride && VICTORY_DANCE_KEYS.includes(danceKeyOverride))
     ? danceKeyOverride
     : pickRandomVictoryDance();
@@ -2046,7 +2024,7 @@ function presentWinner(winner, danceKeyOverride = null, drawShowcase = null) {
 
 function resetGame({ resetScores = true } = {}) {
   timeDilationFactor = 1.0;
-  deactivateSpectatorMode();
+  audioSystem.stopAjpCelebration();
   if (stealthCountdownInterval) {
     clearInterval(stealthCountdownInterval);
     stealthCountdownInterval = null;
@@ -2910,6 +2888,7 @@ document.getElementById('btn-friends-leave')?.addEventListener('click', () => {
     return;
   }
   clearPracticeBots();
+  audioSystem.stopAjpCelebration();
   supabaseManager.leaveRoom();
   closeFriendsHub();
   document.getElementById('ui-overlay')?.classList.add('hidden');
@@ -3099,6 +3078,7 @@ document.getElementById('btn-leave-room')?.addEventListener('click', () => {
     return;
   }
   clearPracticeBots();
+  audioSystem.stopAjpCelebration();
   supabaseManager.leaveRoom();
   lobbyModal.classList.remove('active');
   closeFriendsHub();
@@ -3183,6 +3163,7 @@ document.getElementById('btn-victory-leave')?.addEventListener('click', () => {
     return;
   }
   resetGame({ resetScores: true });
+  audioSystem.stopAjpCelebration();
   clearPracticeBots();
   supabaseManager.leaveRoom();
   document.getElementById('winner-modal')?.classList.add('hidden');
@@ -3389,16 +3370,9 @@ function animate() {
     }
   });
 
-  // If eliminated and in spectator mode, smoothly follow the spectated survivor
-  if (spectatingPlayerId && localPlayer && !localPlayer.isAlive) {
-    const targetPlayer = players.get(spectatingPlayerId);
-    if (targetPlayer && targetPlayer.isAlive) {
-      _scratchSpecTarget.copy(targetPlayer.group.position);
-      _scratchSpecTarget.y += 1.2;
-      controls.target.lerp(_scratchSpecTarget, 0.08);
-    } else {
-      cycleSpectatorTarget(1);
-    }
+  // Smart TV Gamepad & Remote Controller Update
+  if (smartTVManager) {
+    smartTVManager.update(delta);
   }
 
   // Victory 360 Cinematic Orbit Sweep
