@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-const CACHE_NAME = 'twisted-ring-assets-v4';
+const CACHE_NAME = 'twisted-ring-assets-v5';
 
 async function fetchCachedBuffer(url) {
   if (typeof window !== 'undefined' && 'caches' in window) {
@@ -128,6 +128,8 @@ class AssetManager {
     this.textureLoader = new THREE.TextureLoader();
     this.baseModel = null;
     this.arenaModel = null;
+    this.arenaModels = {};
+    this.arenaRawModels = {};
     this.characterModels = {};
     this.textures = {};
     this.clips = {};
@@ -145,7 +147,20 @@ class AssetManager {
       { key: 'ajp_metalness', url: '/CHARACTERS/Character-Textures/AJP-TEXTURE_02.png', type: 'texture', isSrgb: false, flipY: true },
       { key: 'ajp_normal', url: '/CHARACTERS/Character-Textures/AJP-TEXTURE_03.png', type: 'texture', isSrgb: false, flipY: true },
       { key: 'ajp_roughness', url: '/CHARACTERS/Character-Textures/AJP-TEXTURE_04.png', type: 'texture', isSrgb: false, flipY: true },
+      // Cyber Ring Arena (Original GLTF)
       { key: 'arena', url: '/assets/areana.glb', type: 'gltf' },
+      // Fire Arena ("The Foundry") FBX and PBR Textures
+      { key: 'tex_fire_diffuse', url: encodeURI('/ARENA/fire arena/Meshy_AI_The_Foundry_Arena_1012131932_texture.png'), type: 'texture', isSrgb: true, flipY: true },
+      { key: 'tex_fire_normal', url: encodeURI('/ARENA/fire arena/Meshy_AI_The_Foundry_Arena_1012131932_texture_normal.png'), type: 'texture', isSrgb: false, flipY: true },
+      { key: 'tex_fire_metallic', url: encodeURI('/ARENA/fire arena/Meshy_AI_The_Foundry_Arena_1012131932_texture_metallic.png'), type: 'texture', isSrgb: false, flipY: true },
+      { key: 'tex_fire_roughness', url: encodeURI('/ARENA/fire arena/Meshy_AI_The_Foundry_Arena_1012131932_texture_roughness.png'), type: 'texture', isSrgb: false, flipY: true },
+      { key: 'arena_fire', url: encodeURI('/ARENA/fire arena/Meshy_AI_The_Foundry_Arena_1012131932_texture.fbx'), type: 'arena_fbx', arenaId: 'fire_arena' },
+      // Street Fight Arena ("Iron Fist") FBX and PBR Textures
+      { key: 'tex_street_diffuse', url: encodeURI('/ARENA/StreetFight_Arena/Meshy_AI_Iron_Fist_Arena_1011231729_texture.png'), type: 'texture', isSrgb: true, flipY: true },
+      { key: 'tex_street_normal', url: encodeURI('/ARENA/StreetFight_Arena/Meshy_AI_Iron_Fist_Arena_1011231729_texture_normal.png'), type: 'texture', isSrgb: false, flipY: true },
+      { key: 'tex_street_metallic', url: encodeURI('/ARENA/StreetFight_Arena/Meshy_AI_Iron_Fist_Arena_1011231729_texture_metallic.png'), type: 'texture', isSrgb: false, flipY: true },
+      { key: 'tex_street_roughness', url: encodeURI('/ARENA/StreetFight_Arena/Meshy_AI_Iron_Fist_Arena_1011231729_texture_roughness.png'), type: 'texture', isSrgb: false, flipY: true },
+      { key: 'arena_street', url: encodeURI('/ARENA/StreetFight_Arena/Meshy_AI_Iron_Fist_Arena_1011231729_texture.fbx'), type: 'arena_fbx', arenaId: 'street_fight' },
       // All 5 Selectable Characters
       { key: 'char_ajp', url: '/CHARACTERS/AJP.fbx', type: 'character', charId: 'ajp' },
       { key: 'char_dog', url: '/assets/Pistol Idle.fbx', type: 'character', charId: 'dog' },
@@ -186,6 +201,56 @@ class AssetManager {
         if (!this.clips['dance']) {
           this.clips['dance'] = this.clips['dance_breakdance'] || this.clips['dance_twerk'];
         }
+
+        // Configure Cyber Gold Arena
+        if (this.arenaModel) {
+          this.arenaModels['cyber_gold'] = this.arenaModel;
+        }
+
+        // Configure Fire Arena ("The Foundry") with full PBR textures
+        const fireModel = this.arenaRawModels['fire_arena'];
+        if (fireModel) {
+          const fireMat = new THREE.MeshStandardMaterial({
+            map: this.textures['tex_fire_diffuse'] || null,
+            normalMap: this.textures['tex_fire_normal'] || null,
+            metalnessMap: this.textures['tex_fire_metallic'] || null,
+            roughnessMap: this.textures['tex_fire_roughness'] || null,
+            metalness: 0.85,
+            roughness: 0.65,
+            side: THREE.DoubleSide
+          });
+          fireModel.traverse((c) => {
+            if (c.isMesh) {
+              c.material = fireMat;
+              c.receiveShadow = true;
+              c.castShadow = true;
+            }
+          });
+          this.arenaModels['fire_arena'] = fireModel;
+        }
+
+        // Configure Street Fight Arena ("Iron Fist") with full PBR textures
+        const streetModel = this.arenaRawModels['street_fight'];
+        if (streetModel) {
+          const streetMat = new THREE.MeshStandardMaterial({
+            map: this.textures['tex_street_diffuse'] || null,
+            normalMap: this.textures['tex_street_normal'] || null,
+            metalnessMap: this.textures['tex_street_metallic'] || null,
+            roughnessMap: this.textures['tex_street_roughness'] || null,
+            metalness: 0.75,
+            roughness: 0.55,
+            side: THREE.DoubleSide
+          });
+          streetModel.traverse((c) => {
+            if (c.isMesh) {
+              c.material = streetMat;
+              c.receiveShadow = true;
+              c.castShadow = true;
+            }
+          });
+          this.arenaModels['street_fight'] = streetModel;
+        }
+
         this.loaded = true;
         if (onComplete) onComplete();
       }
@@ -237,6 +302,11 @@ class AssetManager {
             this.baseModel = fbx;
           }
           checkComplete();
+        } else if (item.type === 'arena_fbx') {
+          const buffer = await fetchCachedBuffer(item.url);
+          const fbx = this.fbxLoader.parse(buffer, '');
+          this.arenaRawModels[item.arenaId] = fbx;
+          checkComplete();
         } else if (item.type === 'clip') {
           const buffer = await fetchCachedBuffer(item.url);
           const animFbx = this.fbxLoader.parse(buffer, '');
@@ -256,6 +326,11 @@ class AssetManager {
             if (!this.baseModel || item.charId === 'ajp') {
               this.baseModel = fbx;
             }
+            checkComplete();
+          }, undefined, () => checkComplete());
+        } else if (item.type === 'arena_fbx') {
+          this.fbxLoader.load(item.url, (fbx) => {
+            this.arenaRawModels[item.arenaId] = fbx;
             checkComplete();
           }, undefined, () => checkComplete());
         } else if (item.type === 'clip') {

@@ -5,32 +5,38 @@ export const ARENA_THEMES = {
   cyber_gold: {
     id: 'cyber_gold',
     name: 'CYBER RING',
+    modelKey: 'cyber_gold',
     boundaryColor: 0xffcc00,
     midWireColor: 0xffffff,
     shieldColor: 0xffcc00,
     floorTint: 0xffffff,
     spotColor: 0xfff5e4,
+    rimColor: 0xff2a5f,
     fogColor: 0x050608
   },
-  volcanic_core: {
-    id: 'volcanic_core',
-    name: 'VOLCANIC CORE',
-    boundaryColor: 0xff3b00,
+  fire_arena: {
+    id: 'fire_arena',
+    name: 'THE FOUNDRY',
+    modelKey: 'fire_arena',
+    boundaryColor: 0xff4500,
     midWireColor: 0xffaa00,
     shieldColor: 0xff2200,
-    floorTint: 0xffd2b8,
-    spotColor: 0xffc499,
-    fogColor: 0x0d0403
+    floorTint: 0xffffff,
+    spotColor: 0xff7722,
+    rimColor: 0xff3b00,
+    fogColor: 0x140502
   },
-  sky_citadel: {
-    id: 'sky_citadel',
-    name: 'SKY CITADEL',
+  street_fight: {
+    id: 'street_fight',
+    name: 'IRON FIST',
+    modelKey: 'street_fight',
     boundaryColor: 0x00f0ff,
-    midWireColor: 0xd8f8ff,
-    shieldColor: 0x00b8ff,
-    floorTint: 0xdff8ff,
-    spotColor: 0xd6f4ff,
-    fogColor: 0x040810
+    midWireColor: 0xff0066,
+    shieldColor: 0x00f0ff,
+    floorTint: 0xffffff,
+    spotColor: 0x00d8ff,
+    rimColor: 0xff0066,
+    fogColor: 0x080a14
   }
 };
 
@@ -43,44 +49,74 @@ export class Arena {
     this.shrinkSpeed = 2.5;
     this.isShrinking = false;
     this.themeId = 'cyber_gold';
+    this.platformModels = {};
+    this.currentModel = null;
+    this.activeModelKey = null;
 
     this.group = new THREE.Group();
     this.scene.add(this.group);
 
     this.initPlatform();
     this.initBoundary();
+    this.setTheme('cyber_gold');
   }
 
   initPlatform() {
-    if (assetManager.arenaModel) {
-      // Use the provided 3D GLB model
-      this.arenaModel = assetManager.arenaModel;
-      
-      // The walkable floor of areana.glb has a radius of ~0.85 in model units
-      // and a surface height of Y = -0.0874 in model units.
+    // 1. Cyber Ring GLB
+    const cyberModel = (assetManager.arenaModels && assetManager.arenaModels['cyber_gold']) || assetManager.arenaModel;
+    if (cyberModel) {
       const floorModelRadius = 0.85;
       const scale = this.initialRadius / floorModelRadius;
-      this.arenaModel.scale.setScalar(scale);
-
-      // Align model so center is at (0, 0) and the walkable floor surface is EXACTLY at Y = 0
-      this.arenaModel.position.x = 0;
-      this.arenaModel.position.z = 0;
-      this.arenaModel.position.y = 0.0874 * scale;
-      
-      this.arenaModel.traverse((child) => {
+      cyberModel.scale.setScalar(scale);
+      cyberModel.position.set(0, 0.0874 * scale, 0);
+      cyberModel.traverse((child) => {
         if (child.isMesh) {
           child.receiveShadow = true;
           child.castShadow = true;
-          // Ensure double sided rendering for arena materials
           if (child.material) {
             child.material.side = THREE.DoubleSide;
           }
         }
       });
-      
-      this.group.add(this.arenaModel);
-    } else {
-      console.error("Critical: areana.glb failed to load. The arena floor will be missing.");
+      this.platformModels['cyber_gold'] = cyberModel;
+    }
+
+    // 2. Fire Arena ("The Foundry") FBX
+    const fireModel = assetManager.arenaModels && assetManager.arenaModels['fire_arena'];
+    if (fireModel) {
+      const fireScale = 0.22;
+      fireModel.scale.setScalar(fireScale);
+      // Floor center is at Y = -20.7090, placed flush at Y = 0.00
+      fireModel.position.set(0, 20.7090 * fireScale, 0);
+      fireModel.traverse((child) => {
+        if (child.isMesh) {
+          child.receiveShadow = true;
+          child.castShadow = true;
+          if (child.material) {
+            child.material.side = THREE.DoubleSide;
+          }
+        }
+      });
+      this.platformModels['fire_arena'] = fireModel;
+    }
+
+    // 3. Street Fight Arena ("Iron Fist") FBX
+    const streetModel = assetManager.arenaModels && assetManager.arenaModels['street_fight'];
+    if (streetModel) {
+      const streetScale = 0.22;
+      streetModel.scale.setScalar(streetScale);
+      // Floor center is at Y = -15.1504, placed flush at Y = 0.00
+      streetModel.position.set(0, 15.1504 * streetScale, 0);
+      streetModel.traverse((child) => {
+        if (child.isMesh) {
+          child.receiveShadow = true;
+          child.castShadow = true;
+          if (child.material) {
+            child.material.side = THREE.DoubleSide;
+          }
+        }
+      });
+      this.platformModels['street_fight'] = streetModel;
     }
   }
 
@@ -126,18 +162,38 @@ export class Arena {
   }
 
   setTheme(themeId) {
+    if (themeId === 'volcanic_core') themeId = 'fire_arena';
+    if (themeId === 'sky_citadel') themeId = 'street_fight';
+
     const theme = ARENA_THEMES[themeId] || ARENA_THEMES.cyber_gold;
     this.themeId = theme.id;
+    const modelKey = theme.modelKey || theme.id;
+
+    if (this.activeModelKey !== modelKey) {
+      if (this.currentModel) {
+        this.group.remove(this.currentModel);
+      }
+      const nextModel = this.platformModels[modelKey] || this.platformModels['cyber_gold'];
+      if (nextModel) {
+        this.currentModel = nextModel;
+        this.arenaModel = nextModel;
+        this.group.add(this.currentModel);
+        this.activeModelKey = modelKey;
+      }
+    }
+
     if (this.boundaryMat) this.boundaryMat.color.setHex(theme.boundaryColor);
     if (this.midBoundaryMat) this.midBoundaryMat.color.setHex(theme.midWireColor);
     if (this.shieldMat) this.shieldMat.color.setHex(theme.shieldColor);
-    if (this.arenaModel) {
-      this.arenaModel.traverse((child) => {
+
+    if (this.currentModel && modelKey === 'cyber_gold') {
+      this.currentModel.traverse((child) => {
         if (child.isMesh && child.material && child.material.color) {
           child.material.color.setHex(theme.floorTint);
         }
       });
     }
+
     return theme;
   }
 

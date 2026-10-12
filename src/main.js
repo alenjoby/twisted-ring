@@ -226,6 +226,7 @@ function applyArenaTheme(themeId) {
   if (scene.fog) scene.fog.color.setHex(theme.fogColor);
   if (scene.background) scene.background.setHex(theme.fogColor);
   if (ringSpot) ringSpot.color.setHex(theme.spotColor);
+  if (rimLight && theme.rimColor) rimLight.color.setHex(theme.rimColor);
   const badge = document.getElementById('theme-badge-label');
   if (badge) badge.innerText = `MAP: ${theme.name}`;
 }
