@@ -2651,44 +2651,11 @@ body, html {
 /* ==========================================================================
    PERFORMANCE & 60 FPS ENGINE // LOW-END MOBILE OPTIMIZATIONS
    ========================================================================== */
-body.perf-mode * {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  text-shadow: none !important;
-}
-
-body.perf-mode .modal-box,
-body.perf-mode .welcome-center-box,
-body.perf-mode .mode-select-box,
-body.perf-mode .char-select-box,
-body.perf-mode .hud-header,
-body.perf-mode .hud-footer,
-body.perf-mode .squad-status-strip,
-body.perf-mode .touch-joystick-base,
-body.perf-mode .touch-aim-base {
-  background: rgba(10, 13, 20, 0.96) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8) !important;
-}
-
-/* Touch & Mobile GPU compositor optimization */
+/* Hardware acceleration on mobile controls */
 @media (pointer: coarse), (max-width: 900px) {
-  .hud-header,
-  .hud-footer,
-  .hud-btn,
-  .recon-top-badge,
-  .clock-box,
   .touch-joystick-zone,
   .touch-aim-zone {
     transform: translateZ(0);
     will-change: transform;
-  }
-
-  .modal-box,
-  .touch-joystick-base,
-  .touch-aim-base,
-  .hud-stat-pill,
-  .camera-mode-badge {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
   }
 }

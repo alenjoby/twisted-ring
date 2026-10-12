@@ -223,7 +223,8 @@ scene.add(rimLight);
 const isMobileDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const isLowPowerHardware = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
 
-let currentGraphicsTier = localStorage.getItem('twisted_perf_tier') || (isMobileDevice || isLowPowerHardware ? 'balanced' : 'high');
+// Default to 'performance' on mobile devices for rock-solid 60 FPS, 'high' on desktop
+let currentGraphicsTier = localStorage.getItem('twisted_perf_tier') || (isMobileDevice || isLowPowerHardware ? 'performance' : 'high');
 
 function applyGraphicsTier(tier, notify = false) {
   currentGraphicsTier = tier;
@@ -266,6 +267,10 @@ function applyGraphicsTier(tier, notify = false) {
     if (notify) showBanner('GRAPHICS: ULTRA FIDELITY', 1600);
   }
 
+  if (typeof arena !== 'undefined' && arena) {
+    arena.setQualityTier(tier);
+  }
+
   renderer.shadowMap.needsUpdate = true;
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
@@ -277,6 +282,7 @@ function applyArenaTheme(themeId) {
   if (!arena) return;
   const theme = arena.setTheme(themeId);
   currentArenaTheme = theme.id;
+  arena.setQualityTier(currentGraphicsTier);
   if (scene.fog) scene.fog.color.setHex(theme.fogColor);
   if (scene.background) scene.background.setHex(theme.fogColor);
   if (ringSpot) ringSpot.color.setHex(theme.spotColor);
@@ -533,6 +539,7 @@ function renderCharacterSelectPreviews(delta) {
 
 function initGameAfterLoading() {
   arena = new Arena(scene, arenaRadius);
+  arena.setQualityTier(currentGraphicsTier);
 
   // Initialize Local Player with pre-cached assets (Radial pod 0)
   const spawnPos = getRadialSpawnPosition(0, 5);
@@ -1815,12 +1822,7 @@ function applyRoundVerdict(verdict) {
 
       if (roundWinner) {
         roundWinner.playAction(verdict.roundDanceKey || pickRandomVictoryDance(), 0.2);
-        const isAjpRoundWinner = (roundWinner.characterId === 'ajp' || (roundWinner.isLocal && selectedCharacterId === 'ajp'));
-        if (isAjpRoundWinner) {
-          audioSystem.playAjpCelebration();
-        } else {
-          audioSystem.playVictoryFanfare();
-        }
+        audioSystem.playVictoryFanfare();
         clockPhaseLabel.innerText = `ROUND ${currentSeriesRound}/${totalSeriesRounds} COMPLETE`;
         clockGuidanceText.innerText = `${roundWinner.name.toUpperCase()} WON ROUND (+250 PTS) // ${leaderText}`;
         showBanner(`ROUND ${currentSeriesRound}/${totalSeriesRounds}: ${roundWinner.name.toUpperCase()} (+250 PTS) // ${leaderText}`, 3400);
@@ -2017,15 +2019,7 @@ function presentWinner(winner, danceKeyOverride = null, drawShowcase = null) {
     if (nameDisplay) nameDisplay.innerText = totalSeriesRounds > 1 ? 'SERIES DRAW' : 'DRAW';
     if (modal) modal.classList.remove('hidden');
 
-    const isAjpInDraw = drawFinalists.some(item => {
-      const p = item.player;
-      return p && (p.characterId === 'ajp' || (p.isLocal && selectedCharacterId === 'ajp'));
-    });
-    if (isAjpInDraw) {
-      audioSystem.playAjpCelebration();
-    } else {
-      audioSystem.playVictoryFanfare();
-    }
+    audioSystem.playVictoryFanfare();
     return;
   }
 

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const CACHE_NAME = 'twisted-ring-assets-v5';
 
@@ -219,6 +220,10 @@ class AssetManager {
             roughness: 0.65,
             side: THREE.DoubleSide
           });
+          fireMat.userData.origNormalMap = this.textures['tex_fire_normal'] || null;
+          fireMat.userData.origMetalnessMap = this.textures['tex_fire_metallic'] || null;
+          fireMat.userData.origRoughnessMap = this.textures['tex_fire_roughness'] || null;
+
           fireModel.traverse((c) => {
             if (c.isMesh) {
               c.material = fireMat;
@@ -243,6 +248,10 @@ class AssetManager {
             roughness: 0.55,
             side: THREE.DoubleSide
           });
+          streetMat.userData.origNormalMap = this.textures['tex_street_normal'] || null;
+          streetMat.userData.origMetalnessMap = this.textures['tex_street_metallic'] || null;
+          streetMat.userData.origRoughnessMap = this.textures['tex_street_roughness'] || null;
+
           streetModel.traverse((c) => {
             if (c.isMesh) {
               c.material = streetMat;
@@ -312,6 +321,11 @@ class AssetManager {
         } else if (item.type === 'arena_fbx') {
           const buffer = await fetchCachedBuffer(item.url);
           const fbx = this.fbxLoader.parse(buffer, '');
+          fbx.traverse((c) => {
+            if (c.isMesh && c.geometry) {
+              c.geometry = mergeVertices(c.geometry, 0.001);
+            }
+          });
           this.arenaRawModels[item.arenaId] = fbx;
           checkComplete();
         } else if (item.type === 'clip') {
@@ -337,6 +351,11 @@ class AssetManager {
           }, undefined, () => checkComplete());
         } else if (item.type === 'arena_fbx') {
           this.fbxLoader.load(item.url, (fbx) => {
+            fbx.traverse((c) => {
+              if (c.isMesh && c.geometry) {
+                c.geometry = mergeVertices(c.geometry, 0.001);
+              }
+            });
             this.arenaRawModels[item.arenaId] = fbx;
             checkComplete();
           }, undefined, () => checkComplete());
