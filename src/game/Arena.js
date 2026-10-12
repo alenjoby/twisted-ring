@@ -72,7 +72,9 @@ export class Arena {
       cyberModel.traverse((child) => {
         if (child.isMesh) {
           child.receiveShadow = true;
-          child.castShadow = true;
+          child.castShadow = false;
+          child.matrixAutoUpdate = false;
+          child.updateMatrix();
           if (child.material) {
             child.material.side = THREE.DoubleSide;
           }
@@ -91,7 +93,9 @@ export class Arena {
       fireModel.traverse((child) => {
         if (child.isMesh) {
           child.receiveShadow = true;
-          child.castShadow = true;
+          child.castShadow = false;
+          child.matrixAutoUpdate = false;
+          child.updateMatrix();
           if (child.material) {
             child.material.side = THREE.DoubleSide;
           }
@@ -110,7 +114,9 @@ export class Arena {
       streetModel.traverse((child) => {
         if (child.isMesh) {
           child.receiveShadow = true;
-          child.castShadow = true;
+          child.castShadow = false;
+          child.matrixAutoUpdate = false;
+          child.updateMatrix();
           if (child.material) {
             child.material.side = THREE.DoubleSide;
           }

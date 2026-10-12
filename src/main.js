@@ -219,6 +219,60 @@ const rimLight = new THREE.DirectionalLight(0xff2a5f, 2.0);
 rimLight.position.set(-10, 16, -12);
 scene.add(rimLight);
 
+// --- DYNAMIC GRAPHICS QUALITY & 60 FPS PERFORMANCE ENGINE ---
+const isMobileDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const isLowPowerHardware = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+
+let currentGraphicsTier = localStorage.getItem('twisted_perf_tier') || (isMobileDevice || isLowPowerHardware ? 'balanced' : 'high');
+
+function applyGraphicsTier(tier, notify = false) {
+  currentGraphicsTier = tier;
+  try {
+    localStorage.setItem('twisted_perf_tier', tier);
+  } catch (e) {}
+
+  if (tier === 'performance') {
+    // 60 FPS ULTRA PERFORMANCE MODE (Zero dynamic shadow pass, DPR 1.0, Maximum speed on budget phones)
+    renderer.setPixelRatio(1.0);
+    renderer.shadowMap.enabled = false;
+    sunLight.castShadow = false;
+    document.body.classList.add('perf-mode');
+    const badge = document.getElementById('perf-mode-label');
+    if (badge) badge.innerText = '60 FPS: MAX';
+    if (notify) showBanner('60 FPS PERFORMANCE MODE ENGAGED', 1600);
+  } else if (tier === 'balanced') {
+    // BALANCED MODE (Lightweight 512 Shadows, Capped DPR on mobile)
+    const maxDpr = isMobileDevice ? 1.25 : 1.5;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.BasicShadowMap;
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.set(512, 512);
+    document.body.classList.remove('perf-mode');
+    const badge = document.getElementById('perf-mode-label');
+    if (badge) badge.innerText = '60 FPS: BALANCED';
+    if (notify) showBanner('GRAPHICS: BALANCED MODE', 1600);
+  } else {
+    // HIGH FIDELITY ULTRA (Full PCF Soft Shadows, 1024 Map, High DPR)
+    const maxDpr = isMobileDevice ? 1.5 : 2.0;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.set(1024, 1024);
+    document.body.classList.remove('perf-mode');
+    const badge = document.getElementById('perf-mode-label');
+    if (badge) badge.innerText = 'GRAPHICS: ULTRA';
+    if (notify) showBanner('GRAPHICS: ULTRA FIDELITY', 1600);
+  }
+
+  renderer.shadowMap.needsUpdate = true;
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// Initial application of graphics tier
+applyGraphicsTier(currentGraphicsTier, false);
+
 function applyArenaTheme(themeId) {
   if (!arena) return;
   const theme = arena.setTheme(themeId);
@@ -255,6 +309,12 @@ const aimPoint = new THREE.Vector3();
 const _scratchHeadPos = new THREE.Vector3();
 const _scratchForward = new THREE.Vector3();
 const _scratchRight = new THREE.Vector3();
+const _scratchMoveInput = new THREE.Vector3();
+const _scratchCamForward = new THREE.Vector3();
+const _scratchCamRight = new THREE.Vector3();
+const _scratchMoveDir = new THREE.Vector3();
+const _scratchTargetVel = new THREE.Vector3();
+const _scratchYUp = new THREE.Vector3(0, 1, 0);
 const _yAxis = new THREE.Vector3(0, 1, 0);
 const _chestOffset = new THREE.Vector3(0, 1.35, 0);
 let viewWidth = window.innerWidth;
@@ -917,6 +977,15 @@ document.getElementById('btn-cycle-theme')?.addEventListener('click', () => {
 document.getElementById('btn-reset-cam')?.addEventListener('click', () => {
   camera.position.copy(defaultCamPos);
   controls.target.copy(defaultTarget);
+});
+
+// Performance / 60 FPS Mode toggle button
+document.getElementById('btn-toggle-perf-mode')?.addEventListener('click', () => {
+  audioSystem.init();
+  audioSystem.playReadyClick();
+  const tiers = ['performance', 'balanced', 'high'];
+  const nextIdx = (tiers.indexOf(currentGraphicsTier) + 1) % tiers.length;
+  applyGraphicsTier(tiers[nextIdx], true);
 });
 
 // --- SUPABASE REALTIME MULTIPLAYER MANAGER ---
@@ -3175,12 +3244,37 @@ document.getElementById('btn-victory-leave')?.addEventListener('click', () => {
 
 // --- RENDER & GAME ANIMATION LOOP ---
 const clock = new THREE.Clock();
+let fpsFrameCount = 0;
+let fpsAccumTime = 0;
+let fpsDropCounter = 0;
 
 function animate() {
   requestAnimationFrame(animate);
 
   const delta = clock.getDelta();
   const scaledDelta = delta * timeDilationFactor;
+
+  // Adaptive Dynamic Frame-Rate Monitor (Auto-promotes 60 FPS on struggling phones)
+  fpsFrameCount++;
+  fpsAccumTime += delta;
+  if (fpsFrameCount >= 90) {
+    const currentFps = fpsFrameCount / Math.max(0.001, fpsAccumTime);
+    fpsFrameCount = 0;
+    fpsAccumTime = 0;
+
+    // If frame rate drops below 42 FPS during gameplay, smoothly step down graphics
+    if (currentFps < 42 && currentGraphicsTier !== 'performance') {
+      fpsDropCounter++;
+      if (fpsDropCounter >= 2) {
+        fpsDropCounter = 0;
+        const nextTier = (currentGraphicsTier === 'high') ? 'balanced' : 'performance';
+        applyGraphicsTier(nextTier, false);
+        showBanner('ADAPTIVE 60 FPS ENGINE // OPTIMIZED GRAPHICS', 2000);
+      }
+    } else {
+      fpsDropCounter = Math.max(0, fpsDropCounter - 1);
+    }
+  }
 
   const modalOpen = isModalActive();
   controls.enabled = !modalOpen;
@@ -3197,44 +3291,43 @@ function animate() {
   // Local Player Movement & Aiming locking (Free during RECON, LOBBY, and STEALTH)
   const isInputLocked = modalOpen || (currentPhase === 'INPUT_FREEZE') || (currentPhase === 'REVEAL') || (currentPhase === 'VICTORY');
   if (localPlayer && localPlayer.isAlive && !isInputLocked) {
-    const moveInput = new THREE.Vector3(0, 0, 0);
-    if (keys.w) moveInput.z -= 1;
-    if (keys.s) moveInput.z += 1;
-    if (keys.a) moveInput.x -= 1;
-    if (keys.d) moveInput.x += 1;
+    _scratchMoveInput.set(0, 0, 0);
+    if (keys.w) _scratchMoveInput.z -= 1;
+    if (keys.s) _scratchMoveInput.z += 1;
+    if (keys.a) _scratchMoveInput.x -= 1;
+    if (keys.d) _scratchMoveInput.x += 1;
     if (analogMove.active && (analogMove.x !== 0 || analogMove.z !== 0)) {
-      moveInput.x = analogMove.x;
-      moveInput.z = analogMove.z;
+      _scratchMoveInput.x = analogMove.x;
+      _scratchMoveInput.z = analogMove.z;
     }
 
-    const inputLen = moveInput.length();
+    const inputLen = _scratchMoveInput.length();
     const isInputActive = (inputLen > 0.01);
-    const targetVelocity = new THREE.Vector3(0, 0, 0);
+    _scratchTargetVel.set(0, 0, 0);
 
     if (isInputActive) {
       const speedScale = analogMove.active ? Math.min(1.0, inputLen) : 1.0;
-      moveInput.normalize();
+      _scratchMoveInput.normalize();
 
       // Convert to camera-relative movement
-      const camForward = new THREE.Vector3();
-      camera.getWorldDirection(camForward);
-      camForward.y = 0;
-      camForward.normalize();
+      camera.getWorldDirection(_scratchCamForward);
+      _scratchCamForward.y = 0;
+      _scratchCamForward.normalize();
 
-      const camRight = new THREE.Vector3().crossVectors(camForward, new THREE.Vector3(0, 1, 0)).normalize();
+      _scratchCamRight.crossVectors(_scratchCamForward, _scratchYUp).normalize();
 
-      // W / up sets moveInput.z to -1. We want -1 to move ALONG camForward.
-      const moveDir = new THREE.Vector3()
-        .add(camRight.clone().multiplyScalar(moveInput.x))
-        .add(camForward.clone().multiplyScalar(-moveInput.z))
+      // W / up sets _scratchMoveInput.z to -1. We want -1 to move ALONG camForward.
+      _scratchMoveDir.set(0, 0, 0)
+        .addScaledVector(_scratchCamRight, _scratchMoveInput.x)
+        .addScaledVector(_scratchCamForward, -_scratchMoveInput.z)
         .normalize();
 
-      targetVelocity.copy(moveDir).multiplyScalar(CONFIG.playerSpeed * speedScale);
+      _scratchTargetVel.copy(_scratchMoveDir).multiplyScalar(CONFIG.playerSpeed * speedScale);
     }
 
     // Natural acceleration and braking momentum (15x accel, 18x brake friction)
     const accelRate = isInputActive ? 15.0 : 18.0;
-    localPlayerVelocity.lerp(targetVelocity, Math.min(1.0, accelRate * delta));
+    localPlayerVelocity.lerp(_scratchTargetVel, Math.min(1.0, accelRate * delta));
 
     const currentSpeed = localPlayerVelocity.length();
     const isMovingNow = (currentSpeed > 0.12);

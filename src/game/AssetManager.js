@@ -223,7 +223,9 @@ class AssetManager {
             if (c.isMesh) {
               c.material = fireMat;
               c.receiveShadow = true;
-              c.castShadow = true;
+              c.castShadow = false;
+              c.matrixAutoUpdate = false;
+              c.updateMatrix();
             }
           });
           this.arenaModels['fire_arena'] = fireModel;
@@ -245,7 +247,9 @@ class AssetManager {
             if (c.isMesh) {
               c.material = streetMat;
               c.receiveShadow = true;
-              c.castShadow = true;
+              c.castShadow = false;
+              c.matrixAutoUpdate = false;
+              c.updateMatrix();
             }
           });
           this.arenaModels['street_fight'] = streetModel;
@@ -269,6 +273,9 @@ class AssetManager {
               if (item.isSrgb) {
                 tex.colorSpace = THREE.SRGBColorSpace;
               }
+              tex.generateMipmaps = true;
+              tex.minFilter = THREE.LinearMipmapLinearFilter;
+              tex.magFilter = THREE.LinearFilter;
               tex.needsUpdate = true;
               this.textures[item.key] = tex;
               checkComplete();
