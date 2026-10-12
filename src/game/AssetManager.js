@@ -119,6 +119,13 @@ export const CHARACTER_DATA = {
     url: '/CHARACTERS/Peasant Girl.fbx',
     danceKey: 'dance_swing',
     danceName: 'FREESTYLE SWING'
+  },
+  'kuchupuchu': {
+    id: 'kuchupuchu',
+    name: 'KUCHUPUCHU',
+    url: '/CHARACTERS/KuchuPuchu.fbx',
+    danceKey: 'dance_breakdance',
+    danceName: 'GNOME BREAKDANCE'
   }
 };
 
@@ -148,6 +155,8 @@ class AssetManager {
       { key: 'ajp_metalness', url: '/CHARACTERS/Character-Textures/AJP-TEXTURE_02.png', type: 'texture', isSrgb: false, flipY: true },
       { key: 'ajp_normal', url: '/CHARACTERS/Character-Textures/AJP-TEXTURE_03.png', type: 'texture', isSrgb: false, flipY: true },
       { key: 'ajp_roughness', url: '/CHARACTERS/Character-Textures/AJP-TEXTURE_04.png', type: 'texture', isSrgb: false, flipY: true },
+      // KuchuPuchu Character PBR Texture (flipY: true)
+      { key: 'kuchupuchu_map', url: '/CHARACTERS/Character-Textures/KuchuPuchu_texture.png', type: 'texture', isSrgb: true, flipY: true },
       // Cyber Ring Arena (Original GLTF)
       { key: 'arena', url: '/assets/areana.glb', type: 'gltf' },
       // Fire Arena ("The Foundry") FBX and PBR Textures
@@ -162,12 +171,13 @@ class AssetManager {
       { key: 'tex_street_metallic', url: encodeURI('/ARENA/StreetFight_Arena/Meshy_AI_Iron_Fist_Arena_1011231729_texture_metallic.png'), type: 'texture', isSrgb: false, flipY: true },
       { key: 'tex_street_roughness', url: encodeURI('/ARENA/StreetFight_Arena/Meshy_AI_Iron_Fist_Arena_1011231729_texture_roughness.png'), type: 'texture', isSrgb: false, flipY: true },
       { key: 'arena_street', url: encodeURI('/ARENA/StreetFight_Arena/Meshy_AI_Iron_Fist_Arena_1011231729_texture.fbx'), type: 'arena_fbx', arenaId: 'street_fight' },
-      // All 5 Selectable Characters
+      // Selectable Characters (AJP, Doggesh Bhair, Big Vegas, Knight, Peasant Girl, KuchuPuchu)
       { key: 'char_ajp', url: '/CHARACTERS/AJP.fbx', type: 'character', charId: 'ajp' },
       { key: 'char_dog', url: '/assets/Pistol Idle.fbx', type: 'character', charId: 'dog' },
       { key: 'char_big_vegas', url: '/CHARACTERS/Big Vegas.fbx', type: 'character', charId: 'big_vegas' },
       { key: 'char_knight', url: '/CHARACTERS/Knight D Pelegrini.fbx', type: 'character', charId: 'knight' },
       { key: 'char_peasant_girl', url: '/CHARACTERS/Peasant Girl.fbx', type: 'character', charId: 'peasant_girl' },
+      { key: 'char_kuchupuchu', url: '/CHARACTERS/KuchuPuchu.fbx', type: 'character', charId: 'kuchupuchu' },
       // Basic Locomotion Pack Animations (shared across all 5 characters including Doggesh Bhair)
       { key: 'idle', url: '/ANIMATIONS/Basic Locomotion Pack/idle.fbx', type: 'clip', inPlace: true },
       { key: 'walk', url: '/ANIMATIONS/Basic Locomotion Pack/walking.fbx', type: 'clip', inPlace: true },

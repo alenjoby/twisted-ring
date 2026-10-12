@@ -175,6 +175,14 @@ export class Character {
             metalness: 0.15
           });
           child.material.needsUpdate = true;
+        } else if (this.characterId === 'kuchupuchu' && this.assetManager.textures?.['kuchupuchu_map']) {
+          child.material = new THREE.MeshStandardMaterial({
+            map: this.assetManager.textures['kuchupuchu_map'],
+            color: 0xffffff,
+            roughness: 0.7,
+            metalness: 0.15
+          });
+          child.material.needsUpdate = true;
         } else if (child.material) {
           const mats = Array.isArray(child.material) ? child.material : [child.material];
           mats.forEach(m => {
