@@ -279,19 +279,20 @@ class AudioSystem {
     if (!this.enabled || !this.ctx) return;
     try {
       const t = this.ctx.currentTime;
+
+      // 1. Doggesh Bhair (Playful double canine bark & yip)
       if (characterId === 'dog') {
-        // Synthesized double bark for Doggesh Bhair
-        [0, 0.13].forEach((offset, idx) => {
+        [0, 0.12].forEach((offset, idx) => {
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = 'sawtooth';
           osc.connect(gain);
           gain.connect(this.ctx.destination);
-          const startFreq = idx === 0 ? 310 : 350;
+          const startFreq = idx === 0 ? 320 : 360;
           osc.frequency.setValueAtTime(startFreq, t + offset);
-          osc.frequency.exponentialRampToValueAtTime(460, t + offset + 0.035);
+          osc.frequency.exponentialRampToValueAtTime(480, t + offset + 0.035);
           osc.frequency.exponentialRampToValueAtTime(140, t + offset + 0.1);
-          gain.gain.setValueAtTime(0.22, t + offset);
+          gain.gain.setValueAtTime(0.25, t + offset);
           gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.1);
           osc.start(t + offset);
           osc.stop(t + offset + 0.1);
@@ -299,6 +300,111 @@ class AudioSystem {
         return;
       }
 
+      // 2. KuchuPuchu (Chirpy melodic gnome laugh wobble)
+      if (characterId === 'kuchupuchu') {
+        [0, 0.08, 0.16].forEach((offset, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          const chirpFreq = idx === 0 ? 740 : (idx === 1 ? 1120 : 880);
+          osc.frequency.setValueAtTime(chirpFreq, t + offset);
+          osc.frequency.exponentialRampToValueAtTime(chirpFreq * 1.35, t + offset + 0.035);
+          osc.frequency.exponentialRampToValueAtTime(chirpFreq * 0.9, t + offset + 0.075);
+          gain.gain.setValueAtTime(0.24, t + offset);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.075);
+          osc.start(t + offset);
+          osc.stop(t + offset + 0.075);
+        });
+        return;
+      }
+
+      // 3. AJP (Signature deep punchline sub-boom + hype synth airhorn)
+      if (characterId === 'ajp') {
+        // Deep punchline sub-boom
+        const subOsc = this.ctx.createOscillator();
+        const subGain = this.ctx.createGain();
+        subOsc.type = 'sine';
+        subOsc.connect(subGain);
+        subGain.connect(this.ctx.destination);
+        subOsc.frequency.setValueAtTime(95, t);
+        subOsc.frequency.exponentialRampToValueAtTime(32, t + 0.32);
+        subGain.gain.setValueAtTime(0.35, t);
+        subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+        subOsc.start(t);
+        subOsc.stop(t + 0.32);
+
+        // Brassy hype airhorn chord
+        [466.16, 622.25, 932.33].forEach(freq => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.frequency.setValueAtTime(freq, t + 0.04);
+          gain.gain.setValueAtTime(0.12, t + 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.34);
+          osc.start(t + 0.04);
+          osc.stop(t + 0.34);
+        });
+        return;
+      }
+
+      // 4. Big Vegas (Retro 70s funk brass horn fanfare slide)
+      if (characterId === 'big_vegas') {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.frequency.setValueAtTime(349.23, t);
+        osc.frequency.exponentialRampToValueAtTime(523.25, t + 0.14);
+        osc.frequency.setValueAtTime(523.25, t + 0.22);
+        osc.frequency.exponentialRampToValueAtTime(698.46, t + 0.36);
+        gain.gain.setValueAtTime(0.24, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+        osc.start(t);
+        osc.stop(t + 0.42);
+        return;
+      }
+
+      // 5. Knight (Heavy metallic sword unsheathe & shield strike)
+      if (characterId === 'knight') {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.frequency.setValueAtTime(1400, t);
+        osc.frequency.exponentialRampToValueAtTime(2800, t + 0.08);
+        osc.frequency.exponentialRampToValueAtTime(450, t + 0.28);
+        gain.gain.setValueAtTime(0.3, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+        osc.start(t);
+        osc.stop(t + 0.28);
+        return;
+      }
+
+      // 6. Peasant Girl (Playful woodwind flute trill)
+      if (characterId === 'peasant_girl') {
+        [587.33, 659.25, 587.33, 783.99].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          const start = t + idx * 0.065;
+          osc.frequency.setValueAtTime(freq, start);
+          gain.gain.setValueAtTime(0.22, start);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.095);
+          osc.start(start);
+          osc.stop(start + 0.095);
+        });
+        return;
+      }
+
+      // Generic Emote Fallback
       const freqs = emoteType === 'TAUNT' ? [520, 390]
         : emoteType === 'DANCE' ? [440, 554.37, 659.25]
         : emoteType === 'JUMP' ? [340, 680]
@@ -317,6 +423,171 @@ class AudioSystem {
         osc.start(start);
         osc.stop(start + 0.12);
       });
+    } catch (e) {}
+  }
+
+  playHeartbeat(intensity = 1.0) {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      // Lub (First lower pulse)
+      const osc1 = this.ctx.createOscillator();
+      const gain1 = this.ctx.createGain();
+      osc1.type = 'sine';
+      osc1.connect(gain1);
+      gain1.connect(this.ctx.destination);
+      osc1.frequency.setValueAtTime(68, t);
+      osc1.frequency.exponentialRampToValueAtTime(36, t + 0.1);
+      gain1.gain.setValueAtTime(0.32 * intensity, t);
+      gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      osc1.start(t);
+      osc1.stop(t + 0.1);
+
+      // Dub (Second higher pulse 0.12s later)
+      const osc2 = this.ctx.createOscillator();
+      const gain2 = this.ctx.createGain();
+      osc2.type = 'sine';
+      osc2.connect(gain2);
+      gain2.connect(this.ctx.destination);
+      osc2.frequency.setValueAtTime(56, t + 0.12);
+      osc2.frequency.exponentialRampToValueAtTime(32, t + 0.22);
+      gain2.gain.setValueAtTime(0.26 * intensity, t + 0.12);
+      gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc2.start(t + 0.12);
+      osc2.stop(t + 0.22);
+    } catch (e) {}
+  }
+
+  playCrowdGasp() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      // Resonant formant intake swoop
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.frequency.setValueAtTime(380, t);
+      osc.frequency.exponentialRampToValueAtTime(740, t + 0.25);
+      gain.gain.setValueAtTime(0.18, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+      osc.start(t);
+      osc.stop(t + 0.32);
+
+      // High-speed near-miss whoosh
+      const whoosh = this.ctx.createOscillator();
+      const wGain = this.ctx.createGain();
+      whoosh.type = 'sine';
+      whoosh.connect(wGain);
+      wGain.connect(this.ctx.destination);
+      whoosh.frequency.setValueAtTime(1250, t);
+      whoosh.frequency.exponentialRampToValueAtTime(260, t + 0.28);
+      wGain.gain.setValueAtTime(0.22, t);
+      wGain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+      whoosh.start(t);
+      whoosh.stop(t + 0.28);
+    } catch (e) {}
+  }
+
+  playCrowdCheer() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      // Low stadium rumble
+      const bass = this.ctx.createOscillator();
+      const bGain = this.ctx.createGain();
+      bass.type = 'sine';
+      bass.connect(bGain);
+      bGain.connect(this.ctx.destination);
+      bass.frequency.setValueAtTime(85, t);
+      bass.frequency.linearRampToValueAtTime(140, t + 0.6);
+      bGain.gain.setValueAtTime(0.28, t);
+      bGain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+      bass.start(t);
+      bass.stop(t + 0.7);
+
+      // Ascending triumphant harmony chords
+      [330, 440, 554.37, 660].forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.frequency.setValueAtTime(freq, t + idx * 0.04);
+        gain.gain.setValueAtTime(0.14, t + idx * 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
+        osc.start(t + idx * 0.04);
+        osc.stop(t + 0.65);
+      });
+    } catch (e) {}
+  }
+
+  playAnnouncerCue(type = 'engage') {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      if (type === 'engage') {
+        // Fast energetic rising fanfare
+        [440, 554.37, 659.25, 880].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          const start = t + idx * 0.055;
+          osc.frequency.setValueAtTime(freq, start);
+          gain.gain.setValueAtTime(0.16, start);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
+          osc.start(start);
+          osc.stop(start + 0.22);
+        });
+      } else if (type === 'close_shave') {
+        // Rapid dual warning ping
+        [880, 1174.66].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          const start = t + idx * 0.06;
+          osc.frequency.setValueAtTime(freq, start);
+          gain.gain.setValueAtTime(0.2, start);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.14);
+          osc.start(start);
+          osc.stop(start + 0.14);
+        });
+      } else if (type === 'match_point') {
+        // High stakes dramatic brass strike
+        [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          const start = t + idx * 0.07;
+          osc.frequency.setValueAtTime(freq, start);
+          gain.gain.setValueAtTime(0.22, start);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.38);
+          osc.start(start);
+          osc.stop(start + 0.38);
+        });
+      } else if (type === 'stalemate') {
+        // Tension chord resolving down
+        [440, 370, 311.13].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          const start = t + idx * 0.08;
+          osc.frequency.setValueAtTime(freq, start);
+          gain.gain.setValueAtTime(0.2, start);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.26);
+          osc.start(start);
+          osc.stop(start + 0.26);
+        });
+      }
     } catch (e) {}
   }
 

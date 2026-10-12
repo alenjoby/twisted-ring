@@ -147,6 +147,16 @@ let victoryOrbitAngle = 0;
 let screenShakeIntensity = 0;
 let screenShakeTime = 0;
 
+// Dynamic Camera Punch-In on Eliminations (Feature 4)
+let cameraPunchTarget = null;
+let cameraPunchTimer = 0;
+
+function triggerCameraPunch(targetPosition, durationMs = 750) {
+  if (!targetPosition || currentPhase === 'VICTORY') return;
+  cameraPunchTarget = targetPosition.clone();
+  cameraPunchTimer = durationMs / 1000;
+}
+
 function triggerScreenShake(intensity = 0.5) {
   screenShakeIntensity = Math.min(1.0, screenShakeIntensity + intensity);
 }
@@ -292,17 +302,71 @@ function applyArenaTheme(themeId) {
   if (badge) badge.innerText = `MAP: ${theme.name}`;
 }
 
-function applyMatchModifier(modifierId) {
+// --- WHEEL OF CHAOS ROUND MODIFIERS (Feature 1) ---
+const CHAOS_MODIFIERS = [
+  { id: 'standard', name: 'STANDARD ARENA', desc: 'Standard tactical engagement.' },
+  { id: 'turbo_blitz', name: 'TURBO BLITZ', desc: 'Operator velocity boosted +50%!' },
+  { id: 'bouncy_lasers', name: 'BOUNCY RICOCHET', desc: 'Lasers bounce off perimeter energy wall!' },
+  { id: 'blackout', name: 'BLACKOUT STEALTH', desc: 'Dimmed perimeter lighting // Covert night ops!' },
+  { id: 'titan_mode', name: 'TITAN OPERATORS', desc: 'Giant operators with expanded hitboxes!' },
+  { id: 'micro_mode', name: 'MICRO OPERATORS', desc: 'Pocket agile operators with mini hitboxes!' },
+  { id: 'double_points', name: 'DOUBLE DOWN', desc: '2X score points for all eliminations and wins!' }
+];
+
+function pickNextChaosModifier(seriesRound, totalRounds) {
+  if (totalRounds > 1 && seriesRound === totalRounds) {
+    return 'double_points';
+  }
+  const pool = ['standard', 'turbo_blitz', 'bouncy_lasers', 'blackout', 'titan_mode', 'micro_mode'];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function applyMatchModifier(modifierId, notify = false) {
   currentMatchModifier = modifierId || 'standard';
-  if (currentMatchModifier === 'turbo_speed') {
-    CONFIG.playerSpeed = 10.6;
+
+  // 1. Movement speed and perimeter shrink tuning
+  if (currentMatchModifier === 'turbo_blitz' || currentMatchModifier === 'turbo_speed') {
+    CONFIG.playerSpeed = CONFIG.basePlayerSpeed * 1.5;
     CONFIG.shrinkPerRound = 2.6;
-  } else if (currentMatchModifier === 'sudden_death') {
-    CONFIG.playerSpeed = 8.8;
-    CONFIG.shrinkPerRound = 3.8;
+  } else if (currentMatchModifier === 'micro_mode') {
+    CONFIG.playerSpeed = CONFIG.basePlayerSpeed * 1.25;
+    CONFIG.shrinkPerRound = CONFIG.baseShrinkPerRound;
+  } else if (currentMatchModifier === 'titan_mode') {
+    CONFIG.playerSpeed = CONFIG.basePlayerSpeed * 0.88;
+    CONFIG.shrinkPerRound = CONFIG.baseShrinkPerRound;
   } else {
     CONFIG.playerSpeed = CONFIG.basePlayerSpeed;
     CONFIG.shrinkPerRound = CONFIG.baseShrinkPerRound;
+  }
+
+  // 2. Operator scale modifier (Titan vs Micro vs Standard)
+  const scaleMult = (currentMatchModifier === 'titan_mode') ? 1.35
+    : (currentMatchModifier === 'micro_mode') ? 0.72
+    : 1.0;
+  players.forEach(p => {
+    if (p.setScaleModifier) p.setScaleModifier(scaleMult);
+  });
+
+  // 3. Blackout stealth lighting
+  if (hemiLight && sunLight && ringSpot && rimLight) {
+    if (currentMatchModifier === 'blackout') {
+      hemiLight.intensity = 0.45;
+      sunLight.intensity = 0.35;
+      ringSpot.intensity = 1.0;
+      rimLight.intensity = 3.6;
+      rimLight.color.setHex(0x00f0ff);
+    } else {
+      hemiLight.intensity = 2.5;
+      sunLight.intensity = 2.8;
+      ringSpot.intensity = 3.8;
+      rimLight.intensity = 2.0;
+      rimLight.color.setHex(0xff2a5f);
+    }
+  }
+
+  const modDef = CHAOS_MODIFIERS.find(m => m.id === currentMatchModifier);
+  if (notify && modDef && currentMatchModifier !== 'standard') {
+    showBanner(`MODIFIER: ${modDef.name} // ${modDef.desc}`, 2600);
   }
 }
 
@@ -1105,6 +1169,9 @@ const supabaseManager = new SupabaseManager({
     if (data?.totalSeriesRounds) {
       totalSeriesRounds = parseInt(data.totalSeriesRounds, 10) || 1;
     }
+    if (data?.modifier) {
+      applyMatchModifier(data.modifier, true);
+    }
     if (data?.seriesRound && data.seriesRound !== currentSeriesRound) {
       prepareNextSeriesRound(data.seriesRound, totalSeriesRounds);
     }
@@ -1292,15 +1359,16 @@ function prepareNextSeriesRound(nextSeriesRound, nextTotalRounds = totalSeriesRo
   if (arena) arena.resetRadius(arenaRadius);
   consecutiveStalemates = 0;
 
+  // Feature 1: Roll dynamic modifier for multi-round series
+  if (totalSeriesRounds > 1) {
+    const nextMod = pickNextChaosModifier(currentSeriesRound, totalSeriesRounds);
+    applyMatchModifier(nextMod, true);
+  } else {
+    applyMatchModifier('standard', false);
+  }
+
   let i = 0;
   players.forEach(p => {
-    if (p.baseScale && p.fbxModel) {
-      p.fbxModel.scale.setScalar(p.baseScale);
-      p.fbxModel.position.y = p.baseOffsetY || 0;
-    } else if (p.originalScale && p.fbxModel) {
-      p.fbxModel.scale.setScalar(p.originalScale);
-      p.fbxModel.position.y = p.baseOffsetY || 0;
-    }
     p.setLaserActive(false);
     const spawnPos = getRadialSpawnPosition(i, Math.max(1, players.size));
     p.hasReceivedMovePacket = false;
@@ -1310,6 +1378,8 @@ function prepareNextSeriesRound(nextSeriesRound, nextTotalRounds = totalSeriesRo
     if (p.htmlTag) p.htmlTag.classList.remove('hidden');
     i++;
   });
+  // Ensure scale modifier is active after reviving models
+  applyMatchModifier(currentMatchModifier, false);
 
   currentPhase = 'ROUND_END';
   syncSeriesRoundsUI();
@@ -1331,6 +1401,11 @@ function startRound(broadcast = true, syncEpoch = null) {
   if (stealthCountdownInterval) {
     clearInterval(stealthCountdownInterval);
     stealthCountdownInterval = null;
+  }
+
+  // Feature 5: Match point cue on final round of multi-round match
+  if (currentSeriesRound === totalSeriesRounds && totalSeriesRounds > 1) {
+    audioSystem.playAnnouncerCue('match_point');
   }
 
   // PHASE 1: RECON (1.5 seconds) - All players visible to observe trajectories
@@ -1360,7 +1435,8 @@ function startRound(broadcast = true, syncEpoch = null) {
       totalSeriesRounds,
       serverStartTime: now,
       reconDuration,
-      stealthDuration
+      stealthDuration,
+      modifier: currentMatchModifier
     });
   }
 
@@ -1416,6 +1492,11 @@ function startRound(broadcast = true, syncEpoch = null) {
       countdownTime = sec;
       timerEl.innerText = countdownTime.toString().padStart(2, '0');
       audioSystem.playCountdownTick(countdownTime === 0);
+
+      // Accelerating sub-bass heartbeat in final 3 seconds (Feature 5)
+      if (sec <= 3 && sec > 0) {
+        audioSystem.playHeartbeat(1.0 + (3 - sec) * 0.4);
+      }
 
       if (remainingMs <= 0) {
         clearInterval(stealthCountdownInterval);
@@ -1496,6 +1577,7 @@ function executeReveal() {
   });
 
   audioSystem.playLaserShot();
+  audioSystem.playAnnouncerCue('engage');
 
   // 2. Authoritative host referee evaluates hits with 520ms grace window for peer lock packets
   if (isLocalHost) {
@@ -1516,6 +1598,7 @@ function executeReveal() {
 
 function evaluateHostVerdict(isAuthoritative = true) {
   const hitList = [];
+  const nearMissList = [];
   const alivePlayers = Array.from(players.values()).filter(p => p.isAlive);
 
   // Ensure every alive player has locked coordinates recorded for deterministic raycasting
@@ -1547,7 +1630,9 @@ function evaluateHostVerdict(isAuthoritative = true) {
 
     let closestTarget = null;
     let minProj = Infinity;
+    let isRicochetHit = false;
 
+    // Direct ray check against alive targets
     alivePlayers.forEach(target => {
       if (shooter.id === target.id) return;
 
@@ -1562,28 +1647,90 @@ function evaluateHostVerdict(isAuthoritative = true) {
       if (proj > 0 && proj < ray.length) {
         const closestPoint = ray.origin.clone().add(ray.direction.clone().multiplyScalar(proj));
         const horizDist = Math.hypot(closestPoint.x - targetPos.x, closestPoint.z - targetPos.z);
+        const hitboxR = target.getHitboxRadius ? target.getHitboxRadius() : 0.90;
 
-        // Horizontal cylinder hitbox radius 0.90m - only strike the closest obstacle/player along the ray
-        if (horizDist <= 0.90 && proj < minProj) {
+        // Hitbox strike
+        if (horizDist <= hitboxR && proj < minProj) {
           minProj = proj;
           closestTarget = target;
+        } else if (horizDist > hitboxR && horizDist <= 1.45 && proj < 25.0) {
+          // Feature 4: Near-miss bullet-time graze detection
+          nearMissList.push({ targetId: target.id, shooterId: shooter.id, distance: horizDist });
         }
       }
     });
 
+    // Feature 1: Bouncy Lasers ricochet off perimeter cylinder wall
+    if (!closestTarget && currentMatchModifier === 'bouncy_lasers') {
+      const R = arenaRadius;
+      const Ox = ray.origin.x;
+      const Oz = ray.origin.z;
+      const Dx = ray.direction.x;
+      const Dz = ray.direction.z;
+      const A = Dx * Dx + Dz * Dz;
+      if (A > 0.001) {
+        const B = 2 * (Ox * Dx + Oz * Dz);
+        const C = Ox * Ox + Oz * Oz - R * R;
+        const disc = B * B - 4 * A * C;
+        if (disc > 0) {
+          const tWall = (-B + Math.sqrt(disc)) / (2 * A);
+          if (tWall > 0.2 && tWall < ray.length) {
+            const wallX = Ox + tWall * Dx;
+            const wallZ = Oz + tWall * Dz;
+            const nx = -wallX / R;
+            const nz = -wallZ / R;
+            const dot = Dx * nx + Dz * nz;
+            const reflDx = Dx - 2 * dot * nx;
+            const reflDz = Dz - 2 * dot * nz;
+            const reflDir = new THREE.Vector3(reflDx, 0, reflDz).normalize();
+            const reflOrigin = new THREE.Vector3(wallX + nx * 0.12, ray.origin.y, wallZ + nz * 0.12);
+            const remLength = Math.max(0, ray.length - tWall);
+
+            alivePlayers.forEach(target => {
+              const lockedTarget = lockedPlayerCoords.get(target.id);
+              const targetPos = lockedTarget
+                ? new THREE.Vector3(lockedTarget.x, lockedTarget.y + 1.35, lockedTarget.z)
+                : target.group.position.clone().add(new THREE.Vector3(0, 1.35, 0));
+              const rv = new THREE.Vector3().subVectors(targetPos, reflOrigin);
+              const rproj = rv.dot(reflDir);
+              if (rproj > 0.15 && rproj < remLength) {
+                const rPoint = reflOrigin.clone().addScaledVector(reflDir, rproj);
+                const rHorizDist = Math.hypot(rPoint.x - targetPos.x, rPoint.z - targetPos.z);
+                const rHitbox = target.getHitboxRadius ? target.getHitboxRadius() : 0.90;
+                if (rHorizDist <= rHitbox && (rproj < minProj || !closestTarget)) {
+                  closestTarget = target;
+                  isRicochetHit = true;
+                } else if (rHorizDist > rHitbox && rHorizDist <= 1.45) {
+                  nearMissList.push({ targetId: target.id, shooterId: shooter.id, isRicochet: true });
+                }
+              }
+            });
+          }
+        }
+      }
+    }
+
     if (closestTarget) {
-      hitList.push({ shooterId: shooter.id, targetId: closestTarget.id });
+      hitList.push({ shooterId: shooter.id, targetId: closestTarget.id, isRicochet: isRicochetHit });
     }
   });
 
   const eliminatedIds = [...new Set(hitList.map(h => h.targetId))];
   const survivors = alivePlayers.filter(p => !eliminatedIds.includes(p.id));
-  const isRoundComplete = survivors.length <= 1;
-  const roundWinnerId = isRoundComplete ? (survivors.length === 1 ? survivors[0].id : null) : null;
-  const roundDanceKey = isRoundComplete ? pickRandomVictoryDance() : null;
+
+  // Circle Stalemate Detection (User Core Request): Advance series round if no one dies and circle has collapsed
+  const noDeaths = eliminatedIds.length === 0;
+  const isCircleStalemate = noDeaths && (arenaRadius <= 4.2 || (arenaRadius <= 4.6 && consecutiveStalemates >= 2));
+
+  const isRoundComplete = (survivors.length <= 1) || (isCircleStalemate && totalSeriesRounds > 1);
+  const roundWinnerId = (survivors.length === 1) ? survivors[0].id : null;
+  const isStalemateDraw = isCircleStalemate && isRoundComplete;
+  const roundDanceKey = (isRoundComplete && roundWinnerId) ? pickRandomVictoryDance() : null;
   const isGameOver = isRoundComplete && (currentSeriesRound >= totalSeriesRounds);
 
-  // Compute authoritative projected scores across all players
+  // Authoritative projected scores (Double Down support)
+  const killPoints = (currentMatchModifier === 'double_points') ? 200 : 100;
+  const winPoints = (currentMatchModifier === 'double_points') ? 500 : 250;
   const projectedScores = {};
   players.forEach(p => {
     projectedScores[p.id] = {
@@ -1594,13 +1741,13 @@ function evaluateHostVerdict(isAuthoritative = true) {
   });
   hitList.forEach(({ shooterId }) => {
     if (projectedScores[shooterId]) {
-      projectedScores[shooterId].score += 100;
+      projectedScores[shooterId].score += killPoints;
     }
   });
   if (isRoundComplete) {
     Object.keys(projectedScores).forEach(pid => {
       if (roundWinnerId && pid === roundWinnerId) {
-        projectedScores[pid].score += 250;
+        projectedScores[pid].score += winPoints;
         projectedScores[pid].wins += 1;
         projectedScores[pid].winStreak += 1;
       } else {
@@ -1672,11 +1819,14 @@ function evaluateHostVerdict(isAuthoritative = true) {
     isAuthoritative,
     eliminatedIds,
     hits: hitList,
+    nearMisses: nearMissList,
+    modifier: currentMatchModifier,
     lockedCoords: Object.fromEntries(lockedPlayerCoords),
     ringRadius: newRingRadius,
     isRoundComplete,
     roundWinnerId,
     roundDanceKey,
+    isStalemateDraw: !!isStalemateDraw,
     projectedScores,
     isGameOver,
     winnerId,
@@ -1708,6 +1858,10 @@ function applyRoundVerdict(verdict) {
   if (verdict.totalSeriesRounds) totalSeriesRounds = verdict.totalSeriesRounds;
   syncSeriesRoundsUI();
 
+  if (verdict.modifier && verdict.modifier !== currentMatchModifier) {
+    applyMatchModifier(verdict.modifier, false);
+  }
+
   if (revealWatchdogTimer) {
     clearTimeout(revealWatchdogTimer);
     revealWatchdogTimer = null;
@@ -1736,6 +1890,9 @@ function applyRoundVerdict(verdict) {
   });
 
   // Apply authoritative projected scores if present, otherwise fallback to local score calculation
+  const killPoints = (verdict.modifier === 'double_points' || currentMatchModifier === 'double_points') ? 200 : 100;
+  const winPoints = (verdict.modifier === 'double_points' || currentMatchModifier === 'double_points') ? 500 : 250;
+
   if (verdict.projectedScores && typeof verdict.projectedScores === 'object') {
     players.forEach(p => {
       const ps = verdict.projectedScores[p.id];
@@ -1750,7 +1907,7 @@ function applyRoundVerdict(verdict) {
     if (verdict.hits) {
       verdict.hits.forEach(({ shooterId }) => {
         const shooter = players.get(shooterId);
-        if (shooter) shooter.score += 100;
+        if (shooter) shooter.score += killPoints;
       });
     }
     if (verdict.isRoundComplete || verdict.isGameOver) {
@@ -1759,7 +1916,7 @@ function applyRoundVerdict(verdict) {
         if (rWinId && p.id === rWinId) {
           p.wins = (p.wins || 0) + 1;
           p.winStreak = (p.winStreak || 0) + 1;
-          p.score += 250;
+          p.score += winPoints;
         } else {
           p.winStreak = 0;
         }
@@ -1784,17 +1941,32 @@ function applyRoundVerdict(verdict) {
 
   if (someoneDied) {
     audioSystem.playCinematicElimination();
+    audioSystem.playCrowdCheer();
     triggerScreenShake(localPlayerEliminated ? 0.8 : 0.45);
     triggerDeathVignette(localPlayerEliminated ? 1400 : 700, localPlayerEliminated);
-  }
 
-  // Dramatic slow-motion on round or match conclusion
-  if ((verdict.isRoundComplete || verdict.isGameOver) && someoneDied) {
-    timeDilationFactor = 0.32;
+    // Feature 4: Matrix Kill Slow-Mo & Dynamic Camera Zoom punch-in
+    if (verdict.eliminatedIds && verdict.eliminatedIds.length > 0) {
+      const casualty = players.get(verdict.eliminatedIds[0]);
+      if (casualty && casualty.group) {
+        triggerCameraPunch(casualty.group.position, 750);
+      }
+    }
+    timeDilationFactor = 0.25;
     audioSystem.playSlowMoFinish();
     setTimeout(() => {
       timeDilationFactor = 1.0;
-    }, 1100);
+    }, 650);
+  } else if (verdict.nearMisses && verdict.nearMisses.length > 0) {
+    // Feature 4 & 5: Near-miss bullet-time dodge + crowd gasp
+    timeDilationFactor = 0.45;
+    setTimeout(() => {
+      timeDilationFactor = 1.0;
+    }, 400);
+    audioSystem.playCrowdGasp();
+    audioSystem.playAnnouncerCue('close_shave');
+    showBanner('CLOSE SHAVE // BULLET-TIME DODGE!', 1600);
+    triggerScreenShake(0.22);
   }
 
   updateScoreboard();
@@ -1819,20 +1991,25 @@ function applyRoundVerdict(verdict) {
       const sortedStandings = Array.from(players.values()).sort((a, b) => b.score - a.score);
       const seriesLeader = sortedStandings[0];
       const leaderText = seriesLeader ? `LEADER: ${seriesLeader.name.toUpperCase()} (${seriesLeader.score} PTS)` : '';
+      const nextSR = currentSeriesRound + 1;
 
       if (roundWinner) {
         roundWinner.playAction(verdict.roundDanceKey || pickRandomVictoryDance(), 0.2);
         audioSystem.playVictoryFanfare();
         clockPhaseLabel.innerText = `ROUND ${currentSeriesRound}/${totalSeriesRounds} COMPLETE`;
-        clockGuidanceText.innerText = `${roundWinner.name.toUpperCase()} WON ROUND (+250 PTS) // ${leaderText}`;
-        showBanner(`ROUND ${currentSeriesRound}/${totalSeriesRounds}: ${roundWinner.name.toUpperCase()} (+250 PTS) // ${leaderText}`, 3400);
+        clockGuidanceText.innerText = `${roundWinner.name.toUpperCase()} WON ROUND (+${winPoints} PTS) // ${leaderText}`;
+        showBanner(`ROUND ${currentSeriesRound}/${totalSeriesRounds}: ${roundWinner.name.toUpperCase()} (+${winPoints} PTS) // ${leaderText}`, 3400);
+      } else if (verdict.isStalemateDraw) {
+        audioSystem.playAnnouncerCue('stalemate');
+        clockPhaseLabel.innerText = `ROUND ${currentSeriesRound}/${totalSeriesRounds} STALEMATE`;
+        clockGuidanceText.innerText = `CIRCLE COLLAPSED // ADVANCING TO ROUND ${nextSR} // ${leaderText}`;
+        showBanner(`ROUND ${currentSeriesRound}/${totalSeriesRounds} STALEMATE // CIRCLE COLLAPSED! ADVANCING TO ROUND ${nextSR}`, 3400);
       } else {
         clockPhaseLabel.innerText = `ROUND ${currentSeriesRound}/${totalSeriesRounds} DRAW`;
         clockGuidanceText.innerText = `NO SURVIVORS // ${leaderText}`;
         showBanner(`ROUND ${currentSeriesRound}/${totalSeriesRounds} DRAW // ${leaderText}`, 3400);
       }
 
-      const nextSR = currentSeriesRound + 1;
       roundTransitionTimer = setTimeout(() => {
         roundTransitionTimer = null;
         if (currentPhase === 'VICTORY') return;
@@ -2128,6 +2305,9 @@ function resetGame({ resetScores = true } = {}) {
   ringSpot.target.position.set(0, 0, 0);
   ringSpot.intensity = 3.8;
   applyArenaTheme(currentArenaTheme);
+  applyMatchModifier('standard', false);
+  cameraPunchTarget = null;
+  cameraPunchTimer = 0;
 
   // Randomize demo bot characters for the next match in Public mode
   randomizePracticeBotCharacters();
@@ -2873,6 +3053,7 @@ document.querySelectorAll('#char-cards-container .char-card').forEach(card => {
     card.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
     audioSystem.init();
     audioSystem.playReadyClick();
+    audioSystem.playEmoteSound('HYPE', selectedCharacterId);
   });
 });
 
@@ -3474,6 +3655,14 @@ function animate() {
     camera.lookAt(0, 1.05, 0);
     controls.target.set(0, 1.05, 0);
   } else {
+    // Dynamic camera punch-in on casualty (Feature 4)
+    if (cameraPunchTimer > 0 && cameraPunchTarget) {
+      cameraPunchTimer -= delta;
+      controls.target.lerp(cameraPunchTarget, Math.min(1.0, delta * 7.5));
+      if (cameraPunchTimer <= 0) {
+        cameraPunchTarget = null;
+      }
+    }
     // Update OrbitControls smoothly
     controls.update();
   }

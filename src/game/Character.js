@@ -98,6 +98,7 @@ export class Character {
     this.rightHandBone = null;
     this.baseScale = 1;
     this.baseOffsetY = 0;
+    this.scaleModifier = 1.0;
 
     this.initModelFromAssets();
     this.initHUD();
@@ -260,6 +261,18 @@ export class Character {
     this.currentAction = null;
     this.currentActionName = 'idle';
     this.initModelFromAssets();
+  }
+
+  setScaleModifier(multiplier = 1.0) {
+    this.scaleModifier = Math.max(0.4, Math.min(2.0, multiplier));
+    if (this.fbxModel) {
+      this.fbxModel.scale.setScalar(this.baseScale * this.scaleModifier);
+      this.fbxModel.position.set(0, this.baseOffsetY * this.scaleModifier, 0);
+    }
+  }
+
+  getHitboxRadius() {
+    return 0.90 * (this.scaleModifier || 1.0);
   }
 
   attachBlasterAndLaser(handBone) {
