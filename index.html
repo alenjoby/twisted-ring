@@ -4,6 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>TWISTED RING // PREDICTION TACTICAL</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#090c13" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Twisted Ring" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -54,6 +63,21 @@
           <span>ENTER BATTLEGROUND</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
+
+        <!-- Install PWA Button (Visible on mobile/desktop when app is not yet installed) -->
+        <button id="btn-install-pwa" class="hud-btn welcome-install-btn hidden" type="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span id="install-btn-text">INSTALL APP TO PHONE</span>
+        </button>
+      </div>
+
+      <!-- iOS Safari Add to Home Screen Instructions -->
+      <div id="ios-install-banner" class="ios-install-banner hidden">
+        <div class="ios-banner-text">
+          <span>INSTALL ON IPHONE: TAP</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+          <span>SHARE &amp; TAP <strong>ADD TO HOME SCREEN</strong></span>
+        </div>
       </div>
 
       <div class="welcome-footer-meta">
@@ -461,6 +485,9 @@
         <button id="btn-sound" class="hud-btn hud-btn-icon" title="Toggle Sound">
           <svg id="sound-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
         </button>
+        <button id="btn-hud-install" class="hud-btn hud-btn-icon hidden" type="button" title="Install App to Phone">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
       </div>
     </header>
 
@@ -668,6 +695,12 @@
         <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
       </button>
     </div>
+  </div>
+
+  <!-- Auto-Update Toast Indicator -->
+  <div id="pwa-update-toast" class="pwa-update-toast hidden">
+    <div class="pwa-toast-dot"></div>
+    <span id="pwa-update-text">UPDATE READY // RELOADING</span>
   </div>
 
   <script type="module" src="/src/main.js"></script>

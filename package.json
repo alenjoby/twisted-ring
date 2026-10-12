@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/update-build-meta.js",
     "build": "vite build",
     "preview": "vite preview"
   },

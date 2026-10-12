@@ -42,6 +42,59 @@ let footstepTimer = 0;
 let localPlayerDeployed = false;
 let revealWatchdogTimer = null;
 
+// --- PWA & ZERO-STALE AUTO-UPDATE CONTROLLER ---
+let pendingUpdateReload = false;
+let swRegistration = null;
+let currentAppVersion = null;
+
+function showUpdateToast(msg = 'UPDATE INSTALLED // RELOADING') {
+  const toast = document.getElementById('pwa-update-toast');
+  const txt = document.getElementById('pwa-update-text');
+  if (toast) {
+    if (txt && msg) txt.innerText = msg;
+    toast.classList.remove('hidden');
+  }
+}
+
+function executeSafeReload() {
+  showUpdateToast('UPDATE INSTALLED // RELOADING');
+  setTimeout(() => {
+    window.location.reload();
+  }, 500);
+}
+
+function onNewUpdateReady() {
+  console.log('[PWA] New update ready for application');
+  if (currentPhase === 'LOBBY' || currentPhase === 'VICTORY' || currentPhase === 'ROUND_END' || !localPlayerDeployed) {
+    executeSafeReload();
+  } else {
+    pendingUpdateReload = true;
+    showBanner('UPDATE AVAILABLE // REFRESHING AT ROUND END', 3200);
+  }
+}
+
+async function checkForVersionUpdate() {
+  try {
+    const res = await fetch(`/version.json?_t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!currentAppVersion) {
+      currentAppVersion = data.version;
+      return;
+    }
+    if (data.version && data.version !== currentAppVersion) {
+      console.log('[PWA] Version bump detected:', currentAppVersion, '->', data.version);
+      currentAppVersion = data.version;
+      if (swRegistration) {
+        swRegistration.update();
+      }
+      onNewUpdateReady();
+    }
+  } catch (e) {
+    // Offline or network error
+  }
+}
+
 function formatRoundPillLabel() {
   if (totalSeriesRounds > 1) {
     return `ROUND ${currentSeriesRound}/${totalSeriesRounds}`;
@@ -2010,6 +2063,10 @@ function resetGame({ resetScores = true } = {}) {
     clearTimeout(roundTransitionTimer);
     roundTransitionTimer = null;
   }
+  if (pendingUpdateReload) {
+    executeSafeReload();
+    return;
+  }
   const winnerModal = document.getElementById('winner-modal');
   if (winnerModal) winnerModal.classList.add('hidden');
 
@@ -2848,6 +2905,10 @@ document.getElementById('btn-friends-copy-link')?.addEventListener('click', () =
 });
 
 document.getElementById('btn-friends-leave')?.addEventListener('click', () => {
+  if (pendingUpdateReload) {
+    executeSafeReload();
+    return;
+  }
   clearPracticeBots();
   supabaseManager.leaveRoom();
   closeFriendsHub();
@@ -3033,6 +3094,10 @@ document.getElementById('btn-join-private')?.addEventListener('click', () => {
 });
 
 document.getElementById('btn-leave-room')?.addEventListener('click', () => {
+  if (pendingUpdateReload) {
+    executeSafeReload();
+    return;
+  }
   clearPracticeBots();
   supabaseManager.leaveRoom();
   lobbyModal.classList.remove('active');
@@ -3113,6 +3178,10 @@ document.getElementById('btn-victory-arena')?.addEventListener('click', () => {
 });
 
 document.getElementById('btn-victory-leave')?.addEventListener('click', () => {
+  if (pendingUpdateReload) {
+    executeSafeReload();
+    return;
+  }
   resetGame({ resetScores: true });
   clearPracticeBots();
   supabaseManager.leaveRoom();
@@ -3380,4 +3449,113 @@ window.addEventListener('resize', () => {
 updateDemoBotsButtonUI();
 supabaseManager.startPingInterval();
 
+function initPWAAndAutoUpdate() {
+  const btnInstallPwa = document.getElementById('btn-install-pwa');
+  const btnHudInstall = document.getElementById('btn-hud-install');
+  const iosInstallBanner = document.getElementById('ios-install-banner');
+
+  let deferredInstallPrompt = null;
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true ||
+    document.referrer.includes('android-app://');
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    if (!isStandalone) {
+      if (btnInstallPwa) btnInstallPwa.classList.remove('hidden');
+      if (btnHudInstall) btnHudInstall.classList.remove('hidden');
+    }
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    if (btnInstallPwa) btnInstallPwa.classList.add('hidden');
+    if (btnHudInstall) btnHudInstall.classList.add('hidden');
+    if (iosInstallBanner) iosInstallBanner.classList.add('hidden');
+    showBanner('APP INSTALLED TO PHONE', 2500);
+  });
+
+  const triggerPwaInstall = async () => {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      if (outcome === 'accepted') {
+        if (btnInstallPwa) btnInstallPwa.classList.add('hidden');
+        if (btnHudInstall) btnHudInstall.classList.add('hidden');
+      }
+      deferredInstallPrompt = null;
+    } else {
+      showBanner('TAP SHARE -> ADD TO HOME SCREEN TO INSTALL', 3000);
+    }
+  };
+
+  if (btnInstallPwa) btnInstallPwa.addEventListener('click', triggerPwaInstall);
+  if (btnHudInstall) btnHudInstall.addEventListener('click', triggerPwaInstall);
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if (isIOS && !isStandalone && iosInstallBanner) {
+    iosInstallBanner.classList.remove('hidden');
+  }
+
+  // Register Service Worker with updateViaCache: 'none'
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+        .then((reg) => {
+          swRegistration = reg;
+          console.log('[PWA] Service Worker registered with updateViaCache: none');
+
+          reg.update();
+
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            if (!newWorker) return;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+              }
+            });
+          });
+        })
+        .catch((err) => {
+          console.warn('[PWA] Service Worker registration failed:', err);
+        });
+
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        onNewUpdateReady();
+      });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        if (swRegistration) swRegistration.update();
+        checkForVersionUpdate();
+      }
+    });
+
+    window.addEventListener('focus', () => {
+      if (swRegistration) swRegistration.update();
+      checkForVersionUpdate();
+    });
+
+    setInterval(() => {
+      if (swRegistration) swRegistration.update();
+      checkForVersionUpdate();
+    }, 45000);
+  }
+
+  checkForVersionUpdate();
+}
+
+initPWAAndAutoUpdate();
+
 animate();
+

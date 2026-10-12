@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#141926" />
+      <stop offset="100%" stop-color="#090c13" />
+    </radialGradient>
+    <radialGradient id="goldGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="70%" stop-color="#ffcc00" stop-opacity="1" />
+      <stop offset="100%" stop-color="#ff9900" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="laserBeam" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff2a5f" />
+      <stop offset="100%" stop-color="#ffcc00" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#ffcc00" stroke-width="26" opacity="0.9" />
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#ffe680" stroke-width="12" />
+  <circle cx="256" cy="256" r="82" fill="none" stroke="#ffffff" stroke-width="14" opacity="0.9" />
+  <circle cx="256" cy="256" r="32" fill="#ff2a5f" />
+  <circle cx="256" cy="256" r="16" fill="#ffffff" />
+  <line x1="256" y1="56" x2="256" y2="456" stroke="rgba(255,255,255,0.4)" stroke-width="8" stroke-dasharray="24 16" />
+  <line x1="56" y1="256" x2="456" y2="256" stroke="rgba(255,255,255,0.4)" stroke-width="8" stroke-dasharray="24 16" />
+  <circle cx="256" cy="256" r="12" fill="#ffffff" />
+</svg>
