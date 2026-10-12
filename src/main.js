@@ -34,6 +34,7 @@ let currentRound = 1;
 let totalSeriesRounds = 1;
 let currentSeriesRound = 1;
 let arenaRadius = CONFIG.initialArenaRadius;
+let arena = null;
 let currentRoomId = 'sector_1';
 let currentSquadName = 'ALPHA DOGS';
 let currentArenaTheme = 'cyber_gold';
@@ -267,7 +268,7 @@ function applyGraphicsTier(tier, notify = false) {
     if (notify) showBanner('GRAPHICS: ULTRA FIDELITY', 1600);
   }
 
-  if (typeof arena !== 'undefined' && arena) {
+  if (arena) {
     arena.setQualityTier(tier);
   }
 
@@ -332,7 +333,6 @@ let currentRoundSyncEpoch = null;
 let stealthCountdownInterval = null;
 
 // --- GAME OBJECTS & COLLECTIONS ---
-let arena;
 const players = new Map();
 const myId = 'player_' + Math.random().toString(36).substring(2, 7);
 let localPlayer = null;
