@@ -7,6 +7,8 @@ const _scratchRight = new THREE.Vector3();
 const _scratchOrigin = new THREE.Vector3();
 const _scratchLookAtTarget = new THREE.Vector3();
 const _scratchDotPos = new THREE.Vector3();
+const _scratchReflDir = new THREE.Vector3();
+const _scratchWallPoint = new THREE.Vector3();
 const _yAxis = new THREE.Vector3(0, 1, 0);
 const _chestOffset = new THREE.Vector3(0, 1.35, 0);
 
@@ -95,6 +97,9 @@ export class Character {
     this.actions = {};
     this.modelLoaded = false;
     this.blasterMesh = null;
+    this.bounceBeam = null;
+    this.isBouncyMode = false;
+    this.currentArenaRadius = 10.5;
     this.rightHandBone = null;
     this.baseScale = 1;
     this.baseOffsetY = 0;
@@ -261,11 +266,12 @@ export class Character {
     this.currentAction = null;
     this.currentActionName = 'idle';
     this.initModelFromAssets();
+    if (this.scaleModifier !== 1.0) this.setScaleModifier(this.scaleModifier);
   }
 
   setScaleModifier(multiplier = 1.0) {
     this.scaleModifier = Math.max(0.4, Math.min(2.0, multiplier));
-    if (this.fbxModel) {
+    if (this.fbxModel && this.baseScale) {
       this.fbxModel.scale.setScalar(this.baseScale * this.scaleModifier);
       this.fbxModel.position.set(0, this.baseOffsetY * this.scaleModifier, 0);
     }
@@ -273,6 +279,15 @@ export class Character {
 
   getHitboxRadius() {
     return 0.90 * (this.scaleModifier || 1.0);
+  }
+
+  setBouncyMode(enabled = false, arenaRadius = 10.5) {
+    this.isBouncyMode = !!enabled;
+    this.currentArenaRadius = arenaRadius || 10.5;
+    if (!this.isBouncyMode) {
+      if (this.laserBeam) this.laserBeam.scale.set(1, 1, 1);
+      if (this.bounceBeam) this.bounceBeam.visible = false;
+    }
   }
 
   attachBlasterAndLaser(handBone) {
@@ -319,6 +334,14 @@ export class Character {
     this.laserBeam = new THREE.Mesh(beamGeo, this.beamMat);
     // Add laser beam to scene instead of hand bone to avoid animation twisting
     this.scene.add(this.laserBeam);
+
+    // Secondary reflected laser beam for Bouncy Lasers modifier
+    const bounceGeo = new THREE.CylinderGeometry(0.022, 0.022, 1, 8);
+    bounceGeo.rotateX(Math.PI / 2);
+    bounceGeo.translate(0, 0, 0.5);
+    this.bounceBeam = new THREE.Mesh(bounceGeo, this.beamMat);
+    this.bounceBeam.visible = false;
+    this.scene.add(this.bounceBeam);
 
     this.blasterMesh.add(frame, barrel, this.muzzleMesh);
     this.blasterMesh.rotation.x = Math.PI / 2; // match pistol hand grip
@@ -411,6 +434,7 @@ export class Character {
     if (!this.isAlive || !this.laserBeam) {
       if (this.laserBeam) this.laserBeam.visible = false;
       if (this.laserDot) this.laserDot.visible = false;
+      if (this.bounceBeam) this.bounceBeam.visible = false;
       return;
     }
 
@@ -418,6 +442,9 @@ export class Character {
     this.laserBeam.visible = shouldShow;
     if (this.laserDot) {
       this.laserDot.visible = shouldShow;
+    }
+    if (!shouldShow && this.bounceBeam) {
+      this.bounceBeam.visible = false;
     }
 
     if (shouldShow) {
@@ -434,9 +461,58 @@ export class Character {
       _scratchLookAtTarget.copy(_scratchOrigin).add(_scratchForward);
       this.laserBeam.lookAt(_scratchLookAtTarget);
 
-      if (this.laserDot) {
-        _scratchDotPos.copy(_scratchOrigin).addScaledVector(_scratchForward, this.laserLength);
-        this.laserDot.position.copy(_scratchDotPos);
+      // Handle bouncy lasers visual reflection off perimeter wall
+      let hasBounce = false;
+      if (this.isBouncyMode && this.currentArenaRadius && this.bounceBeam) {
+        const R = this.currentArenaRadius;
+        const Ox = _scratchOrigin.x;
+        const Oz = _scratchOrigin.z;
+        const Dx = _scratchForward.x;
+        const Dz = _scratchForward.z;
+        const A = Dx * Dx + Dz * Dz;
+        if (A > 0.001) {
+          const B = 2 * (Ox * Dx + Oz * Dz);
+          const C = Ox * Ox + Oz * Oz - R * R;
+          const disc = B * B - 4 * A * C;
+          if (disc > 0) {
+            const tWall = (-B + Math.sqrt(disc)) / (2 * A);
+            if (tWall > 0.2 && tWall < this.laserLength) {
+              hasBounce = true;
+              this.laserBeam.scale.set(1, 1, tWall / this.laserLength);
+
+              const wallX = Ox + tWall * Dx;
+              const wallZ = Oz + tWall * Dz;
+              const nx = -wallX / R;
+              const nz = -wallZ / R;
+              const dot = Dx * nx + Dz * nz;
+              const reflDx = Dx - 2 * dot * nx;
+              const reflDz = Dz - 2 * dot * nz;
+              _scratchReflDir.set(reflDx, 0, reflDz).normalize();
+              _scratchWallPoint.set(wallX + nx * 0.08, _scratchOrigin.y, wallZ + nz * 0.08);
+              const remLength = Math.max(0.1, this.laserLength - tWall);
+
+              this.bounceBeam.position.copy(_scratchWallPoint);
+              _scratchLookAtTarget.copy(_scratchWallPoint).add(_scratchReflDir);
+              this.bounceBeam.lookAt(_scratchLookAtTarget);
+              this.bounceBeam.scale.set(1, 1, remLength);
+              this.bounceBeam.visible = true;
+
+              if (this.laserDot) {
+                _scratchDotPos.copy(_scratchWallPoint).addScaledVector(_scratchReflDir, remLength);
+                this.laserDot.position.copy(_scratchDotPos);
+              }
+            }
+          }
+        }
+      }
+
+      if (!hasBounce) {
+        this.laserBeam.scale.set(1, 1, 1);
+        if (this.bounceBeam) this.bounceBeam.visible = false;
+        if (this.laserDot) {
+          _scratchDotPos.copy(_scratchOrigin).addScaledVector(_scratchForward, this.laserLength);
+          this.laserDot.position.copy(_scratchDotPos);
+        }
       }
     }
   }
@@ -656,6 +732,11 @@ export class Character {
       if (this.laserBeam.geometry) this.laserBeam.geometry.dispose();
       if (this.laserBeam.material) this.laserBeam.material.dispose();
       this.laserBeam = null;
+    }
+    if (this.bounceBeam) {
+      this.scene.remove(this.bounceBeam);
+      if (this.bounceBeam.geometry) this.bounceBeam.geometry.dispose();
+      this.bounceBeam = null;
     }
     if (this.laserDot) {
       this.scene.remove(this.laserDot);

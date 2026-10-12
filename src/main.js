@@ -148,13 +148,33 @@ let screenShakeIntensity = 0;
 let screenShakeTime = 0;
 
 // Dynamic Camera Punch-In on Eliminations (Feature 4)
-let cameraPunchTarget = null;
+// Phase 'in' zooms toward the casualty, phase 'out' restores the saved framing.
+let cameraPunchPhase = null; // null | 'in' | 'out'
 let cameraPunchTimer = 0;
+const cameraPunchTarget = new THREE.Vector3();
+const cameraPunchSavedPos = new THREE.Vector3();
+const cameraPunchSavedTarget = new THREE.Vector3();
+const _cameraPunchDesiredPos = new THREE.Vector3();
 
 function triggerCameraPunch(targetPosition, durationMs = 750) {
   if (!targetPosition || currentPhase === 'VICTORY') return;
-  cameraPunchTarget = targetPosition.clone();
+  // Only save the framing if not already mid-punch, so chained kills always return to the true original view
+  if (!cameraPunchPhase) {
+    cameraPunchSavedPos.copy(camera.position);
+    cameraPunchSavedTarget.copy(controls.target);
+  }
+  cameraPunchTarget.set(targetPosition.x, 1.1, targetPosition.z);
+  cameraPunchPhase = 'in';
   cameraPunchTimer = durationMs / 1000;
+}
+
+function cancelCameraPunch(restore = false) {
+  if (restore && cameraPunchPhase) {
+    camera.position.copy(cameraPunchSavedPos);
+    controls.target.copy(cameraPunchSavedTarget);
+  }
+  cameraPunchPhase = null;
+  cameraPunchTimer = 0;
 }
 
 function triggerScreenShake(intensity = 0.5) {
@@ -289,6 +309,9 @@ function applyGraphicsTier(tier, notify = false) {
 // Initial application of graphics tier
 applyGraphicsTier(currentGraphicsTier, false);
 
+let currentThemeRimColor = 0xff2a5f;
+let blackoutLightingActive = false;
+
 function applyArenaTheme(themeId) {
   if (!arena) return;
   const theme = arena.setTheme(themeId);
@@ -297,7 +320,9 @@ function applyArenaTheme(themeId) {
   if (scene.fog) scene.fog.color.setHex(theme.fogColor);
   if (scene.background) scene.background.setHex(theme.fogColor);
   if (ringSpot) ringSpot.color.setHex(theme.spotColor);
-  if (rimLight && theme.rimColor) rimLight.color.setHex(theme.rimColor);
+  if (theme.rimColor) currentThemeRimColor = theme.rimColor;
+  // Do not override the Blackout rim colour while a Blackout round is active
+  if (rimLight && theme.rimColor && !blackoutLightingActive) rimLight.color.setHex(theme.rimColor);
   const badge = document.getElementById('theme-badge-label');
   if (badge) badge.innerText = `MAP: ${theme.name}`;
 }
@@ -306,6 +331,8 @@ function applyArenaTheme(themeId) {
 const CHAOS_MODIFIERS = [
   { id: 'standard', name: 'STANDARD ARENA', desc: 'Standard tactical engagement.' },
   { id: 'turbo_blitz', name: 'TURBO BLITZ', desc: 'Operator velocity boosted +50%!' },
+  { id: 'turbo_speed', name: 'TURBO SPEED', desc: 'Operator velocity boosted!' },
+  { id: 'sudden_death', name: 'SUDDEN DEATH', desc: 'Perimeter collapses rapidly!' },
   { id: 'bouncy_lasers', name: 'BOUNCY RICOCHET', desc: 'Lasers bounce off perimeter energy wall!' },
   { id: 'blackout', name: 'BLACKOUT STEALTH', desc: 'Dimmed perimeter lighting // Covert night ops!' },
   { id: 'titan_mode', name: 'TITAN OPERATORS', desc: 'Giant operators with expanded hitboxes!' },
@@ -313,7 +340,17 @@ const CHAOS_MODIFIERS = [
   { id: 'double_points', name: 'DOUBLE DOWN', desc: '2X score points for all eliminations and wins!' }
 ];
 
+// Modifier chosen by the host in the room settings. 'standard' means the Wheel of Chaos is allowed to roll.
+let roomBaseModifier = 'standard';
+
+function setRoomBaseModifier(modifierId) {
+  roomBaseModifier = modifierId || 'standard';
+  applyMatchModifier(roomBaseModifier, false);
+}
+
 function pickNextChaosModifier(seriesRound, totalRounds) {
+  // Host explicitly picked a fixed modifier (TURBO SPEED / SUDDEN DEATH): keep it for every round
+  if (roomBaseModifier !== 'standard') return roomBaseModifier;
   if (totalRounds > 1 && seriesRound === totalRounds) {
     return 'double_points';
   }
@@ -321,13 +358,25 @@ function pickNextChaosModifier(seriesRound, totalRounds) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+function getModifierScale(modifierId) {
+  if (modifierId === 'titan_mode') return 1.35;
+  if (modifierId === 'micro_mode') return 0.72;
+  return 1.0;
+}
+
 function applyMatchModifier(modifierId, notify = false) {
   currentMatchModifier = modifierId || 'standard';
 
   // 1. Movement speed and perimeter shrink tuning
-  if (currentMatchModifier === 'turbo_blitz' || currentMatchModifier === 'turbo_speed') {
+  if (currentMatchModifier === 'turbo_blitz') {
     CONFIG.playerSpeed = CONFIG.basePlayerSpeed * 1.5;
     CONFIG.shrinkPerRound = 2.6;
+  } else if (currentMatchModifier === 'turbo_speed') {
+    CONFIG.playerSpeed = 10.6;
+    CONFIG.shrinkPerRound = 2.6;
+  } else if (currentMatchModifier === 'sudden_death') {
+    CONFIG.playerSpeed = 8.8;
+    CONFIG.shrinkPerRound = 3.8;
   } else if (currentMatchModifier === 'micro_mode') {
     CONFIG.playerSpeed = CONFIG.basePlayerSpeed * 1.25;
     CONFIG.shrinkPerRound = CONFIG.baseShrinkPerRound;
@@ -339,29 +388,30 @@ function applyMatchModifier(modifierId, notify = false) {
     CONFIG.shrinkPerRound = CONFIG.baseShrinkPerRound;
   }
 
-  // 2. Operator scale modifier (Titan vs Micro vs Standard)
-  const scaleMult = (currentMatchModifier === 'titan_mode') ? 1.35
-    : (currentMatchModifier === 'micro_mode') ? 0.72
-    : 1.0;
+  // 2. Operator scale modifier & bouncy laser reflection
+  const scaleMult = getModifierScale(currentMatchModifier);
+  const isBouncy = (currentMatchModifier === 'bouncy_lasers');
   players.forEach(p => {
     if (p.setScaleModifier) p.setScaleModifier(scaleMult);
+    if (p.setBouncyMode) p.setBouncyMode(isBouncy, arenaRadius);
   });
 
-  // 3. Blackout stealth lighting
-  if (hemiLight && sunLight && ringSpot && rimLight) {
-    if (currentMatchModifier === 'blackout') {
-      hemiLight.intensity = 0.45;
-      sunLight.intensity = 0.35;
-      ringSpot.intensity = 1.0;
-      rimLight.intensity = 3.6;
-      rimLight.color.setHex(0x00f0ff);
-    } else {
-      hemiLight.intensity = 2.5;
-      sunLight.intensity = 2.8;
-      ringSpot.intensity = 3.8;
-      rimLight.intensity = 2.0;
-      rimLight.color.setHex(0xff2a5f);
-    }
+  // 3. Blackout stealth lighting (only touch lights when entering or leaving Blackout)
+  const wantBlackout = currentMatchModifier === 'blackout';
+  if (wantBlackout && !blackoutLightingActive) {
+    blackoutLightingActive = true;
+    hemiLight.intensity = 0.45;
+    sunLight.intensity = 0.35;
+    ringSpot.intensity = 1.0;
+    rimLight.intensity = 3.6;
+    rimLight.color.setHex(0x00f0ff);
+  } else if (!wantBlackout && blackoutLightingActive) {
+    blackoutLightingActive = false;
+    hemiLight.intensity = 2.5;
+    sunLight.intensity = 2.8;
+    ringSpot.intensity = 3.8;
+    rimLight.intensity = 2.0;
+    rimLight.color.setHex(currentThemeRimColor);
   }
 
   const modDef = CHAOS_MODIFIERS.find(m => m.id === currentMatchModifier);
@@ -741,8 +791,10 @@ function addRemotePlayer(id, name, pos = null, characterId = 'ajp') {
   p.targetPos = spawnPos.clone();
   p.lookAtTarget(new THREE.Vector3(0, 0, 0));
   p.isBot = false;
-  p.isHost = (id === currentHostId);
   p.setLaserActive(currentPhase === 'STEALTH' || currentPhase === 'REVEAL');
+  const activeScale = getModifierScale(currentMatchModifier);
+  if (p.setScaleModifier) p.setScaleModifier(activeScale);
+  if (p.setBouncyMode) p.setBouncyMode(currentMatchModifier === 'bouncy_lasers', arenaRadius);
 
   createNameTag(p);
   updateNameTag(p);
@@ -1039,7 +1091,7 @@ document.getElementById('btn-cycle-theme')?.addEventListener('click', () => {
       roundTime: CONFIG.countdownSeconds,
       maxSquad: CONFIG.maxPlayersPerRoom,
       arenaTheme: currentArenaTheme,
-      matchModifier: currentMatchModifier
+      matchModifier: roomBaseModifier
     });
   }
 });
@@ -1079,7 +1131,7 @@ const supabaseManager = new SupabaseManager({
         roundTime: CONFIG.countdownSeconds,
         maxSquad: CONFIG.maxPlayersPerRoom,
         arenaTheme: currentArenaTheme,
-        matchModifier: currentMatchModifier,
+        matchModifier: roomBaseModifier,
         seriesRounds: totalSeriesRounds
       });
     }
@@ -1169,11 +1221,13 @@ const supabaseManager = new SupabaseManager({
     if (data?.totalSeriesRounds) {
       totalSeriesRounds = parseInt(data.totalSeriesRounds, 10) || 1;
     }
-    if (data?.modifier) {
-      applyMatchModifier(data.modifier, true);
-    }
     if (data?.seriesRound && data.seriesRound !== currentSeriesRound) {
       prepareNextSeriesRound(data.seriesRound, totalSeriesRounds);
+    }
+    // Host is the single source of truth for the round modifier
+    if (data?.modifier) {
+      const changed = data.modifier !== currentMatchModifier;
+      applyMatchModifier(data.modifier, changed);
     }
     if (currentPhase === 'LOBBY' || currentPhase === 'ROUND_END' || currentPhase === 'SHRINK') {
       currentRound = data.round || currentRound;
@@ -1231,7 +1285,7 @@ const supabaseManager = new SupabaseManager({
     }
     if (settings.maxSquad) CONFIG.maxPlayersPerRoom = settings.maxSquad;
     if (settings.arenaTheme) applyArenaTheme(settings.arenaTheme);
-    if (settings.matchModifier) applyMatchModifier(settings.matchModifier);
+    if (settings.matchModifier) setRoomBaseModifier(settings.matchModifier);
     if (settings.seriesRounds) {
       totalSeriesRounds = parseInt(settings.seriesRounds, 10) || 1;
       syncSeriesRoundsUI();
@@ -1359,16 +1413,18 @@ function prepareNextSeriesRound(nextSeriesRound, nextTotalRounds = totalSeriesRo
   if (arena) arena.resetRadius(arenaRadius);
   consecutiveStalemates = 0;
 
-  // Feature 1: Roll dynamic modifier for multi-round series
-  if (totalSeriesRounds > 1) {
-    const nextMod = pickNextChaosModifier(currentSeriesRound, totalSeriesRounds);
-    applyMatchModifier(nextMod, true);
-  } else {
-    applyMatchModifier('standard', false);
+  // Feature 1: Roll dynamic modifier for multi-round series.
+  // ONLY the host rolls; clients receive the host's choice via onRoundSync so every device stays identical.
+  if (isLocalHost) {
+    const nextMod = totalSeriesRounds > 1
+      ? pickNextChaosModifier(currentSeriesRound, totalSeriesRounds)
+      : roomBaseModifier;
+    applyMatchModifier(nextMod, nextMod !== currentMatchModifier || totalSeriesRounds > 1);
   }
 
   let i = 0;
   players.forEach(p => {
+    if (p.setBouncyMode) p.setBouncyMode(currentMatchModifier === 'bouncy_lasers', arenaRadius);
     p.setLaserActive(false);
     const spawnPos = getRadialSpawnPosition(i, Math.max(1, players.size));
     p.hasReceivedMovePacket = false;
@@ -1378,8 +1434,11 @@ function prepareNextSeriesRound(nextSeriesRound, nextTotalRounds = totalSeriesRo
     if (p.htmlTag) p.htmlTag.classList.remove('hidden');
     i++;
   });
-  // Ensure scale modifier is active after reviving models
-  applyMatchModifier(currentMatchModifier, false);
+  // Ensure scale modifier is active after reviving models (also clears the 1.12x winner podium scale)
+  const reviveScale = getModifierScale(currentMatchModifier);
+  players.forEach(p => {
+    if (p.setScaleModifier) p.setScaleModifier(reviveScale);
+  });
 
   currentPhase = 'ROUND_END';
   syncSeriesRoundsUI();
@@ -1403,8 +1462,8 @@ function startRound(broadcast = true, syncEpoch = null) {
     stealthCountdownInterval = null;
   }
 
-  // Feature 5: Match point cue on final round of multi-round match
-  if (currentSeriesRound === totalSeriesRounds && totalSeriesRounds > 1) {
+  // Feature 5: Match point cue ONCE at the start of the final series round (not on every shrink wave)
+  if (currentSeriesRound === totalSeriesRounds && totalSeriesRounds > 1 && currentRound === 1) {
     audioSystem.playAnnouncerCue('match_point');
   }
 
@@ -1486,16 +1545,28 @@ function startRound(broadcast = true, syncEpoch = null) {
     countdownTime = initialRemaining;
     timerEl.innerText = countdownTime.toString().padStart(2, '0');
 
+    let lastTickSec = initialRemaining;
+    let lastHeartbeatAt = 0;
     stealthCountdownInterval = setInterval(() => {
       const remainingMs = stealthEndTarget - Date.now();
       const sec = Math.max(0, Math.ceil(remainingMs / 1000));
       countdownTime = sec;
       timerEl.innerText = countdownTime.toString().padStart(2, '0');
-      audioSystem.playCountdownTick(countdownTime === 0);
+
+      // Tick only when the displayed second changes (interval runs every 250ms)
+      if (sec !== lastTickSec) {
+        lastTickSec = sec;
+        audioSystem.playCountdownTick(sec === 0);
+      }
 
       // Accelerating sub-bass heartbeat in final 3 seconds (Feature 5)
       if (sec <= 3 && sec > 0) {
-        audioSystem.playHeartbeat(1.0 + (3 - sec) * 0.4);
+        const nowMs = Date.now();
+        const beatGap = sec === 3 ? 1000 : (sec === 2 ? 750 : 500);
+        if (nowMs - lastHeartbeatAt >= beatGap - 30) {
+          lastHeartbeatAt = nowMs;
+          audioSystem.playHeartbeat(1.0 + (3 - sec) * 0.25);
+        }
       }
 
       if (remainingMs <= 0) {
@@ -1653,9 +1724,9 @@ function evaluateHostVerdict(isAuthoritative = true) {
         if (horizDist <= hitboxR && proj < minProj) {
           minProj = proj;
           closestTarget = target;
-        } else if (horizDist > hitboxR && horizDist <= 1.45 && proj < 25.0) {
-          // Feature 4: Near-miss bullet-time graze detection
-          nearMissList.push({ targetId: target.id, shooterId: shooter.id, distance: horizDist });
+        } else if (horizDist > hitboxR && (horizDist - hitboxR) <= 0.45 && proj < 25.0) {
+          // Feature 4: Near-miss bullet-time graze detection (within 0.45m of outer hitbox)
+          nearMissList.push({ targetId: target.id, shooterId: shooter.id, distance: horizDist - hitboxR });
         }
       }
     });
@@ -1686,7 +1757,9 @@ function evaluateHostVerdict(isAuthoritative = true) {
             const reflOrigin = new THREE.Vector3(wallX + nx * 0.12, ray.origin.y, wallZ + nz * 0.12);
             const remLength = Math.max(0, ray.length - tWall);
 
+            let minRicochetProj = Infinity;
             alivePlayers.forEach(target => {
+              if (target.id === shooter.id) return; // Prevent shooter self-hit on bounced laser!
               const lockedTarget = lockedPlayerCoords.get(target.id);
               const targetPos = lockedTarget
                 ? new THREE.Vector3(lockedTarget.x, lockedTarget.y + 1.35, lockedTarget.z)
@@ -1697,10 +1770,11 @@ function evaluateHostVerdict(isAuthoritative = true) {
                 const rPoint = reflOrigin.clone().addScaledVector(reflDir, rproj);
                 const rHorizDist = Math.hypot(rPoint.x - targetPos.x, rPoint.z - targetPos.z);
                 const rHitbox = target.getHitboxRadius ? target.getHitboxRadius() : 0.90;
-                if (rHorizDist <= rHitbox && (rproj < minProj || !closestTarget)) {
+                if (rHorizDist <= rHitbox && rproj < minRicochetProj) {
+                  minRicochetProj = rproj;
                   closestTarget = target;
                   isRicochetHit = true;
-                } else if (rHorizDist > rHitbox && rHorizDist <= 1.45) {
+                } else if (rHorizDist > rHitbox && (rHorizDist - rHitbox) <= 0.45) {
                   nearMissList.push({ targetId: target.id, shooterId: shooter.id, isRicochet: true });
                 }
               }
@@ -1722,11 +1796,13 @@ function evaluateHostVerdict(isAuthoritative = true) {
   const noDeaths = eliminatedIds.length === 0;
   const isCircleStalemate = noDeaths && (arenaRadius <= 4.2 || (arenaRadius <= 4.6 && consecutiveStalemates >= 2));
 
-  const isRoundComplete = (survivors.length <= 1) || (isCircleStalemate && totalSeriesRounds > 1);
+  // In 1-round matches: if players stalemate twice at min circle, conclude match as a draw rather than looping forever
+  const isSingleRoundStalemateOver = (totalSeriesRounds === 1 && isCircleStalemate && consecutiveStalemates >= 2);
+  const isRoundComplete = (survivors.length <= 1) || (isCircleStalemate && totalSeriesRounds > 1) || isSingleRoundStalemateOver;
   const roundWinnerId = (survivors.length === 1) ? survivors[0].id : null;
-  const isStalemateDraw = isCircleStalemate && isRoundComplete;
+  const isStalemateDraw = isCircleStalemate && (isRoundComplete || isSingleRoundStalemateOver);
   const roundDanceKey = (isRoundComplete && roundWinnerId) ? pickRandomVictoryDance() : null;
-  const isGameOver = isRoundComplete && (currentSeriesRound >= totalSeriesRounds);
+  const isGameOver = isRoundComplete && ((currentSeriesRound >= totalSeriesRounds) || isSingleRoundStalemateOver);
 
   // Authoritative projected scores (Double Down support)
   const killPoints = (currentMatchModifier === 'double_points') ? 200 : 100;
@@ -2022,6 +2098,9 @@ function applyRoundVerdict(verdict) {
       currentPhase = 'SHRINK';
       arenaRadius = verdict.ringRadius;
       if (arena) arena.shrinkTo(arenaRadius);
+      players.forEach(p => {
+        if (p.setBouncyMode) p.setBouncyMode(currentMatchModifier === 'bouncy_lasers', arenaRadius);
+      });
       audioSystem.playRingShrink();
 
       if (someoneDied) {
@@ -2305,9 +2384,8 @@ function resetGame({ resetScores = true } = {}) {
   ringSpot.target.position.set(0, 0, 0);
   ringSpot.intensity = 3.8;
   applyArenaTheme(currentArenaTheme);
-  applyMatchModifier('standard', false);
-  cameraPunchTarget = null;
-  cameraPunchTimer = 0;
+  applyMatchModifier(roomBaseModifier, false);
+  cancelCameraPunch(false);
 
   // Randomize demo bot characters for the next match in Public mode
   randomizePracticeBotCharacters();
@@ -2339,6 +2417,7 @@ function resetGame({ resetScores = true } = {}) {
 
   let i = 0;
   players.forEach(p => {
+    if (p.setBouncyMode) p.setBouncyMode(currentMatchModifier === 'bouncy_lasers', arenaRadius);
     const spawnPos = getRadialSpawnPosition(i, Math.max(1, players.size));
     p.hasReceivedMovePacket = false;
     p.revive(spawnPos);
@@ -2842,7 +2921,7 @@ function executeDeployment(deployment) {
     CONFIG.countdownSeconds = roundTime;
     CONFIG.maxPlayersPerRoom = maxPlayers;
     applyArenaTheme(arenaTheme);
-    applyMatchModifier(matchModifier);
+    setRoomBaseModifier(matchModifier);
     syncSeriesRoundsUI();
 
     const code = generateRoomCode();
@@ -2989,7 +3068,7 @@ document.getElementById('tab-join-squad')?.addEventListener('click', () => {
 // Deploy to Public Quick-Match (opens Character Select)
 document.getElementById('btn-deploy-public')?.addEventListener('click', () => {
   audioSystem.init();
-  applyMatchModifier('standard');
+  setRoomBaseModifier('standard');
   pendingDeployment = { type: 'public' };
   document.getElementById('mode-select-screen')?.classList.add('hidden');
   openCharacterSelectScreen();
@@ -3101,7 +3180,7 @@ document.getElementById('friends-rounds-select')?.addEventListener('change', (e)
     roundTime: CONFIG.countdownSeconds,
     maxSquad: CONFIG.maxPlayersPerRoom,
     arenaTheme: currentArenaTheme,
-    matchModifier: currentMatchModifier,
+    matchModifier: roomBaseModifier,
     seriesRounds: totalSeriesRounds
   });
   showBanner(`SERIES LENGTH SET TO ${totalSeriesRounds === 1 ? '1 ROUND' : totalSeriesRounds + ' ROUNDS'}`, 1800);
@@ -3655,12 +3734,28 @@ function animate() {
     camera.lookAt(0, 1.05, 0);
     controls.target.set(0, 1.05, 0);
   } else {
-    // Dynamic camera punch-in on casualty (Feature 4)
-    if (cameraPunchTimer > 0 && cameraPunchTarget) {
+    // Dynamic camera punch-in on casualty, then smooth return (Feature 4)
+    if (cameraPunchPhase) {
       cameraPunchTimer -= delta;
-      controls.target.lerp(cameraPunchTarget, Math.min(1.0, delta * 7.5));
-      if (cameraPunchTimer <= 0) {
-        cameraPunchTarget = null;
+      if (cameraPunchPhase === 'in') {
+        // Dolly to 55% of the original distance while re-centering on the casualty
+        _cameraPunchDesiredPos.copy(cameraPunchSavedPos).sub(cameraPunchSavedTarget).multiplyScalar(0.55).add(cameraPunchTarget);
+        const k = Math.min(1.0, delta * 7.5);
+        controls.target.lerp(cameraPunchTarget, k);
+        camera.position.lerp(_cameraPunchDesiredPos, k);
+        if (cameraPunchTimer <= 0) {
+          cameraPunchPhase = 'out';
+          cameraPunchTimer = 0.6;
+        }
+      } else {
+        const k = Math.min(1.0, delta * 6.0);
+        controls.target.lerp(cameraPunchSavedTarget, k);
+        camera.position.lerp(cameraPunchSavedPos, k);
+        if (cameraPunchTimer <= 0) {
+          controls.target.copy(cameraPunchSavedTarget);
+          camera.position.copy(cameraPunchSavedPos);
+          cameraPunchPhase = null;
+        }
       }
     }
     // Update OrbitControls smoothly
