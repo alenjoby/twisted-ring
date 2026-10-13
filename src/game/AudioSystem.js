@@ -5,7 +5,28 @@ const AJP_SONG_FILES = [
   '/CHARACTER-SONG/AJP SONG 4.mp3'
 ];
 
-// Web Audio API Synthesizer for procedural SFX
+const AUDIO_SAMPLES = {
+  bell: '/audio/bell.mp3',
+  count_3: '/audio/count_3.mp3',
+  count_2: '/audio/count_2.mp3',
+  count_1: '/audio/count_1.mp3',
+  count_engage: '/audio/count_engage.mp3',
+  count_321_fight: '/audio/count_321_fight.mp3',
+  crowd_cheer: '/audio/crowd_cheer.mp3',
+  crowd_applause: '/audio/crowd_applause.wav',
+  crowd_gasp: '/audio/crowd_gasp.wav',
+  bullet_time_whoosh: '/audio/bullet_time_whoosh.wav',
+  laser_shot: '/audio/laser_shot.ogg',
+  laser_ricochet: '/audio/laser_ricochet.ogg',
+  player_elimination: '/audio/player_elimination.ogg',
+  ring_shrink: '/audio/ring_shrink.ogg',
+  draw_gong: '/audio/draw_gong.wav',
+  victory_fanfare: '/audio/victory_fanfare.wav',
+  ui_click: '/audio/ui_click.wav',
+  ui_ready: '/audio/ui_ready.wav'
+};
+
+// Web Audio API Synthesizer & Sample Engine for High-Energy SFX
 class AudioSystem {
   constructor() {
     this.ctx = null;
@@ -13,6 +34,9 @@ class AudioSystem {
     this.ajpPlaylistQueue = [];
     this.lastAjpSong = null;
     this.currentAjpAudio = null;
+    this.audioBuffers = new Map();
+    this.bufferLoading = new Map();
+    this.samplesPreloaded = false;
   }
 
   init() {
@@ -25,11 +49,110 @@ class AudioSystem {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+    if (this.ctx && !this.samplesPreloaded) {
+      this.samplesPreloaded = true;
+      this.preloadAllSamples();
+    }
   }
 
-  playCountdownTick(isFinal = false) {
-    if (!this.enabled || !this.ctx) return;
+  async loadSample(key, url) {
+    if (this.audioBuffers.has(key)) return this.audioBuffers.get(key);
+    if (this.bufferLoading.has(key)) return this.bufferLoading.get(key);
+
+    const promise = (async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const arrayBuf = await res.arrayBuffer();
+        if (!this.ctx) this.init();
+        if (!this.ctx) return null;
+        const audioBuf = await this.ctx.decodeAudioData(arrayBuf);
+        this.audioBuffers.set(key, audioBuf);
+        return audioBuf;
+      } catch (e) {
+        return null;
+      } finally {
+        this.bufferLoading.delete(key);
+      }
+    })();
+
+    this.bufferLoading.set(key, promise);
+    return promise;
+  }
+
+  preloadAllSamples() {
+    Object.entries(AUDIO_SAMPLES).forEach(([key, url]) => {
+      this.loadSample(key, url).catch(() => {});
+    });
+  }
+
+  playSample(key, volume = 1.0, pitchRate = 1.0) {
+    if (!this.enabled) return false;
+    this.init();
+    if (!this.ctx) return false;
+    const buf = this.audioBuffers.get(key);
+    if (!buf) {
+      // Trigger lazy load if not cached yet
+      if (AUDIO_SAMPLES[key]) this.loadSample(key, AUDIO_SAMPLES[key]);
+      return false;
+    }
     try {
+      const src = this.ctx.createBufferSource();
+      const gain = this.ctx.createGain();
+      src.buffer = buf;
+      src.playbackRate.value = pitchRate;
+      gain.gain.value = volume;
+      src.connect(gain);
+      gain.connect(this.ctx.destination);
+      src.start();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  playBell(triple = false) {
+    if (!this.enabled) return;
+    this.init();
+    if (triple) {
+      this.playSample('bell', 0.85);
+      setTimeout(() => this.playSample('bell', 0.85), 140);
+      setTimeout(() => this.playSample('bell', 0.9), 280);
+    } else {
+      this.playSample('bell', 0.8);
+    }
+  }
+
+  playCountdownTick(countOrFinal = false) {
+    if (!this.enabled) return;
+    this.init();
+
+    let countNum = null;
+    if (typeof countOrFinal === 'number') {
+      countNum = countOrFinal;
+    } else if (countOrFinal === true) {
+      countNum = 0;
+    }
+
+    if (countNum === 3) {
+      this.playSample('count_3', 1.0);
+      this.playBell(false);
+    } else if (countNum === 2) {
+      this.playSample('count_2', 1.0);
+      this.playBell(false);
+    } else if (countNum === 1) {
+      this.playSample('count_1', 1.0);
+      this.playBell(false);
+    } else if (countNum === 0) {
+      this.playSample('count_engage', 1.0);
+      this.playBell(true);
+    } else {
+      this.playSample('ui_click', 0.5);
+    }
+
+    // Procedural synthesizer layer backup
+    try {
+      const isFinal = (countNum === 0 || countOrFinal === true);
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.connect(gain);
@@ -37,7 +160,7 @@ class AudioSystem {
 
       const freq = isFinal ? 880 : 440;
       osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-      gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+      gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + (isFinal ? 0.35 : 0.15));
 
       osc.start();
@@ -46,8 +169,13 @@ class AudioSystem {
   }
 
   playLaserShot() {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.enabled) return;
+    this.init();
+    this.playSample('laser_shot', 0.7);
+
+    // Procedural laser backup
     try {
+      if (!this.ctx) return;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'sawtooth';
@@ -58,7 +186,7 @@ class AudioSystem {
       osc.frequency.setValueAtTime(1200, t);
       osc.frequency.exponentialRampToValueAtTime(180, t + 0.25);
 
-      gain.gain.setValueAtTime(0.3, t);
+      gain.gain.setValueAtTime(0.2, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
 
       osc.start(t);
@@ -66,9 +194,20 @@ class AudioSystem {
     } catch (e) {}
   }
 
+  playLaserRicochet() {
+    if (!this.enabled) return;
+    this.init();
+    this.playSample('laser_ricochet', 0.8);
+  }
+
   playHitImpact() {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.enabled) return;
+    this.init();
+    this.playSample('player_elimination', 0.85);
+
+    // Procedural impact backup
     try {
+      if (!this.ctx) return;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'triangle';
@@ -79,7 +218,7 @@ class AudioSystem {
       osc.frequency.setValueAtTime(150, t);
       osc.frequency.exponentialRampToValueAtTime(30, t + 0.4);
 
-      gain.gain.setValueAtTime(0.5, t);
+      gain.gain.setValueAtTime(0.4, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
 
       osc.start(t);
@@ -88,8 +227,11 @@ class AudioSystem {
   }
 
   playCinematicElimination() {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.enabled) return;
+    this.init();
+    this.playSample('player_elimination', 1.0);
     try {
+      if (!this.ctx) return;
       const t = this.ctx.currentTime;
       // Deep sub-bass impact drop
       const subOsc = this.ctx.createOscillator();
@@ -120,8 +262,12 @@ class AudioSystem {
   }
 
   playRingShrink() {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.enabled) return;
+    this.init();
+    this.playSample('ring_shrink', 0.8);
+
     try {
+      if (!this.ctx) return;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'sine';
@@ -141,8 +287,14 @@ class AudioSystem {
   }
 
   playVictoryFanfare() {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.enabled) return;
+    this.init();
+    this.playSample('victory_fanfare', 0.9);
+    this.playSample('crowd_cheer', 0.85);
+    this.playSample('crowd_applause', 0.85);
+
     try {
+      if (!this.ctx) return;
       const notes = [261.63, 329.63, 392.00, 523.25];
       notes.forEach((freq, i) => {
         const osc = this.ctx.createOscillator();
@@ -152,13 +304,19 @@ class AudioSystem {
 
         const t = this.ctx.currentTime + i * 0.12;
         osc.frequency.setValueAtTime(freq, t);
-        gain.gain.setValueAtTime(0.2, t);
+        gain.gain.setValueAtTime(0.18, t);
         gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
 
         osc.start(t);
         osc.stop(t + 0.35);
       });
     } catch (e) {}
+  }
+
+  playDrawGong() {
+    if (!this.enabled) return;
+    this.init();
+    this.playSample('draw_gong', 0.9);
   }
 
   playPlayerJoined() {
@@ -198,8 +356,12 @@ class AudioSystem {
   }
 
   playReadyClick() {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.enabled) return;
+    this.init();
+    this.playSample('ui_ready', 0.7);
+
     try {
+      if (!this.ctx) return;
       const t = this.ctx.currentTime;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
@@ -208,11 +370,17 @@ class AudioSystem {
       gain.connect(this.ctx.destination);
       osc.frequency.setValueAtTime(600, t);
       osc.frequency.exponentialRampToValueAtTime(1200, t + 0.08);
-      gain.gain.setValueAtTime(0.28, t);
+      gain.gain.setValueAtTime(0.2, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
       osc.start(t);
       osc.stop(t + 0.14);
     } catch (e) {}
+  }
+
+  playClick() {
+    if (!this.enabled) return;
+    this.init();
+    this.playSample('ui_click', 0.6);
   }
 
   playUnreadyClick() {
@@ -459,8 +627,13 @@ class AudioSystem {
   }
 
   playCrowdGasp() {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.enabled) return;
+    this.init();
+    this.playSample('crowd_gasp', 0.85);
+    this.playSample('bullet_time_whoosh', 0.8);
+
     try {
+      if (!this.ctx) return;
       const t = this.ctx.currentTime;
       // Resonant formant intake swoop
       const osc = this.ctx.createOscillator();
@@ -491,8 +664,13 @@ class AudioSystem {
   }
 
   playCrowdCheer() {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.enabled) return;
+    this.init();
+    this.playSample('crowd_cheer', 0.85);
+    this.playSample('crowd_applause', 0.85);
+
     try {
+      if (!this.ctx) return;
       const t = this.ctx.currentTime;
       // Low stadium rumble
       const bass = this.ctx.createOscillator();
@@ -502,7 +680,7 @@ class AudioSystem {
       bGain.connect(this.ctx.destination);
       bass.frequency.setValueAtTime(85, t);
       bass.frequency.linearRampToValueAtTime(140, t + 0.6);
-      bGain.gain.setValueAtTime(0.28, t);
+      bGain.gain.setValueAtTime(0.25, t);
       bGain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
       bass.start(t);
       bass.stop(t + 0.7);
@@ -515,12 +693,18 @@ class AudioSystem {
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.frequency.setValueAtTime(freq, t + idx * 0.04);
-        gain.gain.setValueAtTime(0.14, t + idx * 0.04);
+        gain.gain.setValueAtTime(0.12, t + idx * 0.04);
         gain.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
         osc.start(t + idx * 0.04);
         osc.stop(t + 0.65);
       });
     } catch (e) {}
+  }
+
+  playCrowdApplause() {
+    if (!this.enabled) return;
+    this.init();
+    this.playSample('crowd_applause', 0.85);
   }
 
   playAnnouncerCue(type = 'engage') {
@@ -671,3 +855,15 @@ class AudioSystem {
 
 export const audioSystem = new AudioSystem();
 
+// Auto-unlock AudioContext on first user interaction anywhere on the screen
+if (typeof window !== 'undefined') {
+  const unlockAudio = () => {
+    audioSystem.init();
+    ['pointerdown', 'touchstart', 'keydown'].forEach(evt => {
+      window.removeEventListener(evt, unlockAudio, true);
+    });
+  };
+  ['pointerdown', 'touchstart', 'keydown'].forEach(evt => {
+    window.addEventListener(evt, unlockAudio, { capture: true, once: true });
+  });
+}

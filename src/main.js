@@ -1556,7 +1556,7 @@ function startRound(broadcast = true, syncEpoch = null) {
       // Tick only when the displayed second changes (interval runs every 250ms)
       if (sec !== lastTickSec) {
         lastTickSec = sec;
-        audioSystem.playCountdownTick(sec === 0);
+        audioSystem.playCountdownTick(sec);
       }
 
       // Accelerating sub-bass heartbeat in final 3 seconds (Feature 5)
@@ -2274,8 +2274,7 @@ function presentWinner(winner, danceKeyOverride = null, drawShowcase = null) {
     clockGuidanceText.innerText = 'MUTUAL DESTRUCTION // NO SURVIVORS';
     if (nameDisplay) nameDisplay.innerText = totalSeriesRounds > 1 ? 'SERIES DRAW' : 'DRAW';
     if (modal) modal.classList.remove('hidden');
-
-    audioSystem.playVictoryFanfare();
+    audioSystem.playDrawGong();
     return;
   }
 
@@ -2320,6 +2319,8 @@ function presentWinner(winner, danceKeyOverride = null, drawShowcase = null) {
   const isAjpWinner = (winner.characterId === 'ajp' || (winner.isLocal && selectedCharacterId === 'ajp'));
   if (isAjpWinner) {
     audioSystem.playAjpCelebration();
+    audioSystem.playCrowdCheer();
+    audioSystem.playCrowdApplause();
   } else {
     audioSystem.playVictoryFanfare();
   }
@@ -2629,17 +2630,18 @@ function checkAllPlayersReady(playersList) {
     clockPhaseLabel.innerText = 'LAUNCH IMMINENT';
     clockGuidanceText.innerText = `${modeLabel} // STARTING IN ${launchCount}S`;
     showBanner(`${modeLabel} // STARTING IN ${launchCount}S`, 1100);
-    audioSystem.playCountdownTick(false);
+    audioSystem.playCountdownTick(launchCount);
 
     readyCountdownInterval = setInterval(() => {
       launchCount--;
       if (launchCount > 0) {
         clockGuidanceText.innerText = `${modeLabel} // STARTING IN ${launchCount}S`;
         showBanner(`STARTING IN ${launchCount}S`, 950);
-        audioSystem.playCountdownTick(false);
+        audioSystem.playCountdownTick(launchCount);
       } else {
         clearInterval(readyCountdownInterval);
         readyCountdownInterval = null;
+        audioSystem.playCountdownTick(0);
         document.getElementById('lobby-modal')?.classList.remove('active');
         closeFriendsHub();
         updateDemoBotsButtonUI();
