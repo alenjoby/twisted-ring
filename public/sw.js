@@ -1,5 +1,5 @@
 // Service Worker for Twisted Ring // Auto-Updating Progressive Web App
-const CACHE_VERSION = 'v1791889647428';
+const CACHE_VERSION = 'v1791890217500';
 const STATIC_CACHE = `twisted-ring-static-${CACHE_VERSION}`;
 const ASSET_CACHE = `twisted-ring-assets-${CACHE_VERSION}`;
 

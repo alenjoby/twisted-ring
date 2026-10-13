@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>TWISTED PARTY - Mecha Console UI System</title>
+  <title>TWISTED PARTY - Official Console Esports UI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Changa:wght@700;800&family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@700;800;900&family=Rajdhani:wght@600;700;800&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg-outer: #0B0E14;
+      --bg-outer: #090C11;
       --bg-console: #10141B;
-      --bg-card-inactive: #161B23;
-      --bg-card-hover: #1C232E;
+      --bg-card-inactive: #151A22;
+      --bg-card-hover: #1D232F;
       --border-dim: rgba(255, 255, 255, 0.08);
       --border-medium: rgba(255, 255, 255, 0.16);
       
@@ -21,6 +21,7 @@
       --accent-lime-glow: rgba(212, 255, 0, 0.35);
       --accent-yellow-pips: #E2FC0D;
       --accent-red-pip: #FF2B44;
+      --accent-cyan: #00F0FF;
       
       /* Typography */
       --font-tech: 'Orbitron', 'Rajdhani', sans-serif;
@@ -39,7 +40,7 @@
     body {
       background-color: var(--bg-outer);
       background-image: 
-        radial-gradient(circle at 50% 30%, rgba(20, 27, 38, 0.9) 0%, #080A0F 100%),
+        radial-gradient(circle at 50% 25%, rgba(22, 30, 42, 0.95) 0%, #080A0E 100%),
         repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.015) 0px, rgba(255, 255, 255, 0.015) 2px, transparent 2px, transparent 16px);
       color: #FFFFFF;
       font-family: var(--font-body);
@@ -48,27 +49,27 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 24px 16px;
+      padding: 20px 16px;
       user-select: none;
       overflow-x: hidden;
     }
 
-    /* Top switcher to toggle between Mecha Spec and Party Characters */
+    /* Top Utility Bar */
     .view-mode-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      max-width: 1220px;
+      max-width: 1240px;
       width: 100%;
-      margin-bottom: 14px;
-      padding: 0 6px;
+      margin-bottom: 12px;
+      padding: 0 8px;
     }
 
     .system-title-tag {
       font-family: var(--font-tech);
       font-size: 11px;
       letter-spacing: 2px;
-      color: rgba(255, 255, 255, 0.5);
+      color: rgba(255, 255, 255, 0.55);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -82,45 +83,27 @@
       box-shadow: 0 0 8px var(--accent-lime);
     }
 
-    .roster-switch-pills {
+    .audio-status-pill {
       display: flex;
+      align-items: center;
       gap: 8px;
-    }
-
-    .roster-pill-btn {
       background: rgba(255, 255, 255, 0.06);
       border: 1px solid var(--border-dim);
       border-radius: 6px;
-      color: #9AA4B2;
+      padding: 5px 12px;
       font-family: var(--font-tech);
       font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      padding: 5px 12px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-
-    .roster-pill-btn:hover {
-      background: rgba(255, 255, 255, 0.12);
-      color: #FFFFFF;
-    }
-
-    .roster-pill-btn.active {
-      background: rgba(212, 255, 0, 0.15);
-      border-color: var(--accent-lime);
       color: var(--accent-lime);
-      box-shadow: 0 0 12px rgba(212, 255, 0, 0.2);
     }
 
     /* =========================================================================
-       MAIN CONSOLE CHASSIS FRAME (Exact replica of the reference design)
+       MAIN CONSOLE CHASSIS FRAME
        ========================================================================= */
     .console-chassis {
       background: var(--bg-console);
       border: 1px solid rgba(255, 255, 255, 0.09);
       border-radius: 24px;
-      max-width: 1220px;
+      max-width: 1240px;
       width: 100%;
       min-height: 720px;
       position: relative;
@@ -134,13 +117,13 @@
       justify-content: space-between;
     }
 
-    /* Subtle background watermark pattern */
+    /* Subtle background tech matrix watermark */
     .console-watermark-bg {
       position: absolute;
       inset: 0;
       pointer-events: none;
       background-image: 
-        radial-gradient(circle at 50% 50%, rgba(25, 34, 48, 0.4) 0%, transparent 70%),
+        radial-gradient(circle at 50% 50%, rgba(25, 34, 48, 0.35) 0%, transparent 70%),
         repeating-linear-gradient(90deg, transparent, transparent 120px, rgba(255, 255, 255, 0.012) 120px, rgba(255, 255, 255, 0.012) 121px);
     }
 
@@ -150,7 +133,7 @@
     .console-topbar {
       position: relative;
       z-index: 10;
-      padding: 22px 36px 14px;
+      padding: 20px 36px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -186,7 +169,7 @@
     .nav-menu-tabs {
       display: flex;
       align-items: center;
-      gap: 22px;
+      gap: 16px;
     }
 
     .nav-tab-item {
@@ -289,26 +272,26 @@
     }
 
     /* =========================================================================
-       MAIN GRID: 3-COLUMN LAYOUT
+       MAIN GRID: 3-COLUMN WORKSPACE
        ========================================================================= */
     .console-workspace {
       position: relative;
       z-index: 5;
-      padding: 24px 36px;
+      padding: 20px 36px;
       display: grid;
-      grid-template-columns: 240px 1fr 270px;
+      grid-template-columns: 260px 1fr 280px;
       gap: 28px;
       align-items: center;
       flex: 1;
     }
 
     /* -------------------------------------------------------------------------
-       LEFT COLUMN: "Your Robots:" Card Stack
+       LEFT COLUMN: "Your Operators:" Stack
        ------------------------------------------------------------------------- */
     .left-robot-column {
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
     }
 
     .section-title-wrap {
@@ -334,15 +317,26 @@
     .robot-card-stack {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
+      max-height: 440px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .robot-card-stack::-webkit-scrollbar {
+      width: 4px;
+    }
+    .robot-card-stack::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
     }
 
     .robot-slot-card {
-      height: 72px;
+      height: 64px;
       background: var(--bg-card-inactive);
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 8px;
-      clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+      clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
       position: relative;
       cursor: pointer;
       overflow: hidden;
@@ -350,6 +344,7 @@
       align-items: center;
       padding: 8px 12px;
       transition: all 0.15s ease;
+      flex-shrink: 0;
     }
 
     .robot-slot-card:hover {
@@ -358,9 +353,9 @@
     }
 
     .robot-slot-card.active {
-      background: #1A212B;
+      background: #19212D;
       border: 2px solid var(--accent-lime);
-      box-shadow: 0 0 20px rgba(212, 255, 0, 0.25);
+      box-shadow: 0 0 18px rgba(212, 255, 0, 0.25);
     }
 
     /* Red accent tick on active card */
@@ -368,8 +363,8 @@
       content: '';
       position: absolute;
       bottom: 0;
-      left: 14px;
-      width: 44px;
+      left: 12px;
+      width: 40px;
       height: 3px;
       background: var(--accent-red-pip);
     }
@@ -392,55 +387,64 @@
 
     .slot-name {
       font-family: var(--font-tech);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 800;
       color: #FFFFFF;
       letter-spacing: 1px;
     }
 
     .slot-class {
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 600;
       color: #7A8799;
-      letter-spacing: 1px;
+      letter-spacing: 0.8px;
     }
 
     .slot-thumb-container {
-      width: 80px;
-      height: 54px;
-      border-radius: 4px;
+      width: 50px;
+      height: 48px;
+      border-radius: 6px;
       overflow: hidden;
-      background: rgba(0, 0, 0, 0.4);
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
     }
 
-    .slot-thumb-container img,
-    .slot-thumb-container canvas {
-      max-width: 100%;
-      max-height: 100%;
+    .slot-thumb-container img {
+      width: 100%;
+      height: 100%;
       object-fit: cover;
-      filter: contrast(1.1) brightness(0.9);
+      object-position: top center;
     }
 
-    /* Add Robot Button */
+    .slot-thumb-container .thumb-tag {
+      font-family: var(--font-tech);
+      font-size: 10px;
+      font-weight: 900;
+      color: #FFF;
+    }
+
+    /* Add / Private Squad Button */
     .btn-add-robot-slot {
-      height: 60px;
+      height: 52px;
       background: rgba(16, 21, 29, 0.4);
       border: 1px dashed rgba(255, 255, 255, 0.16);
       border-radius: 8px;
-      clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+      clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
       font-family: var(--font-body);
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
       color: #8E99A8;
       cursor: pointer;
       transition: all 0.15s ease;
+      flex-shrink: 0;
     }
 
     .btn-add-robot-slot:hover {
@@ -450,7 +454,7 @@
     }
 
     /* -------------------------------------------------------------------------
-       CENTER COLUMN: Large Mecha Showcase Frame with Corner Pips
+       CENTER COLUMN: Exact Hero Targeting Frame with Yellow Corner Pips
        ------------------------------------------------------------------------- */
     .center-hero-column {
       position: relative;
@@ -462,21 +466,21 @@
 
     /* The bounding frame with yellow corner pips */
     .hero-targeting-box {
-      width: 320px;
-      height: 480px;
+      width: 340px;
+      height: 490px;
       border: 1px solid rgba(255, 255, 255, 0.08);
       position: relative;
       background: 
-        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.03) 0%, transparent 80%),
-        radial-gradient(rgba(212, 255, 0, 0.12) 1px, transparent 1px);
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 80%),
+        radial-gradient(rgba(212, 255, 0, 0.1) 1px, transparent 1px);
       background-size: 100% 100%, 18px 18px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 24px 16px;
+      padding: 22px 16px;
     }
 
-    /* 4 Corner Pips (Yellow dots from reference) */
+    /* 4 Corner Pips (Exact yellow dots from reference) */
     .corner-pip {
       position: absolute;
       width: 6px;
@@ -497,9 +501,9 @@
 
     .hero-code-name {
       font-family: var(--font-tech);
-      font-size: 32px;
+      font-size: 26px;
       font-weight: 900;
-      letter-spacing: 2.5px;
+      letter-spacing: 2px;
       color: #FFFFFF;
       text-transform: uppercase;
       text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
@@ -508,22 +512,22 @@
 
     .hero-class-label {
       font-family: var(--font-tech);
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 700;
-      letter-spacing: 2px;
+      letter-spacing: 1.8px;
       color: #8C99AB;
       margin-top: 4px;
       text-transform: uppercase;
     }
 
-    /* 3D Mecha Center Display Canvas / Render */
+    /* Hero Portrait / Model Stage */
     .hero-3d-stage {
       position: absolute;
-      top: 50%;
+      top: 52%;
       left: 50%;
       transform: translate(-50%, -46%);
-      width: 440px;
-      height: 480px;
+      width: 360px;
+      height: 420px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -531,12 +535,53 @@
       z-index: 5;
     }
 
-    .mecha-render-graphic {
+    .hero-portrait-img {
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
       filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.9));
       transition: transform 0.25s ease, filter 0.25s ease;
+    }
+
+    /* Play Audio Button inside Hero Frame */
+    .hero-music-trigger-btn {
+      position: absolute;
+      bottom: 16px;
+      z-index: 20;
+      background: rgba(14, 18, 25, 0.92);
+      border: 1.5px solid var(--accent-lime);
+      border-radius: 20px;
+      padding: 7px 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent-lime);
+      font-family: var(--font-tech);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 14px rgba(212, 255, 0, 0.2);
+      transition: all 0.15s ease;
+      pointer-events: auto;
+    }
+
+    .hero-music-trigger-btn:hover {
+      background: var(--accent-lime);
+      color: #000;
+      box-shadow: 0 0 20px rgba(212, 255, 0, 0.5);
+      transform: translateY(-2px);
+    }
+
+    .hero-music-trigger-btn.playing {
+      background: var(--accent-lime);
+      color: #000;
+      animation: pulseMusic 0.8s infinite alternate;
+    }
+
+    @keyframes pulseMusic {
+      from { box-shadow: 0 0 10px rgba(212, 255, 0, 0.4); }
+      to { box-shadow: 0 0 25px rgba(212, 255, 0, 0.8); }
     }
 
     /* Side Arrow Chevrons */
@@ -565,24 +610,19 @@
       box-shadow: 0 0 12px rgba(212, 255, 0, 0.3);
     }
 
-    .side-arrow-left {
-      left: -20px;
-    }
-
-    .side-arrow-right {
-      right: -20px;
-    }
+    .side-arrow-left { left: -16px; }
+    .side-arrow-right { right: -16px; }
 
     /* -------------------------------------------------------------------------
-       RIGHT COLUMN: Level, Stats, Weapon Box, Big START Button
+       RIGHT COLUMN: Level, Combat Stats, Weapon Box, START Button
        ------------------------------------------------------------------------- */
     .right-stats-column {
       display: flex;
       flex-direction: column;
-      gap: 22px;
+      gap: 20px;
     }
 
-    /* Level 47 block */
+    /* Level Block */
     .level-meta-box {
       display: flex;
       flex-direction: column;
@@ -639,7 +679,7 @@
     }
 
     .stat-track-bar {
-      height: 3px;
+      height: 3.5px;
       background: rgba(255, 255, 255, 0.1);
       border-radius: 2px;
       position: relative;
@@ -654,7 +694,7 @@
       transition: width 0.3s ease;
     }
 
-    /* Weapon / Loadout Selector Box */
+    /* Weapon / Blaster Selector Box */
     .weapon-chassis-box {
       background: rgba(18, 23, 32, 0.7);
       border: 1px solid var(--border-medium);
@@ -668,7 +708,6 @@
       justify-content: space-between;
     }
 
-    /* Green Corner dots on weapon card */
     .weapon-pip-tr {
       position: absolute;
       top: 4px;
@@ -683,14 +722,24 @@
       flex: 1;
       height: 100%;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 0 6px;
+      gap: 4px;
     }
 
-    .weapon-render-img {
+    .weapon-name-tag {
+      font-family: var(--font-tech);
+      font-size: 8.5px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--accent-lime);
+    }
+
+    .weapon-render-svg {
       max-width: 100%;
-      max-height: 80px;
+      max-height: 54px;
       object-fit: contain;
       filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.7));
     }
@@ -718,7 +767,7 @@
     /* START Button (Exact Replica) */
     .start-button-frame {
       width: 100%;
-      height: 52px;
+      height: 54px;
       background: #141922;
       border: 1.5px solid rgba(255, 255, 255, 0.28);
       border-radius: 8px;
@@ -831,60 +880,59 @@
 </head>
 <body>
 
-  <!-- Top bar to switch between Mecha Specification and Twisted Party Roster -->
+  <!-- Top bar status & Audio feedback -->
   <div class="view-mode-bar">
     <div class="system-title-tag">
       <div class="dot"></div>
-      <span>AAA CONSOLE ESPORTS UI ENGINE // 60 FPS ZERO-EMOJI</span>
+      <span>TWISTED PARTY // AAA CONSOLE OPERATOR HUB</span>
     </div>
-    <div class="roster-switch-pills">
-      <button id="btn-mode-mecha" class="roster-pill-btn active" type="button">MECHA BLACK (REFERENCE SPEC)</button>
-      <button id="btn-mode-party" class="roster-pill-btn" type="button">TWISTED PARTY OPERATORS (7)</button>
+    <div class="audio-status-pill" id="audio-status-indicator">
+      <span>NOW PLAYING: READY</span>
     </div>
   </div>
 
-  <!-- MAIN CONSOLE CHASSIS FRAME -->
+  <!-- MAIN CONSOLE CHASSIS FRAME (Exact replica of the reference design) -->
   <div class="console-chassis">
     <div class="console-watermark-bg"></div>
 
     <!-- TOP NAVIGATION BAR -->
     <header class="console-topbar">
-      <!-- Left cluster: L1, Home, Seasons, Robots, Store, Profile, R1 -->
+      <!-- Left cluster: L1, Home, Seasons, Operators, Store, Profile, R1 -->
       <div class="nav-left-cluster">
         <div class="bumper-key" id="bumper-l1">L1</div>
         <nav class="nav-menu-tabs">
-          <div class="nav-tab-item" data-tab="home">HOME</div>
-          <div class="nav-tab-item" data-tab="seasons">SEASONS</div>
-          <div class="nav-tab-item active" data-tab="robots">ROBOTS</div>
-          <div class="nav-tab-item" data-tab="store">STORE</div>
-          <div class="nav-tab-item" data-tab="profile">PROFILE</div>
+          <div class="nav-tab-item" data-tab="arenas">ARENAS</div>
+          <div class="nav-tab-item active" data-tab="operators">OPERATORS</div>
+          <div class="nav-tab-item" data-tab="squads">SQUADS</div>
+          <div class="nav-tab-item" data-tab="weapons">WEAPONS</div>
+          <div class="nav-tab-item" data-tab="stats">STATS</div>
         </nav>
         <div class="bumper-key" id="bumper-r1">R1</div>
       </div>
 
-      <!-- Right cluster: Rank pts, Currencies, Triangle Button -->
+      <!-- Right cluster: Series Points, Token Currencies, Triangle Button -->
       <div class="nav-right-cluster">
         <div class="points-badge">
           <div class="shield-emblem">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><circle cx="12" cy="11" r="3"/></svg>
           </div>
-          <span id="header-points-val">8477 pts</span>
+          <span>8477 pts</span>
         </div>
 
         <div class="currency-controls">
-          <div class="curr-token">
+          <div class="curr-token" title="Party Coins">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
           </div>
-          <div class="plus-square-btn" title="Add Funds">
+          <div class="plus-square-btn" title="Laser Boost">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </div>
-          <div class="plus-square-btn" title="Boost">
+          <div class="plus-square-btn" title="Shield Cells">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </div>
-          <div class="plus-square-btn" title="Premium Pass">
+          <div class="plus-square-btn" title="Sector Pass">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </div>
-          <div class="triangle-key" title="Social Menu">
+          <div class="triangle-key" title="Friends Frequency">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polygon points="12 3 22 21 2 21 12 3"/></svg>
           </div>
         </div>
@@ -894,91 +942,120 @@
     <!-- MAIN CONSOLE WORKSPACE (3 COLUMNS) -->
     <main class="console-workspace">
 
-      <!-- LEFT COLUMN: Your Robots List -->
+      <!-- LEFT COLUMN: "Your Operators:" Real Character Roster Stack -->
       <section class="left-robot-column">
         <div class="section-title-wrap">
-          <h2 class="column-main-title" id="column-title-text">Your Robots:</h2>
-          <div class="column-subtitle" id="column-sub-text">Classes S ___ A</div>
+          <h2 class="column-main-title">Your Operators:</h2>
+          <div class="column-subtitle">Classes S ___ A // 7 OPERATORS</div>
         </div>
 
-        <div class="robot-card-stack" id="robot-slots-container">
-          <!-- Card 1 (Active) -->
+        <div class="robot-card-stack" id="operator-slots-container">
+          <!-- Card 1: THANKAN CHETTAN (Active) -->
           <div class="robot-slot-card active" data-index="0">
             <div class="slot-card-preview">
               <div class="slot-meta">
-                <span class="slot-name">RXC-09</span>
-                <span class="slot-class">CLASS S // SCOUT</span>
+                <span class="slot-name">THANKAN CHETTAN</span>
+                <span class="slot-class">CLASS S // POWER MUNDU</span>
               </div>
               <div class="slot-thumb-container">
-                <svg width="48" height="40" viewBox="0 0 100 80" fill="none">
-                  <path d="M15 45 L40 25 L85 30 L95 50 L70 70 L30 65 Z" fill="#2A3444" stroke="#D4FF00" stroke-width="2"/>
-                  <circle cx="70" cy="40" r="6" fill="#D4FF00"/>
-                  <line x1="30" y1="35" x2="10" y2="55" stroke="#FFFFFF" stroke-width="3"/>
-                </svg>
+                <img src="/CHARACTERS/thankan_portrait.png" alt="Thankan Chettan" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                <span class="thumb-tag" style="display:none; color: var(--accent-lime);">TC</span>
               </div>
             </div>
           </div>
 
-          <!-- Card 2 -->
+          <!-- Card 2: AJP -->
           <div class="robot-slot-card" data-index="1">
             <div class="slot-card-preview">
               <div class="slot-meta">
-                <span class="slot-name">RXC-04</span>
-                <span class="slot-class">CLASS S // HEAVY TANK</span>
+                <span class="slot-name">AJP CHAMPION</span>
+                <span class="slot-class">CLASS S // BREAKDANCE</span>
               </div>
               <div class="slot-thumb-container">
-                <svg width="48" height="40" viewBox="0 0 100 80" fill="none">
-                  <path d="M20 50 L35 30 L80 32 L88 55 L65 72 L25 68 Z" fill="#1E2530" stroke="#5A6778" stroke-width="1.5"/>
-                  <circle cx="65" cy="45" r="5" fill="#4B90FF"/>
-                </svg>
+                <img src="/CHARACTERS/ajp_portrait.png" alt="AJP" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                <span class="thumb-tag" style="display:none; color: #00F0FF;">AJP</span>
               </div>
             </div>
           </div>
 
-          <!-- Card 3 -->
+          <!-- Card 3: DOGGESH BHAIR -->
           <div class="robot-slot-card" data-index="2">
             <div class="slot-card-preview">
               <div class="slot-meta">
-                <span class="slot-name">RXC-11</span>
-                <span class="slot-class">CLASS A // STEALTH</span>
+                <span class="slot-name">DOGGESH BHAIR</span>
+                <span class="slot-class">CLASS S // GUNSLINGER</span>
               </div>
               <div class="slot-thumb-container">
-                <svg width="48" height="40" viewBox="0 0 100 80" fill="none">
-                  <path d="M18 42 L45 28 L82 35 L90 52 L60 68 L25 60 Z" fill="#1E2530" stroke="#5A6778" stroke-width="1.5"/>
-                  <circle cx="68" cy="42" r="5" fill="#FF0055"/>
-                </svg>
+                <span class="thumb-tag" style="color: #FFB800;">DOG</span>
               </div>
             </div>
           </div>
 
-          <!-- Card 4 -->
+          <!-- Card 4: KUCHUPUCHU -->
           <div class="robot-slot-card" data-index="3">
             <div class="slot-card-preview">
               <div class="slot-meta">
-                <span class="slot-name">RXC-02</span>
-                <span class="slot-class">CLASS A // TITAN</span>
+                <span class="slot-name">KUCHUPUCHU</span>
+                <span class="slot-class">CLASS A // GNOME MAESTRO</span>
               </div>
               <div class="slot-thumb-container">
-                <svg width="48" height="40" viewBox="0 0 100 80" fill="none">
-                  <path d="M22 48 L42 32 L78 34 L85 54 L62 70 L28 66 Z" fill="#1E2530" stroke="#5A6778" stroke-width="1.5"/>
-                  <circle cx="62" cy="46" r="5" fill="#FFB800"/>
-                </svg>
+                <img src="/CHARACTERS/kuchupuchu_portrait.png" alt="KuchuPuchu" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                <span class="thumb-tag" style="display:none; color: #9D00FF;">GNM</span>
               </div>
             </div>
           </div>
 
-          <!-- Add Robot Button -->
-          <div class="btn-add-robot-slot" id="btn-add-robot">
-            <span>Add Robot</span>
+          <!-- Card 5: BIG VEGAS -->
+          <div class="robot-slot-card" data-index="4">
+            <div class="slot-card-preview">
+              <div class="slot-meta">
+                <span class="slot-name">BIG VEGAS</span>
+                <span class="slot-class">CLASS S // CYCLONE</span>
+              </div>
+              <div class="slot-thumb-container">
+                <span class="thumb-tag" style="color: #FF8800;">VEG</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 6: KNIGHT -->
+          <div class="robot-slot-card" data-index="5">
+            <div class="slot-card-preview">
+              <div class="slot-meta">
+                <span class="slot-name">KNIGHT D PELEGRINI</span>
+                <span class="slot-class">CLASS A // IRON CRUSADER</span>
+              </div>
+              <div class="slot-thumb-container">
+                <span class="thumb-tag" style="color: #FFFFFF;">KNG</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 7: PEASANT GIRL -->
+          <div class="robot-slot-card" data-index="6">
+            <div class="slot-card-preview">
+              <div class="slot-meta">
+                <span class="slot-name">PEASANT GIRL</span>
+                <span class="slot-class">CLASS A // AGILE SCOUT</span>
+              </div>
+              <div class="slot-thumb-container">
+                <span class="thumb-tag" style="color: #00FF88;">SCT</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add / Private Squad Button -->
+          <div class="btn-add-robot-slot" id="btn-add-operator">
+            <span>Invite Squad Member</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </div>
         </div>
       </section>
 
-      <!-- CENTER COLUMN: Large Mecha Showcase Frame with Corner Pips -->
+      <!-- CENTER COLUMN: Large Operator Showcase Frame with Corner Pips -->
       <section class="center-hero-column">
         <!-- Left cycle arrow -->
-        <button class="side-cycle-arrow side-arrow-left" id="btn-cycle-left" type="button" aria-label="Previous">
+        <button class="side-cycle-arrow side-arrow-left" id="btn-cycle-left" type="button" aria-label="Previous Operator">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
 
@@ -990,68 +1067,42 @@
           <div class="corner-pip pip-br"></div>
 
           <div class="hero-header-block">
-            <h1 class="hero-code-name" id="hero-model-title">RXC-09</h1>
-            <div class="hero-class-label" id="hero-model-subtitle">SCOUT MECHA BLACK</div>
+            <h1 class="hero-code-name" id="hero-model-title">THANKAN CHETTAN</h1>
+            <div class="hero-class-label" id="hero-model-subtitle">POWER MUNDU // DANCE: CHETTAN POWER DANCE</div>
           </div>
+
+          <!-- Play Victory Music Button directly inside showcase frame -->
+          <button class="hero-music-trigger-btn" id="btn-play-victory-song" type="button">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span id="btn-music-label">PLAY VICTORY MUSIC</span>
+          </button>
         </div>
 
-        <!-- Hero 3D Stage / Scaled Mecha Graphic -->
+        <!-- Real Operator Hero Visual Stage -->
         <div class="hero-3d-stage">
-          <svg id="hero-vector-art" class="mecha-render-graphic" width="380" height="420" viewBox="0 0 380 420" fill="none">
-            <!-- Sleek Mecha Torso & Head Silhouette matching reference image -->
-            <defs>
-              <linearGradient id="mechaMetal" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#4C5766"/>
-                <stop offset="40%" stop-color="#242B36"/>
-                <stop offset="80%" stop-color="#14181F"/>
-                <stop offset="100%" stop-color="#0E1217"/>
-              </linearGradient>
-              <linearGradient id="neonGlow" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#D4FF00"/>
-                <stop offset="100%" stop-color="#80A300"/>
-              </linearGradient>
-            </defs>
-            <!-- Heavy Torso Chassis -->
-            <path d="M110 380 C110 320 130 260 150 220 L230 220 C250 260 270 320 270 380 Z" fill="url(#mechaMetal)" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
-            <path d="M140 370 L240 370 L230 290 L150 290 Z" fill="#181F28" stroke="#D4FF00" stroke-width="1.5" stroke-dasharray="4 2"/>
-            <text x="190" y="340" fill="#D4FF00" font-family="'Orbitron', sans-serif" font-size="28" font-weight="900" text-anchor="middle">09</text>
-            <!-- Aerodynamic Wing / Radar Fins on Head -->
-            <path d="M60 145 L220 120 L240 145 L80 180 Z" fill="#1C232D" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
-            <path d="M85 140 L210 125" stroke="#D4FF00" stroke-width="2"/>
-            <!-- Mecha Head Core Dome -->
-            <path d="M150 130 C190 90 260 110 275 160 C280 190 260 220 220 230 L160 220 Z" fill="url(#mechaMetal)" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
-            <!-- Sensor Eyes -->
-            <circle cx="240" cy="165" r="7" fill="#000" stroke="#D4FF00" stroke-width="2"/>
-            <circle cx="240" cy="165" r="3" fill="#D4FF00"/>
-            <circle cx="258" cy="172" r="5" fill="#000" stroke="#D4FF00" stroke-width="1.5"/>
-            <!-- Cervical Neck Plating -->
-            <path d="M175 180 C175 220 180 250 185 270" stroke="rgba(255,255,255,0.3)" stroke-width="4" stroke-dasharray="6 4"/>
-            <path d="M195 185 C195 220 200 250 205 270" stroke="rgba(255,255,255,0.3)" stroke-width="4" stroke-dasharray="6 4"/>
-            <!-- ART Insignia in Red -->
-            <text x="175" y="245" fill="#FF2B44" font-family="'Orbitron', sans-serif" font-size="16" font-weight="900" transform="rotate(-30 175 245)">ART</text>
-          </svg>
+          <img id="hero-portrait-render" class="hero-portrait-img" src="/CHARACTERS/thankan_portrait.png" alt="Operator" onerror="this.style.opacity='0';" />
         </div>
 
         <!-- Right cycle arrow -->
-        <button class="side-cycle-arrow side-arrow-right" id="btn-cycle-right" type="button" aria-label="Next">
+        <button class="side-cycle-arrow side-arrow-right" id="btn-cycle-right" type="button" aria-label="Next Operator">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </section>
 
-      <!-- RIGHT COLUMN: Level, Technical Stats, Weapon Box, START Button -->
+      <!-- RIGHT COLUMN: Level, Combat Stats, Weapon Box, Big START Button -->
       <section class="right-stats-column">
         <!-- Level Block -->
         <div class="level-meta-box">
-          <span class="level-label">Level</span>
+          <span class="level-label">Operator Rank</span>
           <div class="level-number-hero" id="stat-level-num">47</div>
         </div>
 
         <!-- Technical Stat Bars -->
         <div class="stats-table-block">
-          <!-- Stat 1: ATTACK -->
+          <!-- Stat 1: LASER RANGE -->
           <div class="stat-row-item">
             <div class="stat-meta-header">
-              <span class="stat-name-tag">ATTACK</span>
+              <span class="stat-name-tag">LASER RANGE</span>
               <span class="stat-value-tag" id="val-attack">447</span>
             </div>
             <div class="stat-track-bar">
@@ -1059,10 +1110,10 @@
             </div>
           </div>
 
-          <!-- Stat 2: DEFENCE -->
+          <!-- Stat 2: RING SURVIVAL -->
           <div class="stat-row-item">
             <div class="stat-meta-header">
-              <span class="stat-name-tag">DEFENCE</span>
+              <span class="stat-name-tag">RING SURVIVAL</span>
               <span class="stat-value-tag" id="val-defence">80</span>
             </div>
             <div class="stat-track-bar">
@@ -1070,10 +1121,10 @@
             </div>
           </div>
 
-          <!-- Stat 3: ACCURACY -->
+          <!-- Stat 3: AIM ACCURACY -->
           <div class="stat-row-item">
             <div class="stat-meta-header">
-              <span class="stat-name-tag">ACCURACY</span>
+              <span class="stat-name-tag">AIM ACCURACY</span>
               <span class="stat-value-tag" id="val-accuracy">244</span>
             </div>
             <div class="stat-track-bar">
@@ -1081,10 +1132,10 @@
             </div>
           </div>
 
-          <!-- Stat 4: DEXTRETY -->
+          <!-- Stat 4: DODGE AGILITY -->
           <div class="stat-row-item">
             <div class="stat-meta-header">
-              <span class="stat-name-tag">DEXTRETY</span>
+              <span class="stat-name-tag">DODGE AGILITY</span>
               <span class="stat-value-tag" id="val-dextrety">239</span>
             </div>
             <div class="stat-track-bar">
@@ -1096,31 +1147,25 @@
         <!-- Weapon Loadout Chassis Box -->
         <div class="weapon-chassis-box">
           <div class="weapon-pip-tr"></div>
-          <button class="weapon-cycle-btn" id="btn-weapon-prev" type="button" aria-label="Prev Weapon">
+          <button class="weapon-cycle-btn" id="btn-weapon-prev" type="button" aria-label="Prev Blaster">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
           
           <div class="weapon-display-area">
-            <!-- Tactical Blaster Rifle Vector SVG -->
-            <svg id="weapon-vector-svg" class="weapon-render-img" width="160" height="60" viewBox="0 0 200 80" fill="none">
-              <!-- Rifle Barrel and Body -->
-              <rect x="40" y="24" width="110" height="22" rx="3" fill="#202733" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
-              <!-- Front Muzzle & Flash Hider -->
-              <rect x="18" y="27" width="22" height="16" rx="2" fill="#364254" stroke="#D4FF00" stroke-width="1.5"/>
-              <line x1="24" y1="23" x2="24" y2="47" stroke="#D4FF00" stroke-width="2"/>
-              <!-- Scope / Optics Rail -->
-              <rect x="60" y="16" width="60" height="8" rx="2" fill="#141922" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
-              <!-- Pistol Grip & Trigger -->
-              <path d="M75 46 L82 72 L96 70 L92 46 Z" fill="#181F29" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
-              <path d="M85 52 C82 56 82 58 87 58" stroke="#D4FF00" stroke-width="2" fill="none"/>
-              <!-- Magazine Box -->
-              <rect x="110" y="46" width="24" height="26" rx="2" fill="#283242" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
-              <!-- Tactical Stock -->
-              <path d="M150 28 L185 30 L188 56 L165 52 L150 44 Z" fill="#141922" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+            <span class="weapon-name-tag" id="weapon-display-name">CYBER LASER BLASTER</span>
+            <svg id="weapon-vector-svg" class="weapon-render-svg" width="160" height="54" viewBox="0 0 200 80" fill="none">
+              <rect x="35" y="24" width="115" height="22" rx="3" fill="#202733" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+              <rect x="15" y="27" width="22" height="16" rx="2" fill="#364254" stroke="#D4FF00" stroke-width="1.5"/>
+              <line x1="22" y1="23" x2="22" y2="47" stroke="#D4FF00" stroke-width="2"/>
+              <rect x="55" y="16" width="65" height="8" rx="2" fill="#141922" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+              <path d="M72 46 L79 72 L93 70 L89 46 Z" fill="#181F29" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+              <path d="M82 52 C79 56 79 58 84 58" stroke="#D4FF00" stroke-width="2" fill="none"/>
+              <rect x="105" y="46" width="24" height="26" rx="2" fill="#283242" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+              <path d="M148 28 L185 30 L188 56 L165 52 L148 44 Z" fill="#141922" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
             </svg>
           </div>
 
-          <button class="weapon-cycle-btn" id="btn-weapon-next" type="button" aria-label="Next Weapon">
+          <button class="weapon-cycle-btn" id="btn-weapon-next" type="button" aria-label="Next Blaster">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
         </div>
@@ -1137,11 +1182,11 @@
       <div class="legend-actions-left">
         <div class="legend-item" id="btn-prompt-select">
           <div class="btn-key-icon">X</div>
-          <span>Select</span>
+          <span>Select Operator</span>
         </div>
-        <div class="legend-item" id="btn-prompt-default">
+        <div class="legend-item" id="btn-prompt-song">
           <div class="btn-key-square"></div>
-          <span>Set as default</span>
+          <span>Play Celebration Song</span>
         </div>
       </div>
 
@@ -1150,140 +1195,39 @@
           <div class="btn-key-icon" style="border-radius: 4px;">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </div>
-          <span>Settings</span>
+          <span>Audio & Arena Settings</span>
         </div>
       </div>
     </footer>
   </div>
 
-  <!-- Web Audio Interactive Synthesizer Script -->
+  <!-- Real Audio & Interactive Game Script -->
   <script>
-    // Audio Context Setup
-    let audioCtx = null;
-    function getAudioCtx() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      return audioCtx;
-    }
-
-    function playTechBeep(freq = 640, type = 'sine', duration = 0.06, gainVal = 0.12) {
-      try {
-        const ctx = getAudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(Math.max(20, freq * 0.5), ctx.currentTime + duration);
-        gain.gain.setValueAtTime(gainVal, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + duration);
-      } catch (e) {}
-    }
-
-    function playChirp(f1 = 700, f2 = 1100) {
-      playTechBeep(f1, 'sine', 0.05, 0.1);
-      setTimeout(() => playTechBeep(f2, 'triangle', 0.07, 0.12), 40);
-    }
-
-    // Dataset 1: Mecha Black Reference Roster
-    const MECHA_ROSTER = [
-      {
-        id: 'rxc_09',
-        code: 'RXC-09',
-        name: 'SCOUT MECHA BLACK',
-        class: 'CLASS S // SCOUT',
-        level: 47,
-        attack: 447,
-        attackPct: 82,
-        defence: 80,
-        defencePct: 25,
-        accuracy: 244,
-        accuracyPct: 64,
-        dextrety: 239,
-        dextretyPct: 61,
-        color: '#D4FF00',
-        insignia: 'ART'
-      },
-      {
-        id: 'rxc_04',
-        code: 'RXC-04',
-        name: 'HEAVY TANK CHASSIS',
-        class: 'CLASS S // HEAVY TANK',
-        level: 52,
-        attack: 512,
-        attackPct: 94,
-        defence: 260,
-        defencePct: 78,
-        accuracy: 190,
-        accuracyPct: 48,
-        dextrety: 140,
-        dextretyPct: 35,
-        color: '#4B90FF',
-        insignia: 'HVY'
-      },
-      {
-        id: 'rxc_11',
-        code: 'RXC-11',
-        name: 'STEALTH INFILTRATOR',
-        class: 'CLASS A // STEALTH',
-        level: 41,
-        attack: 388,
-        attackPct: 71,
-        defence: 95,
-        defencePct: 30,
-        accuracy: 310,
-        accuracyPct: 84,
-        dextrety: 335,
-        dextretyPct: 88,
-        color: '#FF0055',
-        insignia: 'STL'
-      },
-      {
-        id: 'rxc_02',
-        code: 'RXC-02',
-        name: 'BLASTER TITAN CORE',
-        class: 'CLASS A // TITAN',
-        level: 44,
-        attack: 475,
-        attackPct: 87,
-        defence: 180,
-        defencePct: 55,
-        accuracy: 215,
-        accuracyPct: 56,
-        dextrety: 198,
-        dextretyPct: 50,
-        color: '#FFB800',
-        insignia: 'TTN'
-      }
-    ];
-
-    // Dataset 2: Twisted Party 7 Operators Roster
-    const PARTY_ROSTER = [
+    // Real Twisted Party 7 Operators Roster with Authentic Songs and Stats
+    const OPERATORS_ROSTER = [
       {
         id: 'thankan_chettan',
-        code: 'CHETTAN-07',
-        name: 'THANKAN CHETTAN',
-        class: 'SPECIAL // POWER MUNDU',
+        code: 'THANKAN CHETTAN',
+        subtitle: 'POWER MUNDU // DANCE: CHETTAN POWER DANCE',
+        class: 'CLASS S // POWER MUNDU',
         level: 50,
         attack: 495,
-        attackPct: 91,
+        attackPct: 92,
         defence: 220,
         defencePct: 68,
         accuracy: 280,
         accuracyPct: 75,
         dextrety: 270,
         dextretyPct: 72,
-        color: '#D4FF00',
-        insignia: 'MAL'
+        songUrl: '/CHARACTER-SONG/THANKAN_CHETTAN_NORMAL.mp3',
+        songTitle: 'Thankan Chettan Anthem (Malayalam Beat)',
+        portraitUrl: '/CHARACTERS/thankan_portrait.png'
       },
       {
         id: 'ajp',
-        code: 'AJP-01',
-        name: 'AJP CHAMPION',
-        class: 'CLASS S // BREAKDANCER',
+        code: 'AJP CHAMPION',
+        subtitle: 'KING OF ARENA // DANCE: BREAKDANCE UPROCK',
+        class: 'CLASS S // BREAKDANCE',
         level: 48,
         attack: 460,
         attackPct: 85,
@@ -1293,13 +1237,14 @@
         accuracyPct: 70,
         dextrety: 310,
         dextretyPct: 82,
-        color: '#00F0FF',
-        insignia: 'AJP'
+        songUrl: '/CHARACTER-SONG/AJP SONG 1.mp3',
+        songTitle: 'AJP Signature Track 1',
+        portraitUrl: '/CHARACTERS/ajp_portrait.png'
       },
       {
         id: 'dog',
-        code: 'DOG-02',
-        name: 'DOGGESH BHAIR',
+        code: 'DOGGESH BHAIR',
+        subtitle: 'TACTICAL CANINE // DANCE: VICTORY TWERK',
         class: 'CLASS S // GUNSLINGER',
         level: 45,
         attack: 430,
@@ -1310,13 +1255,14 @@
         accuracyPct: 80,
         dextrety: 250,
         dextretyPct: 65,
-        color: '#FFB800',
-        insignia: 'DOG'
+        songUrl: '/CHARACTER-SONG/DOG SONG.mp3',
+        songTitle: 'Doggesh Funny Twerk Beat (Chicken Drop)',
+        portraitUrl: ''
       },
       {
         id: 'kuchupuchu',
-        code: 'GNOME-06',
-        name: 'KUCHUPUCHU',
+        code: 'KUCHUPUCHU',
+        subtitle: 'GNOME MAESTRO // DANCE: GNOME BREAKDANCE',
         class: 'CLASS A // GNOME MAESTRO',
         level: 43,
         attack: 390,
@@ -1327,14 +1273,79 @@
         accuracyPct: 86,
         dextrety: 340,
         dextretyPct: 90,
-        color: '#9D00FF',
-        insignia: 'GNM'
+        songUrl: '/CHARACTER-SONG/KUCHU PUCHU SONG 1.mp3',
+        songTitle: 'Kuchu Puchu Song 1',
+        portraitUrl: '/CHARACTERS/kuchupuchu_portrait.png'
+      },
+      {
+        id: 'big_vegas',
+        code: 'BIG VEGAS',
+        subtitle: 'HEAVYWEIGHT BRAWLER // DANCE: HEADSPIN CYCLONE',
+        class: 'CLASS S // CYCLONE',
+        level: 46,
+        attack: 480,
+        attackPct: 89,
+        defence: 250,
+        defencePct: 76,
+        accuracy: 210,
+        accuracyPct: 54,
+        dextrety: 180,
+        dextretyPct: 45,
+        songUrl: '/CHARACTER-SONG/BIG VEGAS SONG.mp3',
+        songTitle: 'Big Vegas Heavy Party Drop',
+        portraitUrl: ''
+      },
+      {
+        id: 'knight',
+        code: 'KNIGHT D PELEGRINI',
+        subtitle: 'ARMORED DEFENDER // DANCE: VICTORY SWING',
+        class: 'CLASS A // IRON CRUSADER',
+        level: 44,
+        attack: 420,
+        attackPct: 77,
+        defence: 290,
+        defencePct: 88,
+        accuracy: 230,
+        accuracyPct: 60,
+        dextrety: 195,
+        dextretyPct: 49,
+        songUrl: '/CHARACTER-SONG/KNIGHT SONG.mp3',
+        songTitle: 'Knight Ranam Heroic Anthem',
+        portraitUrl: ''
+      },
+      {
+        id: 'peasant_girl',
+        code: 'PEASANT GIRL',
+        subtitle: 'AGILE SCOUT // DANCE: FREESTYLE SWING',
+        class: 'CLASS A // AGILE SCOUT',
+        level: 42,
+        attack: 410,
+        attackPct: 75,
+        defence: 90,
+        defencePct: 28,
+        accuracy: 330,
+        accuracyPct: 88,
+        dextrety: 350,
+        dextretyPct: 92,
+        songUrl: '/CHARACTER-SONG/PEASANT GIRL SONG.mp3',
+        songTitle: 'Peasant Girl Upbeat Folk Dance Beat',
+        portraitUrl: ''
       }
     ];
 
-    let currentDataset = MECHA_ROSTER;
-    let selectedIndex = 0;
+    // Real Weapon Blasters
+    const WEAPONS_LIST = [
+      { name: 'CYBER LASER BLASTER', color: '#D4FF00' },
+      { name: 'DUAL TWISTED RAYGUNS', color: '#00F0FF' },
+      { name: 'ION CANNON RIFLE', color: '#FF0055' },
+      { name: 'PLASMA SCATTERGUN', color: '#FFB800' }
+    ];
 
+    let selectedIndex = 0;
+    let weaponIndex = 0;
+    let activeAudio = null;
+
+    // Elements
     const elTitle = document.getElementById('hero-model-title');
     const elSub = document.getElementById('hero-model-subtitle');
     const elLevel = document.getElementById('stat-level-num');
@@ -1346,143 +1357,161 @@
     const elAccBar = document.getElementById('bar-accuracy');
     const elDexVal = document.getElementById('val-dextrety');
     const elDexBar = document.getElementById('bar-dextrety');
-    const cardsContainer = document.getElementById('robot-slots-container');
+    const elPortrait = document.getElementById('hero-portrait-render');
+    const elMusicBtn = document.getElementById('btn-play-victory-song');
+    const elMusicLabel = document.getElementById('btn-music-label');
+    const elAudioStatus = document.getElementById('audio-status-indicator');
+    const elWeaponName = document.getElementById('weapon-display-name');
 
-    function applyModelData(model) {
-      elTitle.textContent = model.code;
-      elSub.textContent = model.name;
-      elLevel.textContent = model.level;
+    function stopMusic() {
+      if (activeAudio) {
+        try {
+          activeAudio.pause();
+          activeAudio.currentTime = 0;
+        } catch (e) {}
+        activeAudio = null;
+      }
+      elMusicBtn.classList.remove('playing');
+      elMusicLabel.textContent = 'PLAY VICTORY MUSIC';
+    }
 
-      elAtkVal.textContent = model.attack;
-      elAtkBar.style.width = model.attackPct + '%';
+    function playCurrentVictoryMusic() {
+      const op = OPERATORS_ROSTER[selectedIndex];
+      if (!op || !op.songUrl) return;
 
-      elDefVal.textContent = model.defence;
-      elDefBar.style.width = model.defencePct + '%';
+      if (activeAudio) {
+        stopMusic();
+        elAudioStatus.innerHTML = `<span>AUDIO PAUSED</span>`;
+        return;
+      }
 
-      elAccVal.textContent = model.accuracy;
-      elAccBar.style.width = model.accuracyPct + '%';
+      try {
+        activeAudio = new Audio(op.songUrl);
+        activeAudio.volume = 0.85;
+        activeAudio.play().then(() => {
+          elMusicBtn.classList.add('playing');
+          elMusicLabel.textContent = 'PAUSE VICTORY MUSIC';
+          elAudioStatus.innerHTML = `<span style="color:var(--accent-lime);">PLAYING: ${op.songTitle}</span>`;
+        }).catch(err => {
+          console.warn('Audio play deferred:', err);
+          elAudioStatus.innerHTML = `<span>CLICK TO UNLOCK AUDIO</span>`;
+        });
 
-      elDexVal.textContent = model.dextrety;
-      elDexBar.style.width = model.dextretyPct + '%';
+        activeAudio.onended = () => {
+          stopMusic();
+          elAudioStatus.innerHTML = `<span>NOW PLAYING: READY</span>`;
+        };
+      } catch (e) {
+        console.error('Audio load error:', e);
+      }
+    }
 
-      // Update active card outline
+    function applyOperator(op) {
+      stopMusic();
+      elTitle.textContent = op.code;
+      elSub.textContent = op.subtitle;
+      elLevel.textContent = op.level;
+
+      elAtkVal.textContent = op.attack;
+      elAtkBar.style.width = op.attackPct + '%';
+
+      elDefVal.textContent = op.defence;
+      elDefBar.style.width = op.defencePct + '%';
+
+      elAccVal.textContent = op.accuracy;
+      elAccBar.style.width = op.accuracyPct + '%';
+
+      elDexVal.textContent = op.dextrety;
+      elDexBar.style.width = op.dextretyPct + '%';
+
+      if (op.portraitUrl) {
+        elPortrait.src = op.portraitUrl;
+        elPortrait.style.opacity = '1';
+      } else {
+        elPortrait.style.opacity = '0';
+      }
+
+      // Update card active class
       document.querySelectorAll('.robot-slot-card').forEach((card, idx) => {
         if (idx === selectedIndex) {
           card.classList.add('active');
+          card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         } else {
           card.classList.remove('active');
         }
       });
+
+      elAudioStatus.innerHTML = `<span>TRACK: ${op.songTitle}</span>`;
     }
 
-    function renderSlots() {
-      // Re-populate left cards
-      const cards = document.querySelectorAll('.robot-slot-card');
-      cards.forEach((card, idx) => {
-        const item = currentDataset[idx];
-        if (item) {
-          card.querySelector('.slot-name').textContent = item.code;
-          card.querySelector('.slot-class').textContent = item.class;
-        }
-      });
-      applyModelData(currentDataset[selectedIndex]);
-    }
-
-    // Left card click
+    // Left card clicks
     document.querySelectorAll('.robot-slot-card').forEach((card, idx) => {
       card.addEventListener('click', () => {
         selectedIndex = idx;
-        applyModelData(currentDataset[selectedIndex]);
-        playChirp(600, 950);
+        applyOperator(OPERATORS_ROSTER[selectedIndex]);
       });
     });
 
-    // Cycle buttons [<] and [>]
+    // Side chevron cycle
     document.getElementById('btn-cycle-left').addEventListener('click', () => {
-      selectedIndex = (selectedIndex - 1 + currentDataset.length) % currentDataset.length;
-      applyModelData(currentDataset[selectedIndex]);
-      playTechBeep(520, 'sine', 0.05);
+      selectedIndex = (selectedIndex - 1 + OPERATORS_ROSTER.length) % OPERATORS_ROSTER.length;
+      applyOperator(OPERATORS_ROSTER[selectedIndex]);
     });
 
     document.getElementById('btn-cycle-right').addEventListener('click', () => {
-      selectedIndex = (selectedIndex + 1) % currentDataset.length;
-      applyModelData(currentDataset[selectedIndex]);
-      playTechBeep(680, 'sine', 0.05);
+      selectedIndex = (selectedIndex + 1) % OPERATORS_ROSTER.length;
+      applyOperator(OPERATORS_ROSTER[selectedIndex]);
+    });
+
+    // Music Trigger Button
+    elMusicBtn.addEventListener('click', () => {
+      playCurrentVictoryMusic();
     });
 
     // Weapon cycling
-    const weapons = [
-      { name: 'TACTICAL BLASTER RIFLE' },
-      { name: 'HEAVY LASER CANNON' },
-      { name: 'PLASMA SCATTERGUN' }
-    ];
-    let weaponIdx = 0;
+    function updateWeapon() {
+      const w = WEAPONS_LIST[weaponIndex];
+      elWeaponName.textContent = w.name;
+      elWeaponName.style.color = w.color;
+    }
     document.getElementById('btn-weapon-prev').addEventListener('click', () => {
-      weaponIdx = (weaponIdx - 1 + weapons.length) % weapons.length;
-      playTechBeep(450, 'triangle', 0.06);
+      weaponIndex = (weaponIndex - 1 + WEAPONS_LIST.length) % WEAPONS_LIST.length;
+      updateWeapon();
     });
     document.getElementById('btn-weapon-next').addEventListener('click', () => {
-      weaponIdx = (weaponIdx + 1) % weapons.length;
-      playTechBeep(720, 'triangle', 0.06);
+      weaponIndex = (weaponIndex + 1) % WEAPONS_LIST.length;
+      updateWeapon();
     });
 
-    // Mode Toggle (Mecha vs Party)
-    const btnMecha = document.getElementById('btn-mode-mecha');
-    const btnParty = document.getElementById('btn-mode-party');
-    const colTitle = document.getElementById('column-title-text');
-
-    btnMecha.addEventListener('click', () => {
-      btnMecha.classList.add('active');
-      btnParty.classList.remove('active');
-      currentDataset = MECHA_ROSTER;
-      colTitle.textContent = 'Your Robots:';
-      selectedIndex = 0;
-      renderSlots();
-      playChirp(800, 1200);
+    // START Match Button
+    document.getElementById('btn-start-action').addEventListener('click', () => {
+      const op = OPERATORS_ROSTER[selectedIndex];
+      elAudioStatus.innerHTML = `<span style="color:#FFF;">DEPLOYING: ${op.code} INTO COMBAT ARENA</span>`;
+      playCurrentVictoryMusic();
     });
 
-    btnParty.addEventListener('click', () => {
-      btnParty.classList.add('active');
-      btnMecha.classList.remove('active');
-      currentDataset = PARTY_ROSTER;
-      colTitle.textContent = 'Your Operators:';
-      selectedIndex = 0;
-      renderSlots();
-      playChirp(800, 1200);
+    // Bottom prompt shortcut
+    document.getElementById('btn-prompt-song').addEventListener('click', () => {
+      playCurrentVictoryMusic();
     });
 
-    // Top Tabs
-    document.querySelectorAll('.nav-tab-item').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.nav-tab-item').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        playTechBeep(750, 'sine', 0.05);
-      });
-    });
-
-    // START Button Click
-    const btnStart = document.getElementById('btn-start-action');
-    btnStart.addEventListener('click', () => {
-      playTechBeep(400, 'square', 0.1, 0.2);
-      setTimeout(() => playTechBeep(880, 'sine', 0.25, 0.3), 80);
-      btnStart.style.borderColor = 'var(--accent-lime)';
-      btnStart.style.boxShadow = '0 0 35px var(--accent-lime-glow)';
-      setTimeout(() => {
-        btnStart.style.borderColor = '';
-        btnStart.style.boxShadow = '';
-      }, 400);
-    });
-
-    // Controller bumper shortcuts (Q/E or 1/2)
+    // Controller shortcuts: Q/E or Left/Right arrows to cycle, Space/Enter to Start/Play
     window.addEventListener('keydown', (e) => {
       if (e.key === 'q' || e.key === 'Q' || e.key === 'ArrowLeft') {
         document.getElementById('btn-cycle-left').click();
       } else if (e.key === 'e' || e.key === 'E' || e.key === 'ArrowRight') {
         document.getElementById('btn-cycle-right').click();
-      } else if (e.key === 'Enter' || e.key === ' ') {
-        btnStart.click();
+      } else if (e.key === 'Enter') {
+        document.getElementById('btn-start-action').click();
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        playCurrentVictoryMusic();
       }
     });
+
+    // Initial load
+    applyOperator(OPERATORS_ROSTER[0]);
+    updateWeapon();
   </script>
 </body>
 </html>

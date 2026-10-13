@@ -22,20 +22,19 @@ const CHARACTER_VICTORY_SONGS = {
     '/CHARACTER-SONG/KUCHU PUCHU SONG 1.mp3'
   ],
   dog: [
-    '/CHARACTER-SONG/DOG SONG.wav',
-    '/CHARACTER-SONG/DOG SONG 2.wav'
+    '/CHARACTER-SONG/DOG SONG.mp3'
   ],
   big_vegas: [
-    '/CHARACTER-SONG/BIG VEGAS SONG.wav'
+    '/CHARACTER-SONG/BIG VEGAS SONG.mp3'
   ],
   knight: [
-    '/CHARACTER-SONG/KNIGHT SONG.wav'
+    '/CHARACTER-SONG/KNIGHT SONG.mp3'
   ],
   peasant_girl: [
-    '/CHARACTER-SONG/PEASANT GIRL SONG.wav'
+    '/CHARACTER-SONG/PEASANT GIRL SONG.mp3'
   ],
   thankan_chettan: [
-    '/CHARACTER-SONG/THANKAN_CHETTAN_NORMAL.wav'
+    '/CHARACTER-SONG/THANKAN_CHETTAN_NORMAL.mp3'
   ]
 };
 
