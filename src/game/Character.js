@@ -189,6 +189,17 @@ export class Character {
             metalness: 0.15
           });
           child.material.needsUpdate = true;
+        } else if (this.characterId === 'thankan_chettan' && this.assetManager.textures?.['thankan_chettan_map']) {
+          child.material = new THREE.MeshStandardMaterial({
+            map: this.assetManager.textures['thankan_chettan_map'],
+            normalMap: this.assetManager.textures['thankan_chettan_normal'] || null,
+            roughnessMap: this.assetManager.textures['thankan_chettan_roughness'] || null,
+            metalnessMap: this.assetManager.textures['thankan_chettan_metallic'] || null,
+            color: 0xffffff,
+            roughness: 0.8,
+            metalness: 0.05
+          });
+          child.material.needsUpdate = true;
         } else if (child.material) {
           const mats = Array.isArray(child.material) ? child.material : [child.material];
           mats.forEach(m => {

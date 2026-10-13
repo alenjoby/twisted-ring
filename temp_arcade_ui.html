@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>TWISTED PARTY - High-Octane Arcade Party UI Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Changa:wght@600;700;800&family=Montserrat:wght@600;700;800;900&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-dark: #080A12;
+      --bg-surface: #111524;
+      --bg-surface-elevated: #181E33;
+      --bg-glass: rgba(17, 21, 36, 0.85);
+      --border-glass: rgba(255, 255, 255, 0.12);
+      --border-accent: rgba(255, 184, 0, 0.35);
+
+      /* High-Octane Arcade Palette */
+      --color-gold: #FFB800;
+      --color-gold-shadow: #B87700;
+      --color-cyan: #00F0FF;
+      --color-cyan-shadow: #008899;
+      --color-magenta: #FF0055;
+      --color-magenta-shadow: #A80038;
+      --color-lime: #00FF88;
+      --color-lime-shadow: #009952;
+      --color-purple: #9D00FF;
+      --color-purple-shadow: #5E0099;
+
+      /* Neutrals */
+      --color-text-main: #FFFFFF;
+      --color-text-muted: #8E99B3;
+      --color-text-dark: #090B12;
+
+      /* Typography */
+      --font-display: 'Changa', 'Montserrat', sans-serif;
+      --font-body: 'Montserrat', 'Outfit', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 50% 10%, rgba(255, 184, 0, 0.08) 0%, transparent 60%),
+        radial-gradient(circle at 85% 85%, rgba(0, 240, 255, 0.06) 0%, transparent 50%),
+        radial-gradient(circle at 15% 80%, rgba(255, 0, 85, 0.06) 0%, transparent 50%),
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+      color: var(--color-text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      user-select: none;
+    }
+
+    /* =========================================================================
+       TOP CONTROL BAR & SCREEN SWITCHER
+       ========================================================================= */
+    .showcase-header {
+      background: rgba(10, 13, 22, 0.94);
+      backdrop-filter: blur(16px);
+      border-bottom: 2px solid rgba(255, 184, 0, 0.25);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 999;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    }
+
+    .showcase-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo-pill {
+      background: linear-gradient(135deg, var(--color-gold), #FF8000);
+      color: #000;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 1.5px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      box-shadow: 0 3px 0 var(--color-gold-shadow);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: 1.2px;
+      background: linear-gradient(90deg, #FFFFFF, var(--color-gold));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--color-text-muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .screen-nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .screen-tab-btn {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 8px 14px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--color-text-muted);
+      border: 1px solid var(--border-glass);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .screen-tab-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #FFF;
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .screen-tab-btn.active {
+      background: linear-gradient(135deg, rgba(255, 184, 0, 0.2), rgba(255, 184, 0, 0.05));
+      color: var(--color-gold);
+      border: 1.5px solid var(--color-gold);
+      box-shadow: 0 0 16px rgba(255, 184, 0, 0.25), inset 0 0 8px rgba(255, 184, 0, 0.1);
+    }
+
+    .header-tools {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sound-toggle-btn {
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid var(--border-glass);
+      border-radius: 8px;
+      color: var(--color-cyan);
+      padding: 7px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .sound-toggle-btn:hover {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--color-cyan);
+    }
+
+    /* =========================================================================
+       CHUNKY 3D ARCADE BUTTONS
+       ========================================================================= */
+    .arcade-btn {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      padding: 13px 24px;
+      border-radius: 12px;
+      cursor: pointer;
+      border: none;
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      white-space: nowrap;
+      transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.08s ease;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+
+    .arcade-btn svg {
+      flex-shrink: 0;
+    }
+
+    /* Primary: Electric Gold */
+    .arcade-btn-gold {
+      background: linear-gradient(180deg, #FFD043 0%, #FFB800 60%, #E69B00 100%);
+      color: #141005;
+      box-shadow: 0 5px 0 var(--color-gold-shadow), 0 8px 18px rgba(255, 184, 0, 0.35);
+    }
+    .arcade-btn-gold:hover {
+      filter: brightness(1.08);
+      transform: translateY(-2px);
+      box-shadow: 0 7px 0 var(--color-gold-shadow), 0 12px 22px rgba(255, 184, 0, 0.45);
+    }
+    .arcade-btn-gold:active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 var(--color-gold-shadow), 0 2px 8px rgba(255, 184, 0, 0.25);
+    }
+
+    /* Accent: Laser Magenta */
+    .arcade-btn-magenta {
+      background: linear-gradient(180deg, #FF3377 0%, #FF0055 60%, #D60045 100%);
+      color: #FFFFFF;
+      box-shadow: 0 5px 0 var(--color-magenta-shadow), 0 8px 18px rgba(255, 0, 85, 0.35);
+    }
+    .arcade-btn-magenta:hover {
+      filter: brightness(1.08);
+      transform: translateY(-2px);
+      box-shadow: 0 7px 0 var(--color-magenta-shadow), 0 12px 22px rgba(255, 0, 85, 0.45);
+    }
+    .arcade-btn-magenta:active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 var(--color-magenta-shadow), 0 2px 8px rgba(255, 0, 85, 0.25);
+    }
+
+    /* Accent: Cyber Cyan */
+    .arcade-btn-cyan {
+      background: linear-gradient(180deg, #43F7FF 0%, #00F0FF 60%, #00BFD6 100%);
+      color: #041B20;
+      box-shadow: 0 5px 0 var(--color-cyan-shadow), 0 8px 18px rgba(0, 240, 255, 0.35);
+    }
+    .arcade-btn-cyan:hover {
+      filter: brightness(1.08);
+      transform: translateY(-2px);
+      box-shadow: 0 7px 0 var(--color-cyan-shadow), 0 12px 22px rgba(0, 240, 255, 0.45);
+    }
+    .arcade-btn-cyan:active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 var(--color-cyan-shadow), 0 2px 8px rgba(0, 240, 255, 0.25);
+    }
+
+    /* Accent: Toxic Lime */
+    .arcade-btn-lime {
+      background: linear-gradient(180deg, #57FFAC 0%, #00FF88 60%, #00C767 100%);
+      color: #042413;
+      box-shadow: 0 5px 0 var(--color-lime-shadow), 0 8px 18px rgba(0, 255, 136, 0.35);
+    }
+    .arcade-btn-lime:hover {
+      filter: brightness(1.08);
+      transform: translateY(-2px);
+      box-shadow: 0 7px 0 var(--color-lime-shadow), 0 12px 22px rgba(0, 255, 136, 0.45);
+    }
+    .arcade-btn-lime:active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 var(--color-lime-shadow), 0 2px 8px rgba(0, 255, 136, 0.25);
+    }
+
+    /* Secondary: Dark Obsidian Glass */
+    .arcade-btn-dark {
+      background: linear-gradient(180deg, #242B3D 0%, #161B29 100%);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 5px 0 #0C0F17, 0 8px 18px rgba(0, 0, 0, 0.5);
+    }
+    .arcade-btn-dark:hover {
+      background: linear-gradient(180deg, #303A52 0%, #1E2538 100%);
+      border-color: rgba(255, 255, 255, 0.28);
+      transform: translateY(-2px);
+      box-shadow: 0 7px 0 #0C0F17, 0 12px 22px rgba(0, 0, 0, 0.6);
+    }
+    .arcade-btn-dark:active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 #0C0F17, 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    .arcade-btn-sm {
+      padding: 9px 16px;
+      font-size: 11px;
+      border-radius: 9px;
+      box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4);
+    }
+
+    /* =========================================================================
+       CONTAINER & SCREEN PANELS
+       ========================================================================= */
+    .showcase-body {
+      flex: 1;
+      padding: 24px;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .mockup-screen-view {
+      display: none;
+      animation: fadeIn 0.25s ease-out forwards;
+    }
+
+    .mockup-screen-view.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Screen Title Bar */
+    .screen-meta-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 184, 0, 0.12);
+      border: 1px solid var(--border-accent);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: var(--color-gold);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .screen-headline {
+      font-family: var(--font-display);
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      margin-bottom: 6px;
+    }
+
+    .screen-subtext {
+      font-size: 13px;
+      color: var(--color-text-muted);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    /* =========================================================================
+       SCREEN 1: GAMEPLAY HUD MOCKUP
+       ========================================================================= */
+    .hud-simulator-frame {
+      background: radial-gradient(circle at 50% 50%, #171E30 0%, #0A0D17 100%);
+      border: 2px solid var(--border-glass);
+      border-radius: 20px;
+      min-height: 620px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), inset 0 0 100px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 20px;
+    }
+
+    /* 3D Arena Simulated Canvas Backdrop */
+    .hud-arena-grid {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        radial-gradient(circle at 50% 55%, rgba(0, 240, 255, 0.15) 0%, transparent 45%),
+        radial-gradient(circle at 50% 55%, transparent 35%, rgba(255, 0, 85, 0.25) 36%, transparent 42%),
+        repeating-radial-gradient(circle at 50% 55%, transparent, transparent 40px, rgba(255, 255, 255, 0.03) 40px, rgba(255, 255, 255, 0.03) 42px);
+      pointer-events: none;
+    }
+
+    /* Arena Player Markers in 3D Arena Floor */
+    .sim-arena-avatar {
+      position: absolute;
+      top: 52%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+    }
+
+    .sim-avatar-disc {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #FFB800 30%, #B87700 100%);
+      border: 3px solid #FFFFFF;
+      box-shadow: 0 0 24px rgba(255, 184, 0, 0.8), 0 8px 16px rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #000;
+      font-weight: 900;
+      font-size: 16px;
+    }
+
+    .sim-avatar-laser {
+      position: absolute;
+      width: 140px;
+      height: 3px;
+      background: linear-gradient(90deg, #FF0055, transparent);
+      box-shadow: 0 0 10px #FF0055;
+      top: 28px;
+      left: 45px;
+      transform-origin: left center;
+      transform: rotate(-25deg);
+    }
+
+    .sim-avatar-label {
+      background: rgba(10, 13, 22, 0.85);
+      border: 1px solid var(--color-gold);
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--color-gold);
+      white-space: nowrap;
+    }
+
+    /* Top Match Status Header */
+    .hud-top-bar {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .hud-match-strip {
+      background: rgba(14, 18, 30, 0.88);
+      backdrop-filter: blur(12px);
+      border: 1.5px solid var(--border-glass);
+      border-radius: 16px;
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .hud-round-pill {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .hud-round-pill .pill-tag {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: var(--color-text-muted);
+    }
+
+    .hud-round-pill .pill-val {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--color-gold);
+      letter-spacing: 1px;
+    }
+
+    .hud-divider-v {
+      width: 1px;
+      height: 28px;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .hud-scores-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .hud-player-dot {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-glass);
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .hud-player-dot.you {
+      border-color: var(--color-gold);
+      background: rgba(255, 184, 0, 0.12);
+      color: var(--color-gold);
+    }
+
+    .dot-badge {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-lime);
+      box-shadow: 0 0 8px var(--color-lime);
+    }
+
+    .dot-badge.dead {
+      background: var(--color-magenta);
+      box-shadow: 0 0 8px var(--color-magenta);
+    }
+
+    /* Central Big Countdown / Danger Box */
+    .hud-clock-center {
+      background: rgba(14, 18, 30, 0.92);
+      backdrop-filter: blur(14px);
+      border: 2px solid var(--color-gold);
+      box-shadow: 0 0 24px rgba(255, 184, 0, 0.25), 0 8px 30px rgba(0, 0, 0, 0.6);
+      border-radius: 18px;
+      padding: 10px 24px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 170px;
+    }
+
+    .hud-clock-phase {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: var(--color-gold);
+      text-transform: uppercase;
+    }
+
+    .hud-clock-timer {
+      font-family: var(--font-display);
+      font-size: 38px;
+      font-weight: 800;
+      line-height: 1;
+      color: #FFFFFF;
+      letter-spacing: 2px;
+      text-shadow: 0 0 16px rgba(255, 255, 255, 0.4);
+      margin: 4px 0;
+    }
+
+    .hud-clock-sub {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--color-lime);
+      letter-spacing: 1px;
+    }
+
+    /* Danger Shrink Alert Banner */
+    .hud-danger-banner {
+      background: linear-gradient(90deg, rgba(255, 0, 85, 0.15) 0%, rgba(255, 0, 85, 0.85) 50%, rgba(255, 0, 85, 0.15) 100%);
+      border-top: 1.5px solid var(--color-magenta);
+      border-bottom: 1.5px solid var(--color-magenta);
+      padding: 6px 20px;
+      text-align: center;
+      margin: 14px auto 0;
+      max-width: 580px;
+      width: 100%;
+      border-radius: 4px;
+      box-shadow: 0 0 24px rgba(255, 0, 85, 0.4);
+      animation: pulseDanger 1.2s infinite alternate;
+    }
+
+    @keyframes pulseDanger {
+      from { opacity: 0.8; transform: scale(0.99); }
+      to { opacity: 1; transform: scale(1.01); }
+    }
+
+    .hud-danger-banner span {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: #FFFFFF;
+      text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    /* Twin-Stick Virtual Controls Layer */
+    .hud-controls-layer {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      width: 100%;
+      margin-top: auto;
+      pointer-events: none;
+    }
+
+    .hud-controls-layer * {
+      pointer-events: auto;
+    }
+
+    .touch-stick-unit {
+      width: 140px;
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .touch-stick-base {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: rgba(14, 18, 30, 0.7);
+      border: 2px solid rgba(0, 240, 255, 0.45);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.2), inset 0 0 15px rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      user-select: none;
+      cursor: grab;
+    }
+
+    .touch-stick-base.aim-stick {
+      border-color: rgba(255, 0, 85, 0.55);
+      box-shadow: 0 0 20px rgba(255, 0, 85, 0.25), inset 0 0 15px rgba(0, 0, 0, 0.8);
+    }
+
+    .touch-stick-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #00F0FF, #008899);
+      border: 2px solid #FFFFFF;
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.7);
+      position: absolute;
+      transform: translate(12px, -8px);
+      transition: transform 0.05s ease;
+    }
+
+    .touch-stick-base.aim-stick .touch-stick-thumb {
+      background: radial-gradient(circle at 35% 35%, #FF0055, #9E0035);
+      box-shadow: 0 0 14px rgba(255, 0, 85, 0.7);
+      transform: translate(-14px, -12px);
+    }
+
+    .touch-stick-label {
+      position: absolute;
+      bottom: -22px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* HUD Center Bottom Bar */
+    .hud-center-action-deck {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hud-action-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* =========================================================================
+       SCREEN 2: CHARACTER SELECT ROSTER
+       ========================================================================= */
+    .roster-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+      margin-top: 14px;
+    }
+
+    .arcade-char-card {
+      background: var(--bg-surface);
+      border: 2px solid var(--border-glass);
+      border-radius: 18px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+
+    .arcade-char-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: transparent;
+      transition: background 0.2s;
+    }
+
+    .arcade-char-card:hover {
+      transform: translateY(-6px);
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65);
+    }
+
+    .arcade-char-card.active {
+      background: linear-gradient(180deg, #1C233B 0%, #121727 100%);
+      border: 2.5px solid var(--color-gold);
+      box-shadow: 0 0 30px rgba(255, 184, 0, 0.3), 0 12px 30px rgba(0, 0, 0, 0.6);
+      transform: translateY(-4px);
+    }
+
+    .arcade-char-card.active::before {
+      background: var(--color-gold);
+      box-shadow: 0 0 12px var(--color-gold);
+    }
+
+    .char-card-badge-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .char-role-badge {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--color-text-muted);
+    }
+
+    .arcade-char-card.active .char-role-badge {
+      background: rgba(255, 184, 0, 0.18);
+      color: var(--color-gold);
+    }
+
+    .char-secret-tag {
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      background: rgba(255, 0, 85, 0.2);
+      border: 1px solid var(--color-magenta);
+      color: var(--color-magenta);
+      padding: 3px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .char-preview-podium {
+      height: 180px;
+      background: radial-gradient(circle at 50% 65%, rgba(255, 255, 255, 0.08) 0%, rgba(0, 0, 0, 0.4) 70%);
+      border-radius: 12px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .podium-disc {
+      position: absolute;
+      bottom: 14px;
+      width: 140px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1.5px solid var(--color-cyan);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+    }
+
+    .arcade-char-card.active .podium-disc {
+      border-color: var(--color-gold);
+      box-shadow: 0 0 25px rgba(255, 184, 0, 0.6);
+    }
+
+    .char-avatar-symbol {
+      font-family: var(--font-display);
+      font-size: 48px;
+      font-weight: 800;
+      color: #FFFFFF;
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+      z-index: 2;
+    }
+
+    .char-info-block {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .char-name-title {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: #FFFFFF;
+    }
+
+    .char-dance-info {
+      font-size: 11px;
+      color: var(--color-cyan);
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .char-audio-status {
+      font-size: 10px;
+      color: var(--color-text-muted);
+      letter-spacing: 0.5px;
+    }
+
+    /* =========================================================================
+       SCREEN 3: SQUAD LOBBY & SECTOR SELECT
+       ========================================================================= */
+    .lobby-horizontal-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .lobby-horizontal-split {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .lobby-hub-card {
+      background: var(--bg-surface);
+      border: 2px solid var(--border-glass);
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .hub-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .hub-title {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+
+    .hub-desc {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    .squad-code-box {
+      background: rgba(8, 10, 18, 0.7);
+      border: 1.5px dashed var(--color-gold);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .code-display {
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: 6px;
+      color: var(--color-gold);
+      text-shadow: 0 0 12px rgba(255, 184, 0, 0.35);
+    }
+
+    .squad-players-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+    }
+
+    .squad-player-badge {
+      background: rgba(24, 30, 51, 0.7);
+      border: 1px solid var(--border-glass);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .player-badge-name {
+      font-size: 12px;
+      font-weight: 800;
+      color: #FFF;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .host-crown {
+      background: var(--color-gold);
+      color: #000;
+      font-size: 8px;
+      font-weight: 900;
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+
+    .status-tag-ready {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--color-lime);
+      background: rgba(0, 255, 136, 0.15);
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    .status-tag-waiting {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--color-text-muted);
+      background: rgba(255, 255, 255, 0.08);
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    /* =========================================================================
+       SCREEN 4: VICTORY & DRAW CEREMONY
+       ========================================================================= */
+    .ceremony-card {
+      background: radial-gradient(circle at 50% 20%, rgba(255, 184, 0, 0.12) 0%, rgba(17, 21, 36, 0.95) 70%);
+      border: 2px solid var(--color-gold);
+      box-shadow: 0 0 50px rgba(255, 184, 0, 0.25), 0 20px 60px rgba(0, 0, 0, 0.8);
+      border-radius: 24px;
+      padding: 36px 24px;
+      text-align: center;
+      max-width: 760px;
+      margin: 20px auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .ceremony-crown-banner {
+      background: linear-gradient(135deg, var(--color-gold), #FF8800);
+      color: #000;
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      padding: 6px 18px;
+      border-radius: 20px;
+      box-shadow: 0 4px 14px rgba(255, 184, 0, 0.5);
+    }
+
+    .ceremony-winner-name {
+      font-family: var(--font-display);
+      font-size: 44px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      background: linear-gradient(180deg, #FFFFFF 0%, var(--color-gold) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.1;
+    }
+
+    .ceremony-subtitle {
+      font-size: 13px;
+      color: var(--color-cyan);
+      font-weight: 700;
+      letter-spacing: 1.2px;
+    }
+
+    .ceremony-stats-strip {
+      background: rgba(8, 10, 18, 0.6);
+      border: 1px solid var(--border-glass);
+      border-radius: 14px;
+      padding: 14px 28px;
+      display: flex;
+      gap: 32px;
+      justify-content: center;
+    }
+
+    .c-stat-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .c-stat-lbl {
+      font-size: 9px;
+      font-weight: 800;
+      color: var(--color-text-muted);
+      letter-spacing: 1.5px;
+    }
+
+    .c-stat-val {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 800;
+      color: #FFF;
+    }
+
+    /* Draw Screen Toggle Block */
+    .draw-ceremony-card {
+      background: radial-gradient(circle at 50% 20%, rgba(255, 0, 85, 0.12) 0%, rgba(17, 21, 36, 0.95) 70%);
+      border: 2px solid var(--color-magenta);
+      box-shadow: 0 0 50px rgba(255, 0, 85, 0.25), 0 20px 60px rgba(0, 0, 0, 0.8);
+    }
+
+    .draw-banner {
+      background: linear-gradient(135deg, var(--color-magenta), #B8003D);
+      color: #FFF;
+    }
+
+    .draw-trio-showcase {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin: 10px 0;
+    }
+
+    .draw-trio-item {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 0, 85, 0.35);
+      border-radius: 12px;
+      padding: 12px 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .draw-anim-tag {
+      font-size: 9px;
+      font-weight: 800;
+      color: var(--color-magenta);
+      letter-spacing: 1px;
+    }
+
+    /* =========================================================================
+       SHOWCASE: BUTTON SAMPLES & SOUND PLAYGROUND
+       ========================================================================= */
+    .btn-showcase-section {
+      background: var(--bg-surface);
+      border: 2px solid var(--border-glass);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .btn-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      margin-top: 14px;
+    }
+
+    /* Footer info */
+    .mockup-footer {
+      text-align: center;
+      padding: 24px 0 16px;
+      font-size: 11px;
+      color: var(--color-text-muted);
+      letter-spacing: 1px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =========================================================================
+       HEADER & SCREEN NAVIGATOR
+       ========================================================================= -->
+  <header class="showcase-header">
+    <div class="showcase-brand">
+      <div class="brand-logo-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        ARCADE UI
+      </div>
+      <div>
+        <div class="brand-title">TWISTED PARTY // DESIGN SYSTEM</div>
+        <div class="brand-subtitle">High-Octane Tactile 3D Party Style</div>
+      </div>
+    </div>
+
+    <nav class="screen-nav">
+      <button class="screen-tab-btn active" data-target="screen-hud">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        COMBAT HUD
+      </button>
+      <button class="screen-tab-btn" data-target="screen-roster">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        CHARACTER ROSTER (7)
+      </button>
+      <button class="screen-tab-btn" data-target="screen-lobby">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        SQUAD & LOBBY
+      </button>
+      <button class="screen-tab-btn" data-target="screen-ceremony">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+        PODIUM & DRAW
+      </button>
+      <button class="screen-tab-btn" data-target="screen-buttons">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        TACTILE BUTTONS
+      </button>
+    </nav>
+
+    <div class="header-tools">
+      <button id="btn-sound-toggle" class="sound-toggle-btn" type="button">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        SOUND EFFECTS: ON
+      </button>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       SHOWCASE MAIN VIEWPORT
+       ========================================================================= -->
+  <main class="showcase-body">
+
+    <!-- =======================================================================
+         VIEW 1: IN-GAME COMBAT HUD
+         ======================================================================= -->
+    <section id="screen-hud" class="mockup-screen-view active">
+      <div class="screen-meta-badge">SCREEN 1 // IN-GAME REAL-TIME MATCH</div>
+      <h1 class="screen-headline">HIGH-OCTANE ARENA COMBAT HUD</h1>
+      <p class="screen-subtext">Clean floating glass panels with chunky match indicators, tactile twin-stick mobile controls, and urgent arena shrink warnings.</p>
+
+      <div class="hud-simulator-frame">
+        <!-- 3D Arena Simulated Canvas -->
+        <div class="hud-arena-grid"></div>
+
+        <!-- Simulated Character on Arena Floor -->
+        <div class="sim-arena-avatar">
+          <div class="sim-avatar-disc">P1</div>
+          <div class="sim-avatar-laser"></div>
+          <div class="sim-avatar-label">APPU BROO // THANKAN CHETTAN</div>
+        </div>
+
+        <!-- TOP BAR: Scores, Clock, Actions -->
+        <div class="hud-top-bar">
+          <div class="hud-match-strip">
+            <div class="hud-round-pill">
+              <span class="pill-tag">SERIES ROUND</span>
+              <span class="pill-val">ROUND 2 / 5</span>
+            </div>
+            <div class="hud-divider-v"></div>
+            <div class="hud-scores-row">
+              <div class="hud-player-dot you">
+                <div class="dot-badge"></div>
+                <span>YOU (1W)</span>
+              </div>
+              <div class="hud-player-dot">
+                <div class="dot-badge"></div>
+                <span>KUCHU (0W)</span>
+              </div>
+              <div class="hud-player-dot">
+                <div class="dot-badge"></div>
+                <span>AJP (0W)</span>
+              </div>
+              <div class="hud-player-dot">
+                <div class="dot-badge dead"></div>
+                <span>KNIGHT (ELIM)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Central Clock -->
+          <div class="hud-clock-center">
+            <span class="hud-clock-phase">SURVIVAL PHASE</span>
+            <div class="hud-clock-timer" id="sim-clock-val">08.4</div>
+            <span class="hud-clock-sub">ARENA ACTIVE</span>
+          </div>
+
+          <!-- Top Right Action Controls -->
+          <div style="display: flex; gap: 8px;">
+            <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              ARENA MAP
+            </button>
+            <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              SETTINGS
+            </button>
+          </div>
+        </div>
+
+        <!-- ZONE SHRINK BANNER ALERT -->
+        <div class="hud-danger-banner">
+          <span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            WARNING // ARENA BARRIER SHRINKING IN 3 SECONDS
+          </span>
+        </div>
+
+        <!-- BOTTOM CONTROLS LAYER: Mobile Joysticks + Quick Buttons -->
+        <div class="hud-controls-layer">
+          <!-- Left Move Joystick -->
+          <div class="touch-stick-unit">
+            <div class="touch-stick-base">
+              <div class="touch-stick-thumb"></div>
+              <span class="touch-stick-label">MOVE</span>
+            </div>
+          </div>
+
+          <!-- Center Action Deck -->
+          <div class="hud-center-action-deck">
+            <div class="hud-action-row">
+              <button class="arcade-btn arcade-btn-gold" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                READY UP
+              </button>
+              <button class="arcade-btn arcade-btn-dark" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                EMOTE DANCE
+              </button>
+            </div>
+            <div style="font-size: 10px; color: var(--color-text-muted); letter-spacing: 1.5px; font-weight: 700;">
+              TAP ANYWHERE TO AIM LASER // WASD TO RUN
+            </div>
+          </div>
+
+          <!-- Right Aim Joystick -->
+          <div class="touch-stick-unit">
+            <div class="touch-stick-base aim-stick">
+              <div class="touch-stick-thumb"></div>
+              <span class="touch-stick-label">AIM LASER</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         VIEW 2: CHARACTER SELECT ROSTER (7 OPERATORS)
+         ======================================================================= -->
+    <section id="screen-roster" class="mockup-screen-view">
+      <div class="screen-meta-badge">SCREEN 2 // CHARACTER SELECT</div>
+      <h1 class="screen-headline">OPERATOR ROSTER (7 CHARACTERS)</h1>
+      <p class="screen-subtext">Tactile operator cards with dedicated celebration dance badges, signature tracks, and secret easter egg audio integration.</p>
+
+      <div class="roster-grid">
+        <!-- 1. AJP -->
+        <div class="arcade-char-card" data-char="ajp">
+          <div class="char-card-badge-row">
+            <span class="char-role-badge">OFFENSIVE BEAST</span>
+            <span style="font-size: 9px; color: var(--color-gold); font-weight: 800;">58% WIN RATE</span>
+          </div>
+          <div class="char-preview-podium">
+            <div class="podium-disc"></div>
+            <div class="char-avatar-symbol">AJP</div>
+          </div>
+          <div class="char-info-block">
+            <div class="char-name-title">AJP</div>
+            <div class="char-dance-info">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              BREAKDANCE UPROCK
+            </div>
+            <div class="char-audio-status">Track: AJP Signature Anthem</div>
+          </div>
+          <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">SELECT OPERATOR</button>
+        </div>
+
+        <!-- 2. DOGGESH BHAIR -->
+        <div class="arcade-char-card" data-char="dog">
+          <div class="char-card-badge-row">
+            <span class="char-role-badge">GUNSLINGER DOG</span>
+            <span style="font-size: 9px; color: var(--color-lime); font-weight: 800;">ORIGINAL CLASSIC</span>
+          </div>
+          <div class="char-preview-podium">
+            <div class="podium-disc"></div>
+            <div class="char-avatar-symbol">DOG</div>
+          </div>
+          <div class="char-info-block">
+            <div class="char-name-title">DOGGESH BHAIR</div>
+            <div class="char-dance-info">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              VICTORY TWERK
+            </div>
+            <div class="char-audio-status">Track: Tactical Dog Beat</div>
+          </div>
+          <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">SELECT OPERATOR</button>
+        </div>
+
+        <!-- 3. BIG VEGAS -->
+        <div class="arcade-char-card" data-char="big_vegas">
+          <div class="char-card-badge-row">
+            <span class="char-role-badge">HEAVYWEIGHT BRAWLER</span>
+            <span style="font-size: 9px; color: var(--color-cyan); font-weight: 800;">TANK STATS</span>
+          </div>
+          <div class="char-preview-podium">
+            <div class="podium-disc"></div>
+            <div class="char-avatar-symbol">VEGAS</div>
+          </div>
+          <div class="char-info-block">
+            <div class="char-name-title">BIG VEGAS</div>
+            <div class="char-dance-info">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              HEADSPIN CYCLONE
+            </div>
+            <div class="char-audio-status">Track: Heavy Vegas Brass Beat</div>
+          </div>
+          <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">SELECT OPERATOR</button>
+        </div>
+
+        <!-- 4. KNIGHT -->
+        <div class="arcade-char-card" data-char="knight">
+          <div class="char-card-badge-row">
+            <span class="char-role-badge">ARMORED DEFENDER</span>
+            <span style="font-size: 9px; color: #FFF; font-weight: 800;">IRON CRUSADER</span>
+          </div>
+          <div class="char-preview-podium">
+            <div class="podium-disc"></div>
+            <div class="char-avatar-symbol">KNIGHT</div>
+          </div>
+          <div class="char-info-block">
+            <div class="char-name-title">KNIGHT D PELEGRINI</div>
+            <div class="char-dance-info">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              VICTORY SWING
+            </div>
+            <div class="char-audio-status">Track: Knight Victory Fanfare</div>
+          </div>
+          <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">SELECT OPERATOR</button>
+        </div>
+
+        <!-- 5. PEASANT GIRL -->
+        <div class="arcade-char-card" data-char="peasant_girl">
+          <div class="char-card-badge-row">
+            <span class="char-role-badge">AGILE SCOUT</span>
+            <span style="font-size: 9px; color: var(--color-lime); font-weight: 800;">SPEED RUNNER</span>
+          </div>
+          <div class="char-preview-podium">
+            <div class="podium-disc"></div>
+            <div class="char-avatar-symbol">SCOUT</div>
+          </div>
+          <div class="char-info-block">
+            <div class="char-name-title">PEASANT GIRL</div>
+            <div class="char-dance-info">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              FREESTYLE SWING
+            </div>
+            <div class="char-audio-status">Track: Acoustic Party Groove</div>
+          </div>
+          <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">SELECT OPERATOR</button>
+        </div>
+
+        <!-- 6. KUCHUPUCHU -->
+        <div class="arcade-char-card" data-char="kuchupuchu">
+          <div class="char-card-badge-row">
+            <span class="char-role-badge">GNOME MAESTRO</span>
+            <span style="font-size: 9px; color: var(--color-purple); font-weight: 800;">PROTECTED SONG</span>
+          </div>
+          <div class="char-preview-podium">
+            <div class="podium-disc"></div>
+            <div class="char-avatar-symbol">GNOME</div>
+          </div>
+          <div class="char-info-block">
+            <div class="char-name-title">KUCHUPUCHU</div>
+            <div class="char-dance-info">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              GNOME BREAKDANCE
+            </div>
+            <div class="char-audio-status">Track: Kuchu Puchu Song 1</div>
+          </div>
+          <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">SELECT OPERATOR</button>
+        </div>
+
+        <!-- 7. THANKAN CHETTAN (NEW & ACTIVE) -->
+        <div class="arcade-char-card active" data-char="thankan_chettan">
+          <div class="char-card-badge-row">
+            <span class="char-role-badge">CHETTAN POWER</span>
+            <span class="char-secret-tag">NAME EASTER EGG</span>
+          </div>
+          <div class="char-preview-podium">
+            <div class="podium-disc"></div>
+            <div class="char-avatar-symbol">CHETTAN</div>
+          </div>
+          <div class="char-info-block">
+            <div class="char-name-title">THANKAN CHETTAN</div>
+            <div class="char-dance-info">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              CHETTAN POWER DANCE
+            </div>
+            <div class="char-audio-status">Track: Normal Beat / Secret Voices for 5 Names</div>
+          </div>
+          <button class="arcade-btn arcade-btn-gold arcade-btn-sm" type="button">SELECTED</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         VIEW 3: SQUAD LOBBY & SECTOR SELECT
+         ======================================================================= -->
+    <section id="screen-lobby" class="mockup-screen-view">
+      <div class="screen-meta-badge">SCREEN 3 // MATCHMAKING & SQUAD HUB</div>
+      <h1 class="screen-headline">ARCADE SQUAD LOBBY & SECTORS</h1>
+      <p class="screen-subtext">Clear separation between Casual Public Auto-Scaling Sectors and Private Family Squad codes with zero demo bots.</p>
+
+      <div class="lobby-horizontal-split">
+        <!-- Card Left: Public Casual Sector -->
+        <div class="lobby-hub-card">
+          <div class="hub-card-header">
+            <div>
+              <div class="hub-title">PUBLIC CASUAL ARENA</div>
+              <div class="hub-desc">Instant drop into Sector 1. Automatically auto-scales to Sector 2, 3 when 5 players connect.</div>
+            </div>
+            <span class="status-tag-ready">5-PLAYER MAX</span>
+          </div>
+
+          <div style="display: flex; gap: 12px; align-items: center; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px;">
+            <div style="flex: 1;">
+              <div style="font-size: 11px; font-weight: 800; color: var(--color-cyan);">CURRENT PUBLIC ROUTING</div>
+              <div style="font-family: var(--font-display); font-size: 20px; font-weight: 800; color: #FFF; margin-top: 2px;">SECTOR_1 (3/5 PLAYERS)</div>
+            </div>
+            <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">ADD DEMO BOTS</button>
+          </div>
+
+          <button class="arcade-btn arcade-btn-cyan" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            QUICK DROP INTO SECTOR 1
+          </button>
+        </div>
+
+        <!-- Card Right: Private Squad Room -->
+        <div class="lobby-hub-card">
+          <div class="hub-card-header">
+            <div>
+              <div class="hub-title">PRIVATE SQUAD FREQUENCY</div>
+              <div class="hub-desc">Invite real friends & family only. Zero demo bots permitted. Custom room PIN.</div>
+            </div>
+            <span class="char-role-badge">ZERO BOTS</span>
+          </div>
+
+          <div class="squad-code-box">
+            <div>
+              <div style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); letter-spacing: 1px;">YOUR SQUAD PIN</div>
+              <div class="code-display">849 201</div>
+            </div>
+            <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              COPY INVITE
+            </button>
+          </div>
+
+          <!-- Connected Squad Players -->
+          <div>
+            <div style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); letter-spacing: 1.5px; margin-bottom: 8px;">CONNECTED OPERATORS (3/5)</div>
+            <div class="squad-players-grid">
+              <div class="squad-player-badge">
+                <div class="player-badge-name">
+                  <span>APPU BROO</span>
+                  <span class="host-crown">HOST</span>
+                </div>
+                <span class="status-tag-ready">READY</span>
+              </div>
+              <div class="squad-player-badge">
+                <div class="player-badge-name">
+                  <span>KUCHU MASTER</span>
+                </div>
+                <span class="status-tag-ready">READY</span>
+              </div>
+              <div class="squad-player-badge">
+                <div class="player-badge-name">
+                  <span>AJP CHAMP</span>
+                </div>
+                <span class="status-tag-waiting">SELECTING</span>
+              </div>
+            </div>
+          </div>
+
+          <button class="arcade-btn arcade-btn-gold" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            LAUNCH SQUAD MATCH
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         VIEW 4: PODIUM VICTORY & DRAW CEREMONY
+         ======================================================================= -->
+    <section id="screen-ceremony" class="mockup-screen-view">
+      <div class="screen-meta-badge">SCREEN 4 // MATCH CONCLUSION</div>
+      <h1 class="screen-headline">PODIUM CEREMONY & DRAW SHOWCASE</h1>
+      <p class="screen-subtext">Spotlight victory celebration and synchronized 3-animation draw screen when mutual destruction occurs.</p>
+
+      <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 16px;">
+        <button id="toggle-victory-demo" class="arcade-btn arcade-btn-gold arcade-btn-sm" type="button">PREVIEW WINNER PODIUM</button>
+        <button id="toggle-draw-demo" class="arcade-btn arcade-btn-magenta arcade-btn-sm" type="button">PREVIEW DRAW CEREMONY</button>
+      </div>
+
+      <!-- Victory Card Container -->
+      <div id="card-victory-view" class="ceremony-card">
+        <div class="ceremony-crown-banner">MATCH CHAMPION // SERIES WINNER</div>
+        <div class="ceremony-winner-name">THANKAN CHETTAN</div>
+        <div class="ceremony-subtitle">DANCING TO: CHETTAN POWER DANCE</div>
+
+        <div class="ceremony-stats-strip">
+          <div class="c-stat-box">
+            <span class="c-stat-lbl">SERIES SCORE</span>
+            <span class="c-stat-val" style="color: var(--color-gold);">3 WINS</span>
+          </div>
+          <div class="c-stat-box">
+            <span class="c-stat-lbl">FINAL ROUND TIME</span>
+            <span class="c-stat-val">14.2s</span>
+          </div>
+          <div class="c-stat-box">
+            <span class="c-stat-lbl">ELIMINATIONS</span>
+            <span class="c-stat-val" style="color: var(--color-lime);">4 KILLS</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 10px;">
+          <button class="arcade-btn arcade-btn-gold" type="button">PLAY AGAIN</button>
+          <button class="arcade-btn arcade-btn-dark" type="button">BACK TO SQUAD HUB</button>
+        </div>
+      </div>
+
+      <!-- Draw Card Container (Hidden by default) -->
+      <div id="card-draw-view" class="ceremony-card draw-ceremony-card" style="display: none;">
+        <div class="ceremony-crown-banner draw-banner">MATCH CONCLUDED // NO SURVIVORS</div>
+        <div class="ceremony-winner-name" style="color: var(--color-magenta);">MUTUAL DESTRUCTION</div>
+        <div class="ceremony-subtitle" style="color: var(--color-text-muted);">ALL REMAINING OPERATORS ELIMINATED SIMULTANEOUSLY</div>
+
+        <!-- 3-Animation Draw Showcase Trio -->
+        <div class="draw-trio-showcase">
+          <div class="draw-trio-item">
+            <span style="font-weight: 800; font-size: 13px;">APPU (CHETTAN)</span>
+            <span class="draw-anim-tag">ZOMBIE CRAWL</span>
+          </div>
+          <div class="draw-trio-item">
+            <span style="font-weight: 800; font-size: 13px;">KUCHU MASTER</span>
+            <span class="draw-anim-tag">CRYING REACTION</span>
+          </div>
+          <div class="draw-trio-item">
+            <span style="font-weight: 800; font-size: 13px;">AJP CHAMP</span>
+            <span class="draw-anim-tag">ANGRY PUNCHING</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 10px;">
+          <button class="arcade-btn arcade-btn-magenta" type="button">REMATCH NOW</button>
+          <button class="arcade-btn arcade-btn-dark" type="button">BACK TO SQUAD HUB</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         VIEW 5: BUTTON STYLES & INTERACTIVE TOYS
+         ======================================================================= -->
+    <section id="screen-buttons" class="mockup-screen-view">
+      <div class="screen-meta-badge">SYSTEM DEMO // TACTILE 3D BUTTON PALETTE</div>
+      <h1 class="screen-headline">PHYSICAL ARCADE BUTTON FEEDBACK</h1>
+      <p class="screen-subtext">Click any button below to test physical press depth, active feedback, and synthesized Web Audio clicks.</p>
+
+      <div class="btn-showcase-section">
+        <h3 style="font-family: var(--font-display); font-size: 16px; margin-bottom: 4px;">HERO ACTIONS (GOLD & MAGENTA)</h3>
+        <p style="font-size: 12px; color: var(--color-text-muted);">High-priority triggers: Match Start, Ready Up, Hazard Actions.</p>
+        <div class="btn-grid">
+          <button class="arcade-btn arcade-btn-gold" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            LAUNCH MATCH
+          </button>
+          <button class="arcade-btn arcade-btn-magenta" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            ELIMINATE HAZARD
+          </button>
+          <button class="arcade-btn arcade-btn-lime" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            READY CONFIRMED
+          </button>
+          <button class="arcade-btn arcade-btn-cyan" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            JOIN SQUAD
+          </button>
+        </div>
+      </div>
+
+      <div class="btn-showcase-section">
+        <h3 style="font-family: var(--font-display); font-size: 16px; margin-bottom: 4px;">COMPACT ACTIONS & TOGGLES</h3>
+        <p style="font-size: 12px; color: var(--color-text-muted);">Used inside player cards, settings bars, and mobile footers.</p>
+        <div class="btn-grid">
+          <button class="arcade-btn arcade-btn-gold arcade-btn-sm" type="button">FORCE START</button>
+          <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">LEAVE ROOM</button>
+          <button class="arcade-btn arcade-btn-magenta arcade-btn-sm" type="button">SPECTATE</button>
+          <button class="arcade-btn arcade-btn-cyan arcade-btn-sm" type="button">ADD DEMO BOTS</button>
+          <button class="arcade-btn arcade-btn-lime arcade-btn-sm" type="button">COPY PIN</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="mockup-footer">
+      TWISTED PARTY // ARCADE UI PROTOTYPE // READY FOR REVIEW & DEPLOYMENT
+    </footer>
+  </main>
+
+  <!-- =========================================================================
+       AUDIO & INTERACTION SCRIPT
+       ========================================================================= -->
+  <script>
+    // Web Audio Synthesizer for Interactive Click Testing
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function playArcadeTone(freq, type = 'sine', duration = 0.08, gainVal = 0.15) {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(20, freq * 0.4), ctx.currentTime + duration);
+        gain.gain.setValueAtTime(gainVal, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+      } catch (e) {
+        // Audio error silent fallback
+      }
+    }
+
+    function playChime(freqs = [520, 680, 880]) {
+      if (!soundEnabled) return;
+      freqs.forEach((f, idx) => {
+        setTimeout(() => playArcadeTone(f, 'triangle', 0.12, 0.12), idx * 60);
+      });
+    }
+
+    // Sound toggle
+    const soundBtn = document.getElementById('btn-sound-toggle');
+    soundBtn.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      soundBtn.innerHTML = `
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        SOUND EFFECTS: ${soundEnabled ? 'ON' : 'OFF'}
+      `;
+      if (soundEnabled) playChime([600, 900]);
+    });
+
+    // Screen Navigation
+    const tabs = document.querySelectorAll('.screen-tab-btn');
+    const views = document.querySelectorAll('.mockup-screen-view');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const targetId = tab.getAttribute('data-target');
+        tabs.forEach(t => t.classList.remove('active'));
+        views.forEach(v => v.classList.remove('active'));
+
+        tab.classList.add('active');
+        const targetView = document.getElementById(targetId);
+        if (targetView) targetView.classList.add('active');
+
+        playArcadeTone(480, 'sine', 0.06);
+      });
+    });
+
+    // Character Card Selection
+    const charCards = document.querySelectorAll('.arcade-char-card');
+    charCards.forEach(card => {
+      card.addEventListener('click', () => {
+        charCards.forEach(c => {
+          c.classList.remove('active');
+          const btn = c.querySelector('button');
+          if (btn) {
+            btn.className = 'arcade-btn arcade-btn-dark arcade-btn-sm';
+            btn.textContent = 'SELECT OPERATOR';
+          }
+        });
+
+        card.classList.add('active');
+        const btn = card.querySelector('button');
+        if (btn) {
+          btn.className = 'arcade-btn arcade-btn-gold arcade-btn-sm';
+          btn.textContent = 'SELECTED';
+        }
+
+        playChime([550, 750, 1100]);
+      });
+    });
+
+    // Victory vs Draw Preview Buttons
+    const btnVictory = document.getElementById('toggle-victory-demo');
+    const btnDraw = document.getElementById('toggle-draw-demo');
+    const cardVictory = document.getElementById('card-victory-view');
+    const cardDraw = document.getElementById('card-draw-view');
+
+    btnVictory.addEventListener('click', () => {
+      cardVictory.style.display = 'flex';
+      cardDraw.style.display = 'none';
+      playChime([400, 600, 800, 1200]);
+    });
+
+    btnDraw.addEventListener('click', () => {
+      cardVictory.style.display = 'none';
+      cardDraw.style.display = 'flex';
+      playArcadeTone(200, 'sawtooth', 0.25, 0.18);
+    });
+
+    // Global Click Tone on All Buttons
+    document.querySelectorAll('.arcade-btn').forEach(btn => {
+      btn.addEventListener('pointerdown', () => {
+        if (btn.classList.contains('arcade-btn-magenta')) {
+          playArcadeTone(320, 'square', 0.08, 0.12);
+        } else if (btn.classList.contains('arcade-btn-lime')) {
+          playArcadeTone(680, 'triangle', 0.08, 0.14);
+        } else if (btn.classList.contains('arcade-btn-cyan')) {
+          playArcadeTone(520, 'sine', 0.08, 0.14);
+        } else {
+          playArcadeTone(440, 'triangle', 0.08, 0.14);
+        }
+      });
+    });
+
+    // Animated Countdown Simulation in HUD Screen
+    let simTimer = 8.4;
+    setInterval(() => {
+      simTimer -= 0.1;
+      if (simTimer <= 0) simTimer = 10.0;
+      const el = document.getElementById('sim-clock-val');
+      if (el) el.textContent = simTimer.toFixed(1);
+    }, 100);
+  </script>
+</body>
+</html>

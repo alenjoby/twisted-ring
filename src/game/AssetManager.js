@@ -164,6 +164,11 @@ class AssetManager {
       { key: 'ajp_roughness', url: '/CHARACTERS/Character-Textures/AJP-TEXTURE_04.png', type: 'texture', isSrgb: false, flipY: true },
       // KuchuPuchu Character PBR Texture (flipY: true)
       { key: 'kuchupuchu_map', url: '/CHARACTERS/Character-Textures/KuchuPuchu_texture.png', type: 'texture', isSrgb: true, flipY: true },
+      // Thankan Chettan Character PBR Textures (flipY: true)
+      { key: 'thankan_chettan_map', url: '/CHARACTERS/Character-Textures/ThankanChettan_texture.png', type: 'texture', isSrgb: true, flipY: true },
+      { key: 'thankan_chettan_normal', url: '/CHARACTERS/Character-Textures/ThankanChettan_normal.png', type: 'texture', isSrgb: false, flipY: true },
+      { key: 'thankan_chettan_roughness', url: '/CHARACTERS/Character-Textures/ThankanChettan_roughness.png', type: 'texture', isSrgb: false, flipY: true },
+      { key: 'thankan_chettan_metallic', url: '/CHARACTERS/Character-Textures/ThankanChettan_metallic.png', type: 'texture', isSrgb: false, flipY: true },
       // Cyber Ring Arena (Original GLTF)
       { key: 'arena', url: '/assets/areana.glb', type: 'gltf' },
       // Fire Arena ("The Foundry") FBX and PBR Textures
