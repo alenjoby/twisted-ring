@@ -3,39 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>TWISTED PARTY - High-Octane Arcade Party UI Mockup</title>
+  <title>TWISTED PARTY - Mecha Console UI System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Changa:wght@600;700;800&family=Montserrat:wght@600;700;800;900&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Changa:wght@700;800&family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@700;800;900&family=Rajdhani:wght@600;700;800&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg-dark: #080A12;
-      --bg-surface: #111524;
-      --bg-surface-elevated: #181E33;
-      --bg-glass: rgba(17, 21, 36, 0.85);
-      --border-glass: rgba(255, 255, 255, 0.12);
-      --border-accent: rgba(255, 184, 0, 0.35);
-
-      /* High-Octane Arcade Palette */
-      --color-gold: #FFB800;
-      --color-gold-shadow: #B87700;
-      --color-cyan: #00F0FF;
-      --color-cyan-shadow: #008899;
-      --color-magenta: #FF0055;
-      --color-magenta-shadow: #A80038;
-      --color-lime: #00FF88;
-      --color-lime-shadow: #009952;
-      --color-purple: #9D00FF;
-      --color-purple-shadow: #5E0099;
-
-      /* Neutrals */
-      --color-text-main: #FFFFFF;
-      --color-text-muted: #8E99B3;
-      --color-text-dark: #090B12;
-
+      --bg-outer: #0B0E14;
+      --bg-console: #10141B;
+      --bg-card-inactive: #161B23;
+      --bg-card-hover: #1C232E;
+      --border-dim: rgba(255, 255, 255, 0.08);
+      --border-medium: rgba(255, 255, 255, 0.16);
+      
+      /* Signature Electric Acid-Lime Accent */
+      --accent-lime: #D4FF00;
+      --accent-lime-glow: rgba(212, 255, 0, 0.35);
+      --accent-yellow-pips: #E2FC0D;
+      --accent-red-pip: #FF2B44;
+      
       /* Typography */
-      --font-display: 'Changa', 'Montserrat', sans-serif;
-      --font-body: 'Montserrat', 'Outfit', sans-serif;
+      --font-tech: 'Orbitron', 'Rajdhani', sans-serif;
+      --font-num: 'Changa', 'Orbitron', sans-serif;
+      --font-sub: 'Rajdhani', sans-serif;
+      --font-body: 'Inter', sans-serif;
     }
 
     * {
@@ -46,1738 +37,1452 @@
     }
 
     body {
-      background-color: var(--bg-dark);
+      background-color: var(--bg-outer);
       background-image: 
-        radial-gradient(circle at 50% 10%, rgba(255, 184, 0, 0.08) 0%, transparent 60%),
-        radial-gradient(circle at 85% 85%, rgba(0, 240, 255, 0.06) 0%, transparent 50%),
-        radial-gradient(circle at 15% 80%, rgba(255, 0, 85, 0.06) 0%, transparent 50%),
-        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-      background-size: 100% 100%, 100% 100%, 100% 100%, 36px 36px, 36px 36px;
-      color: var(--color-text-main);
+        radial-gradient(circle at 50% 30%, rgba(20, 27, 38, 0.9) 0%, #080A0F 100%),
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.015) 0px, rgba(255, 255, 255, 0.015) 2px, transparent 2px, transparent 16px);
+      color: #FFFFFF;
       font-family: var(--font-body);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      user-select: none;
       overflow-x: hidden;
-      user-select: none;
     }
 
-    /* =========================================================================
-       TOP CONTROL BAR & SCREEN SWITCHER
-       ========================================================================= */
-    .showcase-header {
-      background: rgba(10, 13, 22, 0.94);
-      backdrop-filter: blur(16px);
-      border-bottom: 2px solid rgba(255, 184, 0, 0.25);
-      padding: 12px 20px;
+    /* Top switcher to toggle between Mecha Spec and Party Characters */
+    .view-mode-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 12px;
-      position: sticky;
-      top: 0;
-      z-index: 999;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-    }
-
-    .showcase-brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .brand-logo-pill {
-      background: linear-gradient(135deg, var(--color-gold), #FF8000);
-      color: #000;
-      font-family: var(--font-display);
-      font-weight: 800;
-      font-size: 13px;
-      letter-spacing: 1.5px;
-      padding: 4px 10px;
-      border-radius: 6px;
-      box-shadow: 0 3px 0 var(--color-gold-shadow);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .brand-title {
-      font-family: var(--font-display);
-      font-weight: 800;
-      font-size: 18px;
-      letter-spacing: 1.2px;
-      background: linear-gradient(90deg, #FFFFFF, var(--color-gold));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .brand-subtitle {
-      font-size: 11px;
-      color: var(--color-text-muted);
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-
-    .screen-nav {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .screen-tab-btn {
-      font-family: var(--font-display);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      padding: 8px 14px;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--color-text-muted);
-      border: 1px solid var(--border-glass);
-      cursor: pointer;
-      transition: all 0.15s ease;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .screen-tab-btn:hover {
-      background: rgba(255, 255, 255, 0.12);
-      color: #FFF;
-      border-color: rgba(255, 255, 255, 0.25);
-    }
-
-    .screen-tab-btn.active {
-      background: linear-gradient(135deg, rgba(255, 184, 0, 0.2), rgba(255, 184, 0, 0.05));
-      color: var(--color-gold);
-      border: 1.5px solid var(--color-gold);
-      box-shadow: 0 0 16px rgba(255, 184, 0, 0.25), inset 0 0 8px rgba(255, 184, 0, 0.1);
-    }
-
-    .header-tools {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .sound-toggle-btn {
-      background: rgba(255, 255, 255, 0.07);
-      border: 1px solid var(--border-glass);
-      border-radius: 8px;
-      color: var(--color-cyan);
-      padding: 7px 12px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.15s;
-    }
-
-    .sound-toggle-btn:hover {
-      background: rgba(0, 240, 255, 0.15);
-      border-color: var(--color-cyan);
-    }
-
-    /* =========================================================================
-       CHUNKY 3D ARCADE BUTTONS
-       ========================================================================= */
-    .arcade-btn {
-      font-family: var(--font-display);
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing: 1.4px;
-      text-transform: uppercase;
-      padding: 13px 24px;
-      border-radius: 12px;
-      cursor: pointer;
-      border: none;
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      white-space: nowrap;
-      transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.08s ease;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-    }
-
-    .arcade-btn svg {
-      flex-shrink: 0;
-    }
-
-    /* Primary: Electric Gold */
-    .arcade-btn-gold {
-      background: linear-gradient(180deg, #FFD043 0%, #FFB800 60%, #E69B00 100%);
-      color: #141005;
-      box-shadow: 0 5px 0 var(--color-gold-shadow), 0 8px 18px rgba(255, 184, 0, 0.35);
-    }
-    .arcade-btn-gold:hover {
-      filter: brightness(1.08);
-      transform: translateY(-2px);
-      box-shadow: 0 7px 0 var(--color-gold-shadow), 0 12px 22px rgba(255, 184, 0, 0.45);
-    }
-    .arcade-btn-gold:active {
-      transform: translateY(4px);
-      box-shadow: 0 1px 0 var(--color-gold-shadow), 0 2px 8px rgba(255, 184, 0, 0.25);
-    }
-
-    /* Accent: Laser Magenta */
-    .arcade-btn-magenta {
-      background: linear-gradient(180deg, #FF3377 0%, #FF0055 60%, #D60045 100%);
-      color: #FFFFFF;
-      box-shadow: 0 5px 0 var(--color-magenta-shadow), 0 8px 18px rgba(255, 0, 85, 0.35);
-    }
-    .arcade-btn-magenta:hover {
-      filter: brightness(1.08);
-      transform: translateY(-2px);
-      box-shadow: 0 7px 0 var(--color-magenta-shadow), 0 12px 22px rgba(255, 0, 85, 0.45);
-    }
-    .arcade-btn-magenta:active {
-      transform: translateY(4px);
-      box-shadow: 0 1px 0 var(--color-magenta-shadow), 0 2px 8px rgba(255, 0, 85, 0.25);
-    }
-
-    /* Accent: Cyber Cyan */
-    .arcade-btn-cyan {
-      background: linear-gradient(180deg, #43F7FF 0%, #00F0FF 60%, #00BFD6 100%);
-      color: #041B20;
-      box-shadow: 0 5px 0 var(--color-cyan-shadow), 0 8px 18px rgba(0, 240, 255, 0.35);
-    }
-    .arcade-btn-cyan:hover {
-      filter: brightness(1.08);
-      transform: translateY(-2px);
-      box-shadow: 0 7px 0 var(--color-cyan-shadow), 0 12px 22px rgba(0, 240, 255, 0.45);
-    }
-    .arcade-btn-cyan:active {
-      transform: translateY(4px);
-      box-shadow: 0 1px 0 var(--color-cyan-shadow), 0 2px 8px rgba(0, 240, 255, 0.25);
-    }
-
-    /* Accent: Toxic Lime */
-    .arcade-btn-lime {
-      background: linear-gradient(180deg, #57FFAC 0%, #00FF88 60%, #00C767 100%);
-      color: #042413;
-      box-shadow: 0 5px 0 var(--color-lime-shadow), 0 8px 18px rgba(0, 255, 136, 0.35);
-    }
-    .arcade-btn-lime:hover {
-      filter: brightness(1.08);
-      transform: translateY(-2px);
-      box-shadow: 0 7px 0 var(--color-lime-shadow), 0 12px 22px rgba(0, 255, 136, 0.45);
-    }
-    .arcade-btn-lime:active {
-      transform: translateY(4px);
-      box-shadow: 0 1px 0 var(--color-lime-shadow), 0 2px 8px rgba(0, 255, 136, 0.25);
-    }
-
-    /* Secondary: Dark Obsidian Glass */
-    .arcade-btn-dark {
-      background: linear-gradient(180deg, #242B3D 0%, #161B29 100%);
-      color: #FFFFFF;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      box-shadow: 0 5px 0 #0C0F17, 0 8px 18px rgba(0, 0, 0, 0.5);
-    }
-    .arcade-btn-dark:hover {
-      background: linear-gradient(180deg, #303A52 0%, #1E2538 100%);
-      border-color: rgba(255, 255, 255, 0.28);
-      transform: translateY(-2px);
-      box-shadow: 0 7px 0 #0C0F17, 0 12px 22px rgba(0, 0, 0, 0.6);
-    }
-    .arcade-btn-dark:active {
-      transform: translateY(4px);
-      box-shadow: 0 1px 0 #0C0F17, 0 2px 8px rgba(0, 0, 0, 0.4);
-    }
-
-    .arcade-btn-sm {
-      padding: 9px 16px;
-      font-size: 11px;
-      border-radius: 9px;
-      box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4);
-    }
-
-    /* =========================================================================
-       CONTAINER & SCREEN PANELS
-       ========================================================================= */
-    .showcase-body {
-      flex: 1;
-      padding: 24px;
-      max-width: 1400px;
+      max-width: 1220px;
       width: 100%;
-      margin: 0 auto;
+      margin-bottom: 14px;
+      padding: 0 6px;
     }
 
-    .mockup-screen-view {
-      display: none;
-      animation: fadeIn 0.25s ease-out forwards;
-    }
-
-    .mockup-screen-view.active {
-      display: block;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Screen Title Bar */
-    .screen-meta-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(255, 184, 0, 0.12);
-      border: 1px solid var(--border-accent);
-      padding: 5px 12px;
-      border-radius: 20px;
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 1.5px;
-      color: var(--color-gold);
-      margin-bottom: 8px;
-      text-transform: uppercase;
-    }
-
-    .screen-headline {
-      font-family: var(--font-display);
-      font-size: 26px;
-      font-weight: 800;
-      letter-spacing: 1.2px;
-      margin-bottom: 6px;
-    }
-
-    .screen-subtext {
-      font-size: 13px;
-      color: var(--color-text-muted);
-      margin-bottom: 24px;
-      line-height: 1.5;
-    }
-
-    /* =========================================================================
-       SCREEN 1: GAMEPLAY HUD MOCKUP
-       ========================================================================= */
-    .hud-simulator-frame {
-      background: radial-gradient(circle at 50% 50%, #171E30 0%, #0A0D17 100%);
-      border: 2px solid var(--border-glass);
-      border-radius: 20px;
-      min-height: 620px;
-      position: relative;
-      overflow: hidden;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), inset 0 0 100px rgba(0, 0, 0, 0.5);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 20px;
-    }
-
-    /* 3D Arena Simulated Canvas Backdrop */
-    .hud-arena-grid {
-      position: absolute;
-      inset: 0;
-      background-image: 
-        radial-gradient(circle at 50% 55%, rgba(0, 240, 255, 0.15) 0%, transparent 45%),
-        radial-gradient(circle at 50% 55%, transparent 35%, rgba(255, 0, 85, 0.25) 36%, transparent 42%),
-        repeating-radial-gradient(circle at 50% 55%, transparent, transparent 40px, rgba(255, 255, 255, 0.03) 40px, rgba(255, 255, 255, 0.03) 42px);
-      pointer-events: none;
-    }
-
-    /* Arena Player Markers in 3D Arena Floor */
-    .sim-arena-avatar {
-      position: absolute;
-      top: 52%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      pointer-events: none;
-    }
-
-    .sim-avatar-disc {
-      width: 58px;
-      height: 58px;
-      border-radius: 50%;
-      background: radial-gradient(circle, #FFB800 30%, #B87700 100%);
-      border: 3px solid #FFFFFF;
-      box-shadow: 0 0 24px rgba(255, 184, 0, 0.8), 0 8px 16px rgba(0, 0, 0, 0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #000;
-      font-weight: 900;
-      font-size: 16px;
-    }
-
-    .sim-avatar-laser {
-      position: absolute;
-      width: 140px;
-      height: 3px;
-      background: linear-gradient(90deg, #FF0055, transparent);
-      box-shadow: 0 0 10px #FF0055;
-      top: 28px;
-      left: 45px;
-      transform-origin: left center;
-      transform: rotate(-25deg);
-    }
-
-    .sim-avatar-label {
-      background: rgba(10, 13, 22, 0.85);
-      border: 1px solid var(--color-gold);
-      padding: 3px 10px;
-      border-radius: 12px;
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      color: var(--color-gold);
-      white-space: nowrap;
-    }
-
-    /* Top Match Status Header */
-    .hud-top-bar {
-      position: relative;
-      z-index: 10;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .hud-match-strip {
-      background: rgba(14, 18, 30, 0.88);
-      backdrop-filter: blur(12px);
-      border: 1.5px solid var(--border-glass);
-      border-radius: 16px;
-      padding: 10px 18px;
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-    }
-
-    .hud-round-pill {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .hud-round-pill .pill-tag {
-      font-size: 9px;
-      font-weight: 800;
-      letter-spacing: 1.5px;
-      color: var(--color-text-muted);
-    }
-
-    .hud-round-pill .pill-val {
-      font-family: var(--font-display);
-      font-size: 18px;
-      font-weight: 800;
-      color: var(--color-gold);
-      letter-spacing: 1px;
-    }
-
-    .hud-divider-v {
-      width: 1px;
-      height: 28px;
-      background: rgba(255, 255, 255, 0.12);
-    }
-
-    .hud-scores-row {
-      display: flex;
-      gap: 10px;
-    }
-
-    .hud-player-dot {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-glass);
-      padding: 4px 10px;
-      border-radius: 8px;
+    .system-title-tag {
+      font-family: var(--font-tech);
       font-size: 11px;
-      font-weight: 700;
-    }
-
-    .hud-player-dot.you {
-      border-color: var(--color-gold);
-      background: rgba(255, 184, 0, 0.12);
-      color: var(--color-gold);
-    }
-
-    .dot-badge {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--color-lime);
-      box-shadow: 0 0 8px var(--color-lime);
-    }
-
-    .dot-badge.dead {
-      background: var(--color-magenta);
-      box-shadow: 0 0 8px var(--color-magenta);
-    }
-
-    /* Central Big Countdown / Danger Box */
-    .hud-clock-center {
-      background: rgba(14, 18, 30, 0.92);
-      backdrop-filter: blur(14px);
-      border: 2px solid var(--color-gold);
-      box-shadow: 0 0 24px rgba(255, 184, 0, 0.25), 0 8px 30px rgba(0, 0, 0, 0.6);
-      border-radius: 18px;
-      padding: 10px 24px;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-width: 170px;
-    }
-
-    .hud-clock-phase {
-      font-size: 9px;
-      font-weight: 800;
-      letter-spacing: 2px;
-      color: var(--color-gold);
-      text-transform: uppercase;
-    }
-
-    .hud-clock-timer {
-      font-family: var(--font-display);
-      font-size: 38px;
-      font-weight: 800;
-      line-height: 1;
-      color: #FFFFFF;
-      letter-spacing: 2px;
-      text-shadow: 0 0 16px rgba(255, 255, 255, 0.4);
-      margin: 4px 0;
-    }
-
-    .hud-clock-sub {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--color-lime);
-      letter-spacing: 1px;
-    }
-
-    /* Danger Shrink Alert Banner */
-    .hud-danger-banner {
-      background: linear-gradient(90deg, rgba(255, 0, 85, 0.15) 0%, rgba(255, 0, 85, 0.85) 50%, rgba(255, 0, 85, 0.15) 100%);
-      border-top: 1.5px solid var(--color-magenta);
-      border-bottom: 1.5px solid var(--color-magenta);
-      padding: 6px 20px;
-      text-align: center;
-      margin: 14px auto 0;
-      max-width: 580px;
-      width: 100%;
-      border-radius: 4px;
-      box-shadow: 0 0 24px rgba(255, 0, 85, 0.4);
-      animation: pulseDanger 1.2s infinite alternate;
-    }
-
-    @keyframes pulseDanger {
-      from { opacity: 0.8; transform: scale(0.99); }
-      to { opacity: 1; transform: scale(1.01); }
-    }
-
-    .hud-danger-banner span {
-      font-family: var(--font-display);
-      font-weight: 800;
-      font-size: 12px;
-      letter-spacing: 2px;
-      color: #FFFFFF;
-      text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-
-    /* Twin-Stick Virtual Controls Layer */
-    .hud-controls-layer {
-      position: relative;
-      z-index: 10;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      width: 100%;
-      margin-top: auto;
-      pointer-events: none;
-    }
-
-    .hud-controls-layer * {
-      pointer-events: auto;
-    }
-
-    .touch-stick-unit {
-      width: 140px;
-      height: 140px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-
-    .touch-stick-base {
-      width: 110px;
-      height: 110px;
-      border-radius: 50%;
-      background: rgba(14, 18, 30, 0.7);
-      border: 2px solid rgba(0, 240, 255, 0.45);
-      box-shadow: 0 0 20px rgba(0, 240, 255, 0.2), inset 0 0 15px rgba(0, 0, 0, 0.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      user-select: none;
-      cursor: grab;
-    }
-
-    .touch-stick-base.aim-stick {
-      border-color: rgba(255, 0, 85, 0.55);
-      box-shadow: 0 0 20px rgba(255, 0, 85, 0.25), inset 0 0 15px rgba(0, 0, 0, 0.8);
-    }
-
-    .touch-stick-thumb {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 35% 35%, #00F0FF, #008899);
-      border: 2px solid #FFFFFF;
-      box-shadow: 0 0 14px rgba(0, 240, 255, 0.7);
-      position: absolute;
-      transform: translate(12px, -8px);
-      transition: transform 0.05s ease;
-    }
-
-    .touch-stick-base.aim-stick .touch-stick-thumb {
-      background: radial-gradient(circle at 35% 35%, #FF0055, #9E0035);
-      box-shadow: 0 0 14px rgba(255, 0, 85, 0.7);
-      transform: translate(-14px, -12px);
-    }
-
-    .touch-stick-label {
-      position: absolute;
-      bottom: -22px;
-      font-size: 10px;
-      font-weight: 800;
       letter-spacing: 2px;
       color: rgba(255, 255, 255, 0.5);
-    }
-
-    /* HUD Center Bottom Bar */
-    .hud-center-action-deck {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
-    .hud-action-row {
+    .system-title-tag .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-lime);
+      box-shadow: 0 0 8px var(--accent-lime);
+    }
+
+    .roster-switch-pills {
       display: flex;
       gap: 8px;
     }
 
-    /* =========================================================================
-       SCREEN 2: CHARACTER SELECT ROSTER
-       ========================================================================= */
-    .roster-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 18px;
-      margin-top: 14px;
+    .roster-pill-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-dim);
+      border-radius: 6px;
+      color: #9AA4B2;
+      font-family: var(--font-tech);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
     }
 
-    .arcade-char-card {
-      background: var(--bg-surface);
-      border: 2px solid var(--border-glass);
-      border-radius: 18px;
-      padding: 16px;
+    .roster-pill-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #FFFFFF;
+    }
+
+    .roster-pill-btn.active {
+      background: rgba(212, 255, 0, 0.15);
+      border-color: var(--accent-lime);
+      color: var(--accent-lime);
+      box-shadow: 0 0 12px rgba(212, 255, 0, 0.2);
+    }
+
+    /* =========================================================================
+       MAIN CONSOLE CHASSIS FRAME (Exact replica of the reference design)
+       ========================================================================= */
+    .console-chassis {
+      background: var(--bg-console);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 24px;
+      max-width: 1220px;
+      width: 100%;
+      min-height: 720px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 
+        0 30px 80px rgba(0, 0, 0, 0.85),
+        0 0 0 1px rgba(255, 255, 255, 0.04),
+        inset 0 1px 1px rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
-      gap: 14px;
-      position: relative;
-      cursor: pointer;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-      overflow: hidden;
-    }
-
-    .arcade-char-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: transparent;
-      transition: background 0.2s;
-    }
-
-    .arcade-char-card:hover {
-      transform: translateY(-6px);
-      border-color: rgba(255, 255, 255, 0.3);
-      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65);
-    }
-
-    .arcade-char-card.active {
-      background: linear-gradient(180deg, #1C233B 0%, #121727 100%);
-      border: 2.5px solid var(--color-gold);
-      box-shadow: 0 0 30px rgba(255, 184, 0, 0.3), 0 12px 30px rgba(0, 0, 0, 0.6);
-      transform: translateY(-4px);
-    }
-
-    .arcade-char-card.active::before {
-      background: var(--color-gold);
-      box-shadow: 0 0 12px var(--color-gold);
-    }
-
-    .char-card-badge-row {
-      display: flex;
       justify-content: space-between;
-      align-items: center;
     }
 
-    .char-role-badge {
-      font-size: 9px;
-      font-weight: 800;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      padding: 4px 8px;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--color-text-muted);
+    /* Subtle background watermark pattern */
+    .console-watermark-bg {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image: 
+        radial-gradient(circle at 50% 50%, rgba(25, 34, 48, 0.4) 0%, transparent 70%),
+        repeating-linear-gradient(90deg, transparent, transparent 120px, rgba(255, 255, 255, 0.012) 120px, rgba(255, 255, 255, 0.012) 121px);
     }
 
-    .arcade-char-card.active .char-role-badge {
-      background: rgba(255, 184, 0, 0.18);
-      color: var(--color-gold);
-    }
-
-    .char-secret-tag {
-      font-size: 8px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      background: rgba(255, 0, 85, 0.2);
-      border: 1px solid var(--color-magenta);
-      color: var(--color-magenta);
-      padding: 3px 6px;
-      border-radius: 4px;
-      text-transform: uppercase;
-    }
-
-    .char-preview-podium {
-      height: 180px;
-      background: radial-gradient(circle at 50% 65%, rgba(255, 255, 255, 0.08) 0%, rgba(0, 0, 0, 0.4) 70%);
-      border-radius: 12px;
+    /* =========================================================================
+       TOP NAVIGATION BAR
+       ========================================================================= */
+    .console-topbar {
       position: relative;
+      z-index: 10;
+      padding: 22px 36px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-left-cluster {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .bumper-key {
+      background: #FFFFFF;
+      color: #0B0E14;
+      font-family: var(--font-tech);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      box-shadow: 0 2px 0 #9AA4B2;
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.06);
+      cursor: pointer;
+      transition: transform 0.08s ease;
     }
 
-    .podium-disc {
-      position: absolute;
-      bottom: 14px;
-      width: 140px;
-      height: 28px;
-      border-radius: 50%;
-      background: rgba(0, 0, 0, 0.6);
-      border: 1.5px solid var(--color-cyan);
-      box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+    .bumper-key:active {
+      transform: translateY(2px);
     }
 
-    .arcade-char-card.active .podium-disc {
-      border-color: var(--color-gold);
-      box-shadow: 0 0 25px rgba(255, 184, 0, 0.6);
-    }
-
-    .char-avatar-symbol {
-      font-family: var(--font-display);
-      font-size: 48px;
-      font-weight: 800;
-      color: #FFFFFF;
-      text-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
-      z-index: 2;
-    }
-
-    .char-info-block {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .char-name-title {
-      font-family: var(--font-display);
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      color: #FFFFFF;
-    }
-
-    .char-dance-info {
-      font-size: 11px;
-      color: var(--color-cyan);
-      font-weight: 700;
-      letter-spacing: 0.8px;
+    .nav-menu-tabs {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 22px;
     }
 
-    .char-audio-status {
-      font-size: 10px;
-      color: var(--color-text-muted);
+    .nav-tab-item {
+      font-family: var(--font-tech);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: #6C7789;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.15s ease;
+      padding: 6px 12px;
+      border-radius: 6px;
+    }
+
+    .nav-tab-item:hover {
+      color: #C8D1DF;
+    }
+
+    .nav-tab-item.active {
+      color: #FFFFFF;
+      border: 1px solid var(--accent-lime);
+      box-shadow: 0 0 14px var(--accent-lime-glow), inset 0 0 10px rgba(212, 255, 0, 0.08);
+      background: rgba(212, 255, 0, 0.04);
+    }
+
+    .nav-right-cluster {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .points-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-tech);
+      font-size: 13px;
+      font-weight: 800;
+      color: #FFFFFF;
       letter-spacing: 0.5px;
     }
 
-    /* =========================================================================
-       SCREEN 3: SQUAD LOBBY & SECTOR SELECT
-       ========================================================================= */
-    .lobby-horizontal-split {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      margin-top: 16px;
-    }
-
-    @media (max-width: 900px) {
-      .lobby-horizontal-split {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .lobby-hub-card {
-      background: var(--bg-surface);
-      border: 2px solid var(--border-glass);
-      border-radius: 20px;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    }
-
-    .hub-card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 10px;
-    }
-
-    .hub-title {
-      font-family: var(--font-display);
-      font-size: 20px;
-      font-weight: 800;
-      letter-spacing: 1px;
-    }
-
-    .hub-desc {
-      font-size: 12px;
-      color: var(--color-text-muted);
-      margin-top: 4px;
-      line-height: 1.4;
-    }
-
-    .squad-code-box {
-      background: rgba(8, 10, 18, 0.7);
-      border: 1.5px dashed var(--color-gold);
-      border-radius: 12px;
-      padding: 16px;
+    .shield-emblem {
+      width: 22px;
+      height: 22px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      justify-content: center;
+      color: #4B90FF;
     }
 
-    .code-display {
-      font-family: var(--font-display);
-      font-size: 28px;
-      font-weight: 800;
-      letter-spacing: 6px;
-      color: var(--color-gold);
-      text-shadow: 0 0 12px rgba(255, 184, 0, 0.35);
-    }
-
-    .squad-players-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 10px;
-    }
-
-    .squad-player-badge {
-      background: rgba(24, 30, 51, 0.7);
-      border: 1px solid var(--border-glass);
-      border-radius: 10px;
-      padding: 10px 12px;
+    .currency-controls {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       gap: 8px;
     }
 
-    .player-badge-name {
-      font-size: 12px;
-      font-weight: 800;
-      color: #FFF;
+    .curr-token {
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      background: rgba(255, 184, 0, 0.15);
+      border: 1px solid #FFB800;
       display: flex;
       align-items: center;
-      gap: 6px;
+      justify-content: center;
+      color: #FFB800;
     }
 
-    .host-crown {
-      background: var(--color-gold);
-      color: #000;
-      font-size: 8px;
-      font-weight: 900;
-      padding: 2px 5px;
+    .plus-square-btn {
+      width: 22px;
+      height: 22px;
       border-radius: 4px;
+      background: #19202B;
+      border: 1px solid var(--border-medium);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFFFFF;
+      cursor: pointer;
+      transition: all 0.12s;
     }
 
-    .status-tag-ready {
-      font-size: 9px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      color: var(--color-lime);
-      background: rgba(0, 255, 136, 0.15);
-      padding: 3px 8px;
-      border-radius: 6px;
+    .plus-square-btn:hover {
+      background: #232C3B;
+      border-color: #FFFFFF;
     }
 
-    .status-tag-waiting {
-      font-size: 9px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      color: var(--color-text-muted);
-      background: rgba(255, 255, 255, 0.08);
-      padding: 3px 8px;
-      border-radius: 6px;
+    .triangle-key {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255, 255, 255, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-lime);
+      cursor: pointer;
     }
 
     /* =========================================================================
-       SCREEN 4: VICTORY & DRAW CEREMONY
+       MAIN GRID: 3-COLUMN LAYOUT
        ========================================================================= */
-    .ceremony-card {
-      background: radial-gradient(circle at 50% 20%, rgba(255, 184, 0, 0.12) 0%, rgba(17, 21, 36, 0.95) 70%);
-      border: 2px solid var(--color-gold);
-      box-shadow: 0 0 50px rgba(255, 184, 0, 0.25), 0 20px 60px rgba(0, 0, 0, 0.8);
-      border-radius: 24px;
-      padding: 36px 24px;
-      text-align: center;
-      max-width: 760px;
-      margin: 20px auto;
+    .console-workspace {
+      position: relative;
+      z-index: 5;
+      padding: 24px 36px;
+      display: grid;
+      grid-template-columns: 240px 1fr 270px;
+      gap: 28px;
+      align-items: center;
+      flex: 1;
+    }
+
+    /* -------------------------------------------------------------------------
+       LEFT COLUMN: "Your Robots:" Card Stack
+       ------------------------------------------------------------------------- */
+    .left-robot-column {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .section-title-wrap {
+      margin-bottom: 2px;
+    }
+
+    .column-main-title {
+      font-family: var(--font-body);
+      font-size: 16px;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: 0.5px;
+    }
+
+    .column-subtitle {
+      font-size: 11px;
+      font-weight: 500;
+      color: #647082;
+      margin-top: 2px;
+      letter-spacing: 1px;
+    }
+
+    .robot-card-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .robot-slot-card {
+      height: 72px;
+      background: var(--bg-card-inactive);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+      position: relative;
+      cursor: pointer;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      transition: all 0.15s ease;
+    }
+
+    .robot-slot-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .robot-slot-card.active {
+      background: #1A212B;
+      border: 2px solid var(--accent-lime);
+      box-shadow: 0 0 20px rgba(212, 255, 0, 0.25);
+    }
+
+    /* Red accent tick on active card */
+    .robot-slot-card.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 14px;
+      width: 44px;
+      height: 3px;
+      background: var(--accent-red-pip);
+    }
+
+    .slot-card-preview {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .slot-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      z-index: 2;
+    }
+
+    .slot-name {
+      font-family: var(--font-tech);
+      font-size: 12px;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: 1px;
+    }
+
+    .slot-class {
+      font-size: 9px;
+      font-weight: 600;
+      color: #7A8799;
+      letter-spacing: 1px;
+    }
+
+    .slot-thumb-container {
+      width: 80px;
+      height: 54px;
+      border-radius: 4px;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .slot-thumb-container img,
+    .slot-thumb-container canvas {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: cover;
+      filter: contrast(1.1) brightness(0.9);
+    }
+
+    /* Add Robot Button */
+    .btn-add-robot-slot {
+      height: 60px;
+      background: rgba(16, 21, 29, 0.4);
+      border: 1px dashed rgba(255, 255, 255, 0.16);
+      border-radius: 8px;
+      clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 700;
+      color: #8E99A8;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-add-robot-slot:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.35);
+      color: #FFFFFF;
+    }
+
+    /* -------------------------------------------------------------------------
+       CENTER COLUMN: Large Mecha Showcase Frame with Corner Pips
+       ------------------------------------------------------------------------- */
+    .center-hero-column {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 520px;
+    }
+
+    /* The bounding frame with yellow corner pips */
+    .hero-targeting-box {
+      width: 320px;
+      height: 480px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      position: relative;
+      background: 
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.03) 0%, transparent 80%),
+        radial-gradient(rgba(212, 255, 0, 0.12) 1px, transparent 1px);
+      background-size: 100% 100%, 18px 18px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 20px;
+      padding: 24px 16px;
     }
 
-    .ceremony-crown-banner {
-      background: linear-gradient(135deg, var(--color-gold), #FF8800);
-      color: #000;
-      font-family: var(--font-display);
-      font-size: 12px;
+    /* 4 Corner Pips (Yellow dots from reference) */
+    .corner-pip {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: var(--accent-yellow-pips);
+      box-shadow: 0 0 8px var(--accent-yellow-pips);
+    }
+    .pip-tl { top: -3px; left: -3px; }
+    .pip-tr { top: -3px; right: -3px; }
+    .pip-bl { bottom: -3px; left: -3px; }
+    .pip-br { bottom: -3px; right: -3px; }
+
+    /* Model Header */
+    .hero-header-block {
+      text-align: center;
+      z-index: 10;
+    }
+
+    .hero-code-name {
+      font-family: var(--font-tech);
+      font-size: 32px;
       font-weight: 900;
-      letter-spacing: 3px;
-      padding: 6px 18px;
-      border-radius: 20px;
-      box-shadow: 0 4px 14px rgba(255, 184, 0, 0.5);
-    }
-
-    .ceremony-winner-name {
-      font-family: var(--font-display);
-      font-size: 44px;
-      font-weight: 800;
-      letter-spacing: 2px;
-      background: linear-gradient(180deg, #FFFFFF 0%, var(--color-gold) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      letter-spacing: 2.5px;
+      color: #FFFFFF;
+      text-transform: uppercase;
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
       line-height: 1.1;
     }
 
-    .ceremony-subtitle {
-      font-size: 13px;
-      color: var(--color-cyan);
+    .hero-class-label {
+      font-family: var(--font-tech);
+      font-size: 11px;
       font-weight: 700;
-      letter-spacing: 1.2px;
+      letter-spacing: 2px;
+      color: #8C99AB;
+      margin-top: 4px;
+      text-transform: uppercase;
     }
 
-    .ceremony-stats-strip {
-      background: rgba(8, 10, 18, 0.6);
-      border: 1px solid var(--border-glass);
-      border-radius: 14px;
-      padding: 14px 28px;
+    /* 3D Mecha Center Display Canvas / Render */
+    .hero-3d-stage {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -46%);
+      width: 440px;
+      height: 480px;
       display: flex;
-      gap: 32px;
+      align-items: center;
       justify-content: center;
+      pointer-events: none;
+      z-index: 5;
     }
 
-    .c-stat-box {
+    .mecha-render-graphic {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.9));
+      transition: transform 0.25s ease, filter 0.25s ease;
+    }
+
+    /* Side Arrow Chevrons */
+    .side-cycle-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 32px;
+      height: 44px;
+      background: rgba(18, 24, 34, 0.85);
+      border: 1px solid var(--border-medium);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFFFFF;
+      cursor: pointer;
+      z-index: 15;
+      transition: all 0.15s ease;
+      clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    }
+
+    .side-cycle-arrow:hover {
+      background: rgba(30, 40, 56, 0.95);
+      border-color: var(--accent-lime);
+      color: var(--accent-lime);
+      box-shadow: 0 0 12px rgba(212, 255, 0, 0.3);
+    }
+
+    .side-arrow-left {
+      left: -20px;
+    }
+
+    .side-arrow-right {
+      right: -20px;
+    }
+
+    /* -------------------------------------------------------------------------
+       RIGHT COLUMN: Level, Stats, Weapon Box, Big START Button
+       ------------------------------------------------------------------------- */
+    .right-stats-column {
       display: flex;
       flex-direction: column;
-      align-items: center;
+      gap: 22px;
+    }
+
+    /* Level 47 block */
+    .level-meta-box {
+      display: flex;
+      flex-direction: column;
+      gap: 0px;
+    }
+
+    .level-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #778598;
+      letter-spacing: 0.5px;
+    }
+
+    .level-number-hero {
+      font-family: var(--font-num);
+      font-size: 46px;
+      font-weight: 800;
+      color: #FFFFFF;
+      line-height: 1;
+      letter-spacing: 1px;
+    }
+
+    /* Technical Stat Progress Bars */
+    .stats-table-block {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .stat-row-item {
+      display: flex;
+      flex-direction: column;
       gap: 4px;
     }
 
-    .c-stat-lbl {
-      font-size: 9px;
-      font-weight: 800;
-      color: var(--color-text-muted);
+    .stat-meta-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-tech);
+      font-size: 10px;
+      font-weight: 700;
       letter-spacing: 1.5px;
     }
 
-    .c-stat-val {
-      font-family: var(--font-display);
-      font-size: 22px;
+    .stat-name-tag {
+      color: #798698;
+      text-transform: uppercase;
+    }
+
+    .stat-value-tag {
+      color: #FFFFFF;
       font-weight: 800;
-      color: #FFF;
     }
 
-    /* Draw Screen Toggle Block */
-    .draw-ceremony-card {
-      background: radial-gradient(circle at 50% 20%, rgba(255, 0, 85, 0.12) 0%, rgba(17, 21, 36, 0.95) 70%);
-      border: 2px solid var(--color-magenta);
-      box-shadow: 0 0 50px rgba(255, 0, 85, 0.25), 0 20px 60px rgba(0, 0, 0, 0.8);
+    .stat-track-bar {
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      position: relative;
+      overflow: hidden;
     }
 
-    .draw-banner {
-      background: linear-gradient(135deg, var(--color-magenta), #B8003D);
-      color: #FFF;
+    .stat-fill-bar {
+      height: 100%;
+      background: var(--accent-lime);
+      box-shadow: 0 0 8px var(--accent-lime);
+      border-radius: 2px;
+      transition: width 0.3s ease;
     }
 
-    .draw-trio-showcase {
+    /* Weapon / Loadout Selector Box */
+    .weapon-chassis-box {
+      background: rgba(18, 23, 32, 0.7);
+      border: 1px solid var(--border-medium);
+      border-radius: 8px;
+      clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+      position: relative;
+      padding: 10px;
+      height: 104px;
       display: flex;
-      justify-content: center;
-      gap: 16px;
-      flex-wrap: wrap;
-      margin: 10px 0;
-    }
-
-    .draw-trio-item {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 0, 85, 0.35);
-      border-radius: 12px;
-      padding: 12px 18px;
-      display: flex;
-      flex-direction: column;
       align-items: center;
-      gap: 4px;
+      justify-content: space-between;
     }
 
-    .draw-anim-tag {
-      font-size: 9px;
-      font-weight: 800;
-      color: var(--color-magenta);
-      letter-spacing: 1px;
+    /* Green Corner dots on weapon card */
+    .weapon-pip-tr {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 4px;
+      height: 4px;
+      background: var(--accent-lime);
+      box-shadow: 0 0 6px var(--accent-lime);
+    }
+
+    .weapon-display-area {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 6px;
+    }
+
+    .weapon-render-img {
+      max-width: 100%;
+      max-height: 80px;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.7));
+    }
+
+    .weapon-cycle-btn {
+      width: 24px;
+      height: 36px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-dim);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #9AA4B2;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+
+    .weapon-cycle-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #FFFFFF;
+      border-color: var(--accent-lime);
+    }
+
+    /* START Button (Exact Replica) */
+    .start-button-frame {
+      width: 100%;
+      height: 52px;
+      background: #141922;
+      border: 1.5px solid rgba(255, 255, 255, 0.28);
+      border-radius: 8px;
+      clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+      transition: all 0.15s ease;
+    }
+
+    .start-button-frame:hover {
+      background: #1C2433;
+      border-color: #FFFFFF;
+      box-shadow: 0 0 24px rgba(255, 255, 255, 0.35), 0 8px 24px rgba(0, 0, 0, 0.7);
+      transform: translateY(-2px);
+    }
+
+    .start-button-frame:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+      background: #0E1219;
+    }
+
+    .start-label-text {
+      font-family: var(--font-tech);
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 4px;
+      color: #FFFFFF;
+      text-transform: uppercase;
+      text-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
     }
 
     /* =========================================================================
-       SHOWCASE: BUTTON SAMPLES & SOUND PLAYGROUND
+       BOTTOM CONTROLLER LEGEND BAR
        ========================================================================= */
-    .btn-showcase-section {
-      background: var(--bg-surface);
-      border: 2px solid var(--border-glass);
-      border-radius: 20px;
-      padding: 24px;
-      margin-bottom: 24px;
-    }
-
-    .btn-grid {
+    .console-footer-legend {
+      position: relative;
+      z-index: 10;
+      padding: 14px 36px 18px;
       display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
       align-items: center;
-      margin-top: 14px;
+      justify-content: space-between;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 11px;
+      font-weight: 600;
+      color: #8C98AA;
+      letter-spacing: 0.5px;
     }
 
-    /* Footer info */
-    .mockup-footer {
-      text-align: center;
-      padding: 24px 0 16px;
-      font-size: 11px;
-      color: var(--color-text-muted);
-      letter-spacing: 1px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-      margin-top: 40px;
+    .legend-actions-left {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      transition: color 0.12s;
+    }
+
+    .legend-item:hover {
+      color: #FFFFFF;
+    }
+
+    .btn-key-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 800;
+      color: #FFFFFF;
+    }
+
+    .btn-key-square {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1.5px solid rgba(255, 255, 255, 0.5);
+    }
+
+    .legend-actions-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Responsive scaling */
+    @media (max-width: 1024px) {
+      .console-workspace {
+        grid-template-columns: 1fr;
+        gap: 32px;
+      }
+      .center-hero-column {
+        order: -1;
+      }
     }
   </style>
 </head>
 <body>
 
-  <!-- =========================================================================
-       HEADER & SCREEN NAVIGATOR
-       ========================================================================= -->
-  <header class="showcase-header">
-    <div class="showcase-brand">
-      <div class="brand-logo-pill">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        ARCADE UI
-      </div>
-      <div>
-        <div class="brand-title">TWISTED PARTY // DESIGN SYSTEM</div>
-        <div class="brand-subtitle">High-Octane Tactile 3D Party Style</div>
-      </div>
+  <!-- Top bar to switch between Mecha Specification and Twisted Party Roster -->
+  <div class="view-mode-bar">
+    <div class="system-title-tag">
+      <div class="dot"></div>
+      <span>AAA CONSOLE ESPORTS UI ENGINE // 60 FPS ZERO-EMOJI</span>
     </div>
-
-    <nav class="screen-nav">
-      <button class="screen-tab-btn active" data-target="screen-hud">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        COMBAT HUD
-      </button>
-      <button class="screen-tab-btn" data-target="screen-roster">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        CHARACTER ROSTER (7)
-      </button>
-      <button class="screen-tab-btn" data-target="screen-lobby">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-        SQUAD & LOBBY
-      </button>
-      <button class="screen-tab-btn" data-target="screen-ceremony">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
-        PODIUM & DRAW
-      </button>
-      <button class="screen-tab-btn" data-target="screen-buttons">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-        TACTILE BUTTONS
-      </button>
-    </nav>
-
-    <div class="header-tools">
-      <button id="btn-sound-toggle" class="sound-toggle-btn" type="button">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-        SOUND EFFECTS: ON
-      </button>
+    <div class="roster-switch-pills">
+      <button id="btn-mode-mecha" class="roster-pill-btn active" type="button">MECHA BLACK (REFERENCE SPEC)</button>
+      <button id="btn-mode-party" class="roster-pill-btn" type="button">TWISTED PARTY OPERATORS (7)</button>
     </div>
-  </header>
+  </div>
 
-  <!-- =========================================================================
-       SHOWCASE MAIN VIEWPORT
-       ========================================================================= -->
-  <main class="showcase-body">
+  <!-- MAIN CONSOLE CHASSIS FRAME -->
+  <div class="console-chassis">
+    <div class="console-watermark-bg"></div>
 
-    <!-- =======================================================================
-         VIEW 1: IN-GAME COMBAT HUD
-         ======================================================================= -->
-    <section id="screen-hud" class="mockup-screen-view active">
-      <div class="screen-meta-badge">SCREEN 1 // IN-GAME REAL-TIME MATCH</div>
-      <h1 class="screen-headline">HIGH-OCTANE ARENA COMBAT HUD</h1>
-      <p class="screen-subtext">Clean floating glass panels with chunky match indicators, tactile twin-stick mobile controls, and urgent arena shrink warnings.</p>
+    <!-- TOP NAVIGATION BAR -->
+    <header class="console-topbar">
+      <!-- Left cluster: L1, Home, Seasons, Robots, Store, Profile, R1 -->
+      <div class="nav-left-cluster">
+        <div class="bumper-key" id="bumper-l1">L1</div>
+        <nav class="nav-menu-tabs">
+          <div class="nav-tab-item" data-tab="home">HOME</div>
+          <div class="nav-tab-item" data-tab="seasons">SEASONS</div>
+          <div class="nav-tab-item active" data-tab="robots">ROBOTS</div>
+          <div class="nav-tab-item" data-tab="store">STORE</div>
+          <div class="nav-tab-item" data-tab="profile">PROFILE</div>
+        </nav>
+        <div class="bumper-key" id="bumper-r1">R1</div>
+      </div>
 
-      <div class="hud-simulator-frame">
-        <!-- 3D Arena Simulated Canvas -->
-        <div class="hud-arena-grid"></div>
-
-        <!-- Simulated Character on Arena Floor -->
-        <div class="sim-arena-avatar">
-          <div class="sim-avatar-disc">P1</div>
-          <div class="sim-avatar-laser"></div>
-          <div class="sim-avatar-label">APPU BROO // THANKAN CHETTAN</div>
+      <!-- Right cluster: Rank pts, Currencies, Triangle Button -->
+      <div class="nav-right-cluster">
+        <div class="points-badge">
+          <div class="shield-emblem">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><circle cx="12" cy="11" r="3"/></svg>
+          </div>
+          <span id="header-points-val">8477 pts</span>
         </div>
 
-        <!-- TOP BAR: Scores, Clock, Actions -->
-        <div class="hud-top-bar">
-          <div class="hud-match-strip">
-            <div class="hud-round-pill">
-              <span class="pill-tag">SERIES ROUND</span>
-              <span class="pill-val">ROUND 2 / 5</span>
-            </div>
-            <div class="hud-divider-v"></div>
-            <div class="hud-scores-row">
-              <div class="hud-player-dot you">
-                <div class="dot-badge"></div>
-                <span>YOU (1W)</span>
-              </div>
-              <div class="hud-player-dot">
-                <div class="dot-badge"></div>
-                <span>KUCHU (0W)</span>
-              </div>
-              <div class="hud-player-dot">
-                <div class="dot-badge"></div>
-                <span>AJP (0W)</span>
-              </div>
-              <div class="hud-player-dot">
-                <div class="dot-badge dead"></div>
-                <span>KNIGHT (ELIM)</span>
-              </div>
-            </div>
+        <div class="currency-controls">
+          <div class="curr-token">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
           </div>
-
-          <!-- Central Clock -->
-          <div class="hud-clock-center">
-            <span class="hud-clock-phase">SURVIVAL PHASE</span>
-            <div class="hud-clock-timer" id="sim-clock-val">08.4</div>
-            <span class="hud-clock-sub">ARENA ACTIVE</span>
+          <div class="plus-square-btn" title="Add Funds">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </div>
-
-          <!-- Top Right Action Controls -->
-          <div style="display: flex; gap: 8px;">
-            <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-              ARENA MAP
-            </button>
-            <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-              SETTINGS
-            </button>
+          <div class="plus-square-btn" title="Boost">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </div>
-        </div>
-
-        <!-- ZONE SHRINK BANNER ALERT -->
-        <div class="hud-danger-banner">
-          <span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            WARNING // ARENA BARRIER SHRINKING IN 3 SECONDS
-          </span>
-        </div>
-
-        <!-- BOTTOM CONTROLS LAYER: Mobile Joysticks + Quick Buttons -->
-        <div class="hud-controls-layer">
-          <!-- Left Move Joystick -->
-          <div class="touch-stick-unit">
-            <div class="touch-stick-base">
-              <div class="touch-stick-thumb"></div>
-              <span class="touch-stick-label">MOVE</span>
-            </div>
+          <div class="plus-square-btn" title="Premium Pass">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </div>
-
-          <!-- Center Action Deck -->
-          <div class="hud-center-action-deck">
-            <div class="hud-action-row">
-              <button class="arcade-btn arcade-btn-gold" type="button">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                READY UP
-              </button>
-              <button class="arcade-btn arcade-btn-dark" type="button">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                EMOTE DANCE
-              </button>
-            </div>
-            <div style="font-size: 10px; color: var(--color-text-muted); letter-spacing: 1.5px; font-weight: 700;">
-              TAP ANYWHERE TO AIM LASER // WASD TO RUN
-            </div>
-          </div>
-
-          <!-- Right Aim Joystick -->
-          <div class="touch-stick-unit">
-            <div class="touch-stick-base aim-stick">
-              <div class="touch-stick-thumb"></div>
-              <span class="touch-stick-label">AIM LASER</span>
-            </div>
+          <div class="triangle-key" title="Social Menu">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polygon points="12 3 22 21 2 21 12 3"/></svg>
           </div>
         </div>
       </div>
-    </section>
+    </header>
 
-    <!-- =======================================================================
-         VIEW 2: CHARACTER SELECT ROSTER (7 OPERATORS)
-         ======================================================================= -->
-    <section id="screen-roster" class="mockup-screen-view">
-      <div class="screen-meta-badge">SCREEN 2 // CHARACTER SELECT</div>
-      <h1 class="screen-headline">OPERATOR ROSTER (7 CHARACTERS)</h1>
-      <p class="screen-subtext">Tactile operator cards with dedicated celebration dance badges, signature tracks, and secret easter egg audio integration.</p>
+    <!-- MAIN CONSOLE WORKSPACE (3 COLUMNS) -->
+    <main class="console-workspace">
 
-      <div class="roster-grid">
-        <!-- 1. AJP -->
-        <div class="arcade-char-card" data-char="ajp">
-          <div class="char-card-badge-row">
-            <span class="char-role-badge">OFFENSIVE BEAST</span>
-            <span style="font-size: 9px; color: var(--color-gold); font-weight: 800;">58% WIN RATE</span>
-          </div>
-          <div class="char-preview-podium">
-            <div class="podium-disc"></div>
-            <div class="char-avatar-symbol">AJP</div>
-          </div>
-          <div class="char-info-block">
-            <div class="char-name-title">AJP</div>
-            <div class="char-dance-info">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              BREAKDANCE UPROCK
-            </div>
-            <div class="char-audio-status">Track: AJP Signature Anthem</div>
-          </div>
-          <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">SELECT OPERATOR</button>
+      <!-- LEFT COLUMN: Your Robots List -->
+      <section class="left-robot-column">
+        <div class="section-title-wrap">
+          <h2 class="column-main-title" id="column-title-text">Your Robots:</h2>
+          <div class="column-subtitle" id="column-sub-text">Classes S ___ A</div>
         </div>
 
-        <!-- 2. DOGGESH BHAIR -->
-        <div class="arcade-char-card" data-char="dog">
-          <div class="char-card-badge-row">
-            <span class="char-role-badge">GUNSLINGER DOG</span>
-            <span style="font-size: 9px; color: var(--color-lime); font-weight: 800;">ORIGINAL CLASSIC</span>
-          </div>
-          <div class="char-preview-podium">
-            <div class="podium-disc"></div>
-            <div class="char-avatar-symbol">DOG</div>
-          </div>
-          <div class="char-info-block">
-            <div class="char-name-title">DOGGESH BHAIR</div>
-            <div class="char-dance-info">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              VICTORY TWERK
+        <div class="robot-card-stack" id="robot-slots-container">
+          <!-- Card 1 (Active) -->
+          <div class="robot-slot-card active" data-index="0">
+            <div class="slot-card-preview">
+              <div class="slot-meta">
+                <span class="slot-name">RXC-09</span>
+                <span class="slot-class">CLASS S // SCOUT</span>
+              </div>
+              <div class="slot-thumb-container">
+                <svg width="48" height="40" viewBox="0 0 100 80" fill="none">
+                  <path d="M15 45 L40 25 L85 30 L95 50 L70 70 L30 65 Z" fill="#2A3444" stroke="#D4FF00" stroke-width="2"/>
+                  <circle cx="70" cy="40" r="6" fill="#D4FF00"/>
+                  <line x1="30" y1="35" x2="10" y2="55" stroke="#FFFFFF" stroke-width="3"/>
+                </svg>
+              </div>
             </div>
-            <div class="char-audio-status">Track: Tactical Dog Beat</div>
           </div>
-          <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">SELECT OPERATOR</button>
+
+          <!-- Card 2 -->
+          <div class="robot-slot-card" data-index="1">
+            <div class="slot-card-preview">
+              <div class="slot-meta">
+                <span class="slot-name">RXC-04</span>
+                <span class="slot-class">CLASS S // HEAVY TANK</span>
+              </div>
+              <div class="slot-thumb-container">
+                <svg width="48" height="40" viewBox="0 0 100 80" fill="none">
+                  <path d="M20 50 L35 30 L80 32 L88 55 L65 72 L25 68 Z" fill="#1E2530" stroke="#5A6778" stroke-width="1.5"/>
+                  <circle cx="65" cy="45" r="5" fill="#4B90FF"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="robot-slot-card" data-index="2">
+            <div class="slot-card-preview">
+              <div class="slot-meta">
+                <span class="slot-name">RXC-11</span>
+                <span class="slot-class">CLASS A // STEALTH</span>
+              </div>
+              <div class="slot-thumb-container">
+                <svg width="48" height="40" viewBox="0 0 100 80" fill="none">
+                  <path d="M18 42 L45 28 L82 35 L90 52 L60 68 L25 60 Z" fill="#1E2530" stroke="#5A6778" stroke-width="1.5"/>
+                  <circle cx="68" cy="42" r="5" fill="#FF0055"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 4 -->
+          <div class="robot-slot-card" data-index="3">
+            <div class="slot-card-preview">
+              <div class="slot-meta">
+                <span class="slot-name">RXC-02</span>
+                <span class="slot-class">CLASS A // TITAN</span>
+              </div>
+              <div class="slot-thumb-container">
+                <svg width="48" height="40" viewBox="0 0 100 80" fill="none">
+                  <path d="M22 48 L42 32 L78 34 L85 54 L62 70 L28 66 Z" fill="#1E2530" stroke="#5A6778" stroke-width="1.5"/>
+                  <circle cx="62" cy="46" r="5" fill="#FFB800"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add Robot Button -->
+          <div class="btn-add-robot-slot" id="btn-add-robot">
+            <span>Add Robot</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- CENTER COLUMN: Large Mecha Showcase Frame with Corner Pips -->
+      <section class="center-hero-column">
+        <!-- Left cycle arrow -->
+        <button class="side-cycle-arrow side-arrow-left" id="btn-cycle-left" type="button" aria-label="Previous">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+
+        <!-- The Target Frame Box with 4 Yellow Corner Pips -->
+        <div class="hero-targeting-box">
+          <div class="corner-pip pip-tl"></div>
+          <div class="corner-pip pip-tr"></div>
+          <div class="corner-pip pip-bl"></div>
+          <div class="corner-pip pip-br"></div>
+
+          <div class="hero-header-block">
+            <h1 class="hero-code-name" id="hero-model-title">RXC-09</h1>
+            <div class="hero-class-label" id="hero-model-subtitle">SCOUT MECHA BLACK</div>
+          </div>
         </div>
 
-        <!-- 3. BIG VEGAS -->
-        <div class="arcade-char-card" data-char="big_vegas">
-          <div class="char-card-badge-row">
-            <span class="char-role-badge">HEAVYWEIGHT BRAWLER</span>
-            <span style="font-size: 9px; color: var(--color-cyan); font-weight: 800;">TANK STATS</span>
-          </div>
-          <div class="char-preview-podium">
-            <div class="podium-disc"></div>
-            <div class="char-avatar-symbol">VEGAS</div>
-          </div>
-          <div class="char-info-block">
-            <div class="char-name-title">BIG VEGAS</div>
-            <div class="char-dance-info">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              HEADSPIN CYCLONE
-            </div>
-            <div class="char-audio-status">Track: Heavy Vegas Brass Beat</div>
-          </div>
-          <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">SELECT OPERATOR</button>
+        <!-- Hero 3D Stage / Scaled Mecha Graphic -->
+        <div class="hero-3d-stage">
+          <svg id="hero-vector-art" class="mecha-render-graphic" width="380" height="420" viewBox="0 0 380 420" fill="none">
+            <!-- Sleek Mecha Torso & Head Silhouette matching reference image -->
+            <defs>
+              <linearGradient id="mechaMetal" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#4C5766"/>
+                <stop offset="40%" stop-color="#242B36"/>
+                <stop offset="80%" stop-color="#14181F"/>
+                <stop offset="100%" stop-color="#0E1217"/>
+              </linearGradient>
+              <linearGradient id="neonGlow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#D4FF00"/>
+                <stop offset="100%" stop-color="#80A300"/>
+              </linearGradient>
+            </defs>
+            <!-- Heavy Torso Chassis -->
+            <path d="M110 380 C110 320 130 260 150 220 L230 220 C250 260 270 320 270 380 Z" fill="url(#mechaMetal)" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+            <path d="M140 370 L240 370 L230 290 L150 290 Z" fill="#181F28" stroke="#D4FF00" stroke-width="1.5" stroke-dasharray="4 2"/>
+            <text x="190" y="340" fill="#D4FF00" font-family="'Orbitron', sans-serif" font-size="28" font-weight="900" text-anchor="middle">09</text>
+            <!-- Aerodynamic Wing / Radar Fins on Head -->
+            <path d="M60 145 L220 120 L240 145 L80 180 Z" fill="#1C232D" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+            <path d="M85 140 L210 125" stroke="#D4FF00" stroke-width="2"/>
+            <!-- Mecha Head Core Dome -->
+            <path d="M150 130 C190 90 260 110 275 160 C280 190 260 220 220 230 L160 220 Z" fill="url(#mechaMetal)" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
+            <!-- Sensor Eyes -->
+            <circle cx="240" cy="165" r="7" fill="#000" stroke="#D4FF00" stroke-width="2"/>
+            <circle cx="240" cy="165" r="3" fill="#D4FF00"/>
+            <circle cx="258" cy="172" r="5" fill="#000" stroke="#D4FF00" stroke-width="1.5"/>
+            <!-- Cervical Neck Plating -->
+            <path d="M175 180 C175 220 180 250 185 270" stroke="rgba(255,255,255,0.3)" stroke-width="4" stroke-dasharray="6 4"/>
+            <path d="M195 185 C195 220 200 250 205 270" stroke="rgba(255,255,255,0.3)" stroke-width="4" stroke-dasharray="6 4"/>
+            <!-- ART Insignia in Red -->
+            <text x="175" y="245" fill="#FF2B44" font-family="'Orbitron', sans-serif" font-size="16" font-weight="900" transform="rotate(-30 175 245)">ART</text>
+          </svg>
         </div>
 
-        <!-- 4. KNIGHT -->
-        <div class="arcade-char-card" data-char="knight">
-          <div class="char-card-badge-row">
-            <span class="char-role-badge">ARMORED DEFENDER</span>
-            <span style="font-size: 9px; color: #FFF; font-weight: 800;">IRON CRUSADER</span>
-          </div>
-          <div class="char-preview-podium">
-            <div class="podium-disc"></div>
-            <div class="char-avatar-symbol">KNIGHT</div>
-          </div>
-          <div class="char-info-block">
-            <div class="char-name-title">KNIGHT D PELEGRINI</div>
-            <div class="char-dance-info">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              VICTORY SWING
-            </div>
-            <div class="char-audio-status">Track: Knight Victory Fanfare</div>
-          </div>
-          <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">SELECT OPERATOR</button>
+        <!-- Right cycle arrow -->
+        <button class="side-cycle-arrow side-arrow-right" id="btn-cycle-right" type="button" aria-label="Next">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </section>
+
+      <!-- RIGHT COLUMN: Level, Technical Stats, Weapon Box, START Button -->
+      <section class="right-stats-column">
+        <!-- Level Block -->
+        <div class="level-meta-box">
+          <span class="level-label">Level</span>
+          <div class="level-number-hero" id="stat-level-num">47</div>
         </div>
 
-        <!-- 5. PEASANT GIRL -->
-        <div class="arcade-char-card" data-char="peasant_girl">
-          <div class="char-card-badge-row">
-            <span class="char-role-badge">AGILE SCOUT</span>
-            <span style="font-size: 9px; color: var(--color-lime); font-weight: 800;">SPEED RUNNER</span>
-          </div>
-          <div class="char-preview-podium">
-            <div class="podium-disc"></div>
-            <div class="char-avatar-symbol">SCOUT</div>
-          </div>
-          <div class="char-info-block">
-            <div class="char-name-title">PEASANT GIRL</div>
-            <div class="char-dance-info">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              FREESTYLE SWING
+        <!-- Technical Stat Bars -->
+        <div class="stats-table-block">
+          <!-- Stat 1: ATTACK -->
+          <div class="stat-row-item">
+            <div class="stat-meta-header">
+              <span class="stat-name-tag">ATTACK</span>
+              <span class="stat-value-tag" id="val-attack">447</span>
             </div>
-            <div class="char-audio-status">Track: Acoustic Party Groove</div>
+            <div class="stat-track-bar">
+              <div class="stat-fill-bar" id="bar-attack" style="width: 82%;"></div>
+            </div>
           </div>
-          <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">SELECT OPERATOR</button>
+
+          <!-- Stat 2: DEFENCE -->
+          <div class="stat-row-item">
+            <div class="stat-meta-header">
+              <span class="stat-name-tag">DEFENCE</span>
+              <span class="stat-value-tag" id="val-defence">80</span>
+            </div>
+            <div class="stat-track-bar">
+              <div class="stat-fill-bar" id="bar-defence" style="width: 25%;"></div>
+            </div>
+          </div>
+
+          <!-- Stat 3: ACCURACY -->
+          <div class="stat-row-item">
+            <div class="stat-meta-header">
+              <span class="stat-name-tag">ACCURACY</span>
+              <span class="stat-value-tag" id="val-accuracy">244</span>
+            </div>
+            <div class="stat-track-bar">
+              <div class="stat-fill-bar" id="bar-accuracy" style="width: 64%;"></div>
+            </div>
+          </div>
+
+          <!-- Stat 4: DEXTRETY -->
+          <div class="stat-row-item">
+            <div class="stat-meta-header">
+              <span class="stat-name-tag">DEXTRETY</span>
+              <span class="stat-value-tag" id="val-dextrety">239</span>
+            </div>
+            <div class="stat-track-bar">
+              <div class="stat-fill-bar" id="bar-dextrety" style="width: 61%;"></div>
+            </div>
+          </div>
         </div>
 
-        <!-- 6. KUCHUPUCHU -->
-        <div class="arcade-char-card" data-char="kuchupuchu">
-          <div class="char-card-badge-row">
-            <span class="char-role-badge">GNOME MAESTRO</span>
-            <span style="font-size: 9px; color: var(--color-purple); font-weight: 800;">PROTECTED SONG</span>
-          </div>
-          <div class="char-preview-podium">
-            <div class="podium-disc"></div>
-            <div class="char-avatar-symbol">GNOME</div>
-          </div>
-          <div class="char-info-block">
-            <div class="char-name-title">KUCHUPUCHU</div>
-            <div class="char-dance-info">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              GNOME BREAKDANCE
-            </div>
-            <div class="char-audio-status">Track: Kuchu Puchu Song 1</div>
-          </div>
-          <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">SELECT OPERATOR</button>
-        </div>
-
-        <!-- 7. THANKAN CHETTAN (NEW & ACTIVE) -->
-        <div class="arcade-char-card active" data-char="thankan_chettan">
-          <div class="char-card-badge-row">
-            <span class="char-role-badge">CHETTAN POWER</span>
-            <span class="char-secret-tag">NAME EASTER EGG</span>
-          </div>
-          <div class="char-preview-podium">
-            <div class="podium-disc"></div>
-            <div class="char-avatar-symbol">CHETTAN</div>
-          </div>
-          <div class="char-info-block">
-            <div class="char-name-title">THANKAN CHETTAN</div>
-            <div class="char-dance-info">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              CHETTAN POWER DANCE
-            </div>
-            <div class="char-audio-status">Track: Normal Beat / Secret Voices for 5 Names</div>
-          </div>
-          <button class="arcade-btn arcade-btn-gold arcade-btn-sm" type="button">SELECTED</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- =======================================================================
-         VIEW 3: SQUAD LOBBY & SECTOR SELECT
-         ======================================================================= -->
-    <section id="screen-lobby" class="mockup-screen-view">
-      <div class="screen-meta-badge">SCREEN 3 // MATCHMAKING & SQUAD HUB</div>
-      <h1 class="screen-headline">ARCADE SQUAD LOBBY & SECTORS</h1>
-      <p class="screen-subtext">Clear separation between Casual Public Auto-Scaling Sectors and Private Family Squad codes with zero demo bots.</p>
-
-      <div class="lobby-horizontal-split">
-        <!-- Card Left: Public Casual Sector -->
-        <div class="lobby-hub-card">
-          <div class="hub-card-header">
-            <div>
-              <div class="hub-title">PUBLIC CASUAL ARENA</div>
-              <div class="hub-desc">Instant drop into Sector 1. Automatically auto-scales to Sector 2, 3 when 5 players connect.</div>
-            </div>
-            <span class="status-tag-ready">5-PLAYER MAX</span>
+        <!-- Weapon Loadout Chassis Box -->
+        <div class="weapon-chassis-box">
+          <div class="weapon-pip-tr"></div>
+          <button class="weapon-cycle-btn" id="btn-weapon-prev" type="button" aria-label="Prev Weapon">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          
+          <div class="weapon-display-area">
+            <!-- Tactical Blaster Rifle Vector SVG -->
+            <svg id="weapon-vector-svg" class="weapon-render-img" width="160" height="60" viewBox="0 0 200 80" fill="none">
+              <!-- Rifle Barrel and Body -->
+              <rect x="40" y="24" width="110" height="22" rx="3" fill="#202733" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+              <!-- Front Muzzle & Flash Hider -->
+              <rect x="18" y="27" width="22" height="16" rx="2" fill="#364254" stroke="#D4FF00" stroke-width="1.5"/>
+              <line x1="24" y1="23" x2="24" y2="47" stroke="#D4FF00" stroke-width="2"/>
+              <!-- Scope / Optics Rail -->
+              <rect x="60" y="16" width="60" height="8" rx="2" fill="#141922" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+              <!-- Pistol Grip & Trigger -->
+              <path d="M75 46 L82 72 L96 70 L92 46 Z" fill="#181F29" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+              <path d="M85 52 C82 56 82 58 87 58" stroke="#D4FF00" stroke-width="2" fill="none"/>
+              <!-- Magazine Box -->
+              <rect x="110" y="46" width="24" height="26" rx="2" fill="#283242" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+              <!-- Tactical Stock -->
+              <path d="M150 28 L185 30 L188 56 L165 52 L150 44 Z" fill="#141922" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+            </svg>
           </div>
 
-          <div style="display: flex; gap: 12px; align-items: center; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px;">
-            <div style="flex: 1;">
-              <div style="font-size: 11px; font-weight: 800; color: var(--color-cyan);">CURRENT PUBLIC ROUTING</div>
-              <div style="font-family: var(--font-display); font-size: 20px; font-weight: 800; color: #FFF; margin-top: 2px;">SECTOR_1 (3/5 PLAYERS)</div>
-            </div>
-            <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">ADD DEMO BOTS</button>
-          </div>
-
-          <button class="arcade-btn arcade-btn-cyan" type="button">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            QUICK DROP INTO SECTOR 1
+          <button class="weapon-cycle-btn" id="btn-weapon-next" type="button" aria-label="Next Weapon">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
         </div>
 
-        <!-- Card Right: Private Squad Room -->
-        <div class="lobby-hub-card">
-          <div class="hub-card-header">
-            <div>
-              <div class="hub-title">PRIVATE SQUAD FREQUENCY</div>
-              <div class="hub-desc">Invite real friends & family only. Zero demo bots permitted. Custom room PIN.</div>
-            </div>
-            <span class="char-role-badge">ZERO BOTS</span>
-          </div>
+        <!-- Big START Button -->
+        <button class="start-button-frame" id="btn-start-action" type="button">
+          <span class="start-label-text">START</span>
+        </button>
+      </section>
+    </main>
 
-          <div class="squad-code-box">
-            <div>
-              <div style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); letter-spacing: 1px;">YOUR SQUAD PIN</div>
-              <div class="code-display">849 201</div>
-            </div>
-            <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              COPY INVITE
-            </button>
-          </div>
-
-          <!-- Connected Squad Players -->
-          <div>
-            <div style="font-size: 10px; font-weight: 800; color: var(--color-text-muted); letter-spacing: 1.5px; margin-bottom: 8px;">CONNECTED OPERATORS (3/5)</div>
-            <div class="squad-players-grid">
-              <div class="squad-player-badge">
-                <div class="player-badge-name">
-                  <span>APPU BROO</span>
-                  <span class="host-crown">HOST</span>
-                </div>
-                <span class="status-tag-ready">READY</span>
-              </div>
-              <div class="squad-player-badge">
-                <div class="player-badge-name">
-                  <span>KUCHU MASTER</span>
-                </div>
-                <span class="status-tag-ready">READY</span>
-              </div>
-              <div class="squad-player-badge">
-                <div class="player-badge-name">
-                  <span>AJP CHAMP</span>
-                </div>
-                <span class="status-tag-waiting">SELECTING</span>
-              </div>
-            </div>
-          </div>
-
-          <button class="arcade-btn arcade-btn-gold" type="button">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            LAUNCH SQUAD MATCH
-          </button>
+    <!-- BOTTOM CONTROLLER LEGEND BAR -->
+    <footer class="console-footer-legend">
+      <div class="legend-actions-left">
+        <div class="legend-item" id="btn-prompt-select">
+          <div class="btn-key-icon">X</div>
+          <span>Select</span>
         </div>
-      </div>
-    </section>
-
-    <!-- =======================================================================
-         VIEW 4: PODIUM VICTORY & DRAW CEREMONY
-         ======================================================================= -->
-    <section id="screen-ceremony" class="mockup-screen-view">
-      <div class="screen-meta-badge">SCREEN 4 // MATCH CONCLUSION</div>
-      <h1 class="screen-headline">PODIUM CEREMONY & DRAW SHOWCASE</h1>
-      <p class="screen-subtext">Spotlight victory celebration and synchronized 3-animation draw screen when mutual destruction occurs.</p>
-
-      <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 16px;">
-        <button id="toggle-victory-demo" class="arcade-btn arcade-btn-gold arcade-btn-sm" type="button">PREVIEW WINNER PODIUM</button>
-        <button id="toggle-draw-demo" class="arcade-btn arcade-btn-magenta arcade-btn-sm" type="button">PREVIEW DRAW CEREMONY</button>
-      </div>
-
-      <!-- Victory Card Container -->
-      <div id="card-victory-view" class="ceremony-card">
-        <div class="ceremony-crown-banner">MATCH CHAMPION // SERIES WINNER</div>
-        <div class="ceremony-winner-name">THANKAN CHETTAN</div>
-        <div class="ceremony-subtitle">DANCING TO: CHETTAN POWER DANCE</div>
-
-        <div class="ceremony-stats-strip">
-          <div class="c-stat-box">
-            <span class="c-stat-lbl">SERIES SCORE</span>
-            <span class="c-stat-val" style="color: var(--color-gold);">3 WINS</span>
-          </div>
-          <div class="c-stat-box">
-            <span class="c-stat-lbl">FINAL ROUND TIME</span>
-            <span class="c-stat-val">14.2s</span>
-          </div>
-          <div class="c-stat-box">
-            <span class="c-stat-lbl">ELIMINATIONS</span>
-            <span class="c-stat-val" style="color: var(--color-lime);">4 KILLS</span>
-          </div>
-        </div>
-
-        <div style="display: flex; gap: 12px; margin-top: 10px;">
-          <button class="arcade-btn arcade-btn-gold" type="button">PLAY AGAIN</button>
-          <button class="arcade-btn arcade-btn-dark" type="button">BACK TO SQUAD HUB</button>
+        <div class="legend-item" id="btn-prompt-default">
+          <div class="btn-key-square"></div>
+          <span>Set as default</span>
         </div>
       </div>
 
-      <!-- Draw Card Container (Hidden by default) -->
-      <div id="card-draw-view" class="ceremony-card draw-ceremony-card" style="display: none;">
-        <div class="ceremony-crown-banner draw-banner">MATCH CONCLUDED // NO SURVIVORS</div>
-        <div class="ceremony-winner-name" style="color: var(--color-magenta);">MUTUAL DESTRUCTION</div>
-        <div class="ceremony-subtitle" style="color: var(--color-text-muted);">ALL REMAINING OPERATORS ELIMINATED SIMULTANEOUSLY</div>
-
-        <!-- 3-Animation Draw Showcase Trio -->
-        <div class="draw-trio-showcase">
-          <div class="draw-trio-item">
-            <span style="font-weight: 800; font-size: 13px;">APPU (CHETTAN)</span>
-            <span class="draw-anim-tag">ZOMBIE CRAWL</span>
+      <div class="legend-actions-right">
+        <div class="legend-item" id="btn-prompt-settings">
+          <div class="btn-key-icon" style="border-radius: 4px;">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </div>
-          <div class="draw-trio-item">
-            <span style="font-weight: 800; font-size: 13px;">KUCHU MASTER</span>
-            <span class="draw-anim-tag">CRYING REACTION</span>
-          </div>
-          <div class="draw-trio-item">
-            <span style="font-weight: 800; font-size: 13px;">AJP CHAMP</span>
-            <span class="draw-anim-tag">ANGRY PUNCHING</span>
-          </div>
-        </div>
-
-        <div style="display: flex; gap: 12px; margin-top: 10px;">
-          <button class="arcade-btn arcade-btn-magenta" type="button">REMATCH NOW</button>
-          <button class="arcade-btn arcade-btn-dark" type="button">BACK TO SQUAD HUB</button>
+          <span>Settings</span>
         </div>
       </div>
-    </section>
-
-    <!-- =======================================================================
-         VIEW 5: BUTTON STYLES & INTERACTIVE TOYS
-         ======================================================================= -->
-    <section id="screen-buttons" class="mockup-screen-view">
-      <div class="screen-meta-badge">SYSTEM DEMO // TACTILE 3D BUTTON PALETTE</div>
-      <h1 class="screen-headline">PHYSICAL ARCADE BUTTON FEEDBACK</h1>
-      <p class="screen-subtext">Click any button below to test physical press depth, active feedback, and synthesized Web Audio clicks.</p>
-
-      <div class="btn-showcase-section">
-        <h3 style="font-family: var(--font-display); font-size: 16px; margin-bottom: 4px;">HERO ACTIONS (GOLD & MAGENTA)</h3>
-        <p style="font-size: 12px; color: var(--color-text-muted);">High-priority triggers: Match Start, Ready Up, Hazard Actions.</p>
-        <div class="btn-grid">
-          <button class="arcade-btn arcade-btn-gold" type="button">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            LAUNCH MATCH
-          </button>
-          <button class="arcade-btn arcade-btn-magenta" type="button">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            ELIMINATE HAZARD
-          </button>
-          <button class="arcade-btn arcade-btn-lime" type="button">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            READY CONFIRMED
-          </button>
-          <button class="arcade-btn arcade-btn-cyan" type="button">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-            JOIN SQUAD
-          </button>
-        </div>
-      </div>
-
-      <div class="btn-showcase-section">
-        <h3 style="font-family: var(--font-display); font-size: 16px; margin-bottom: 4px;">COMPACT ACTIONS & TOGGLES</h3>
-        <p style="font-size: 12px; color: var(--color-text-muted);">Used inside player cards, settings bars, and mobile footers.</p>
-        <div class="btn-grid">
-          <button class="arcade-btn arcade-btn-gold arcade-btn-sm" type="button">FORCE START</button>
-          <button class="arcade-btn arcade-btn-dark arcade-btn-sm" type="button">LEAVE ROOM</button>
-          <button class="arcade-btn arcade-btn-magenta arcade-btn-sm" type="button">SPECTATE</button>
-          <button class="arcade-btn arcade-btn-cyan arcade-btn-sm" type="button">ADD DEMO BOTS</button>
-          <button class="arcade-btn arcade-btn-lime arcade-btn-sm" type="button">COPY PIN</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- FOOTER -->
-    <footer class="mockup-footer">
-      TWISTED PARTY // ARCADE UI PROTOTYPE // READY FOR REVIEW & DEPLOYMENT
     </footer>
-  </main>
+  </div>
 
-  <!-- =========================================================================
-       AUDIO & INTERACTION SCRIPT
-       ========================================================================= -->
+  <!-- Web Audio Interactive Synthesizer Script -->
   <script>
-    // Web Audio Synthesizer for Interactive Click Testing
+    // Audio Context Setup
     let audioCtx = null;
-    let soundEnabled = true;
-
-    function getAudioContext() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
+    function getAudioCtx() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       return audioCtx;
     }
 
-    function playArcadeTone(freq, type = 'sine', duration = 0.08, gainVal = 0.15) {
-      if (!soundEnabled) return;
+    function playTechBeep(freq = 640, type = 'sine', duration = 0.06, gainVal = 0.12) {
       try {
-        const ctx = getAudioContext();
+        const ctx = getAudioCtx();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = type;
         osc.frequency.setValueAtTime(freq, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(Math.max(20, freq * 0.4), ctx.currentTime + duration);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(20, freq * 0.5), ctx.currentTime + duration);
         gain.gain.setValueAtTime(gainVal, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start();
         osc.stop(ctx.currentTime + duration);
-      } catch (e) {
-        // Audio error silent fallback
+      } catch (e) {}
+    }
+
+    function playChirp(f1 = 700, f2 = 1100) {
+      playTechBeep(f1, 'sine', 0.05, 0.1);
+      setTimeout(() => playTechBeep(f2, 'triangle', 0.07, 0.12), 40);
+    }
+
+    // Dataset 1: Mecha Black Reference Roster
+    const MECHA_ROSTER = [
+      {
+        id: 'rxc_09',
+        code: 'RXC-09',
+        name: 'SCOUT MECHA BLACK',
+        class: 'CLASS S // SCOUT',
+        level: 47,
+        attack: 447,
+        attackPct: 82,
+        defence: 80,
+        defencePct: 25,
+        accuracy: 244,
+        accuracyPct: 64,
+        dextrety: 239,
+        dextretyPct: 61,
+        color: '#D4FF00',
+        insignia: 'ART'
+      },
+      {
+        id: 'rxc_04',
+        code: 'RXC-04',
+        name: 'HEAVY TANK CHASSIS',
+        class: 'CLASS S // HEAVY TANK',
+        level: 52,
+        attack: 512,
+        attackPct: 94,
+        defence: 260,
+        defencePct: 78,
+        accuracy: 190,
+        accuracyPct: 48,
+        dextrety: 140,
+        dextretyPct: 35,
+        color: '#4B90FF',
+        insignia: 'HVY'
+      },
+      {
+        id: 'rxc_11',
+        code: 'RXC-11',
+        name: 'STEALTH INFILTRATOR',
+        class: 'CLASS A // STEALTH',
+        level: 41,
+        attack: 388,
+        attackPct: 71,
+        defence: 95,
+        defencePct: 30,
+        accuracy: 310,
+        accuracyPct: 84,
+        dextrety: 335,
+        dextretyPct: 88,
+        color: '#FF0055',
+        insignia: 'STL'
+      },
+      {
+        id: 'rxc_02',
+        code: 'RXC-02',
+        name: 'BLASTER TITAN CORE',
+        class: 'CLASS A // TITAN',
+        level: 44,
+        attack: 475,
+        attackPct: 87,
+        defence: 180,
+        defencePct: 55,
+        accuracy: 215,
+        accuracyPct: 56,
+        dextrety: 198,
+        dextretyPct: 50,
+        color: '#FFB800',
+        insignia: 'TTN'
       }
-    }
+    ];
 
-    function playChime(freqs = [520, 680, 880]) {
-      if (!soundEnabled) return;
-      freqs.forEach((f, idx) => {
-        setTimeout(() => playArcadeTone(f, 'triangle', 0.12, 0.12), idx * 60);
-      });
-    }
+    // Dataset 2: Twisted Party 7 Operators Roster
+    const PARTY_ROSTER = [
+      {
+        id: 'thankan_chettan',
+        code: 'CHETTAN-07',
+        name: 'THANKAN CHETTAN',
+        class: 'SPECIAL // POWER MUNDU',
+        level: 50,
+        attack: 495,
+        attackPct: 91,
+        defence: 220,
+        defencePct: 68,
+        accuracy: 280,
+        accuracyPct: 75,
+        dextrety: 270,
+        dextretyPct: 72,
+        color: '#D4FF00',
+        insignia: 'MAL'
+      },
+      {
+        id: 'ajp',
+        code: 'AJP-01',
+        name: 'AJP CHAMPION',
+        class: 'CLASS S // BREAKDANCER',
+        level: 48,
+        attack: 460,
+        attackPct: 85,
+        defence: 110,
+        defencePct: 34,
+        accuracy: 260,
+        accuracyPct: 70,
+        dextrety: 310,
+        dextretyPct: 82,
+        color: '#00F0FF',
+        insignia: 'AJP'
+      },
+      {
+        id: 'dog',
+        code: 'DOG-02',
+        name: 'DOGGESH BHAIR',
+        class: 'CLASS S // GUNSLINGER',
+        level: 45,
+        attack: 430,
+        attackPct: 79,
+        defence: 95,
+        defencePct: 29,
+        accuracy: 295,
+        accuracyPct: 80,
+        dextrety: 250,
+        dextretyPct: 65,
+        color: '#FFB800',
+        insignia: 'DOG'
+      },
+      {
+        id: 'kuchupuchu',
+        code: 'GNOME-06',
+        name: 'KUCHUPUCHU',
+        class: 'CLASS A // GNOME MAESTRO',
+        level: 43,
+        attack: 390,
+        attackPct: 72,
+        defence: 85,
+        defencePct: 26,
+        accuracy: 320,
+        accuracyPct: 86,
+        dextrety: 340,
+        dextretyPct: 90,
+        color: '#9D00FF',
+        insignia: 'GNM'
+      }
+    ];
 
-    // Sound toggle
-    const soundBtn = document.getElementById('btn-sound-toggle');
-    soundBtn.addEventListener('click', () => {
-      soundEnabled = !soundEnabled;
-      soundBtn.innerHTML = `
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-        SOUND EFFECTS: ${soundEnabled ? 'ON' : 'OFF'}
-      `;
-      if (soundEnabled) playChime([600, 900]);
-    });
+    let currentDataset = MECHA_ROSTER;
+    let selectedIndex = 0;
 
-    // Screen Navigation
-    const tabs = document.querySelectorAll('.screen-tab-btn');
-    const views = document.querySelectorAll('.mockup-screen-view');
+    const elTitle = document.getElementById('hero-model-title');
+    const elSub = document.getElementById('hero-model-subtitle');
+    const elLevel = document.getElementById('stat-level-num');
+    const elAtkVal = document.getElementById('val-attack');
+    const elAtkBar = document.getElementById('bar-attack');
+    const elDefVal = document.getElementById('val-defence');
+    const elDefBar = document.getElementById('bar-defence');
+    const elAccVal = document.getElementById('val-accuracy');
+    const elAccBar = document.getElementById('bar-accuracy');
+    const elDexVal = document.getElementById('val-dextrety');
+    const elDexBar = document.getElementById('bar-dextrety');
+    const cardsContainer = document.getElementById('robot-slots-container');
 
-    tabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        const targetId = tab.getAttribute('data-target');
-        tabs.forEach(t => t.classList.remove('active'));
-        views.forEach(v => v.classList.remove('active'));
+    function applyModelData(model) {
+      elTitle.textContent = model.code;
+      elSub.textContent = model.name;
+      elLevel.textContent = model.level;
 
-        tab.classList.add('active');
-        const targetView = document.getElementById(targetId);
-        if (targetView) targetView.classList.add('active');
+      elAtkVal.textContent = model.attack;
+      elAtkBar.style.width = model.attackPct + '%';
 
-        playArcadeTone(480, 'sine', 0.06);
-      });
-    });
+      elDefVal.textContent = model.defence;
+      elDefBar.style.width = model.defencePct + '%';
 
-    // Character Card Selection
-    const charCards = document.querySelectorAll('.arcade-char-card');
-    charCards.forEach(card => {
-      card.addEventListener('click', () => {
-        charCards.forEach(c => {
-          c.classList.remove('active');
-          const btn = c.querySelector('button');
-          if (btn) {
-            btn.className = 'arcade-btn arcade-btn-dark arcade-btn-sm';
-            btn.textContent = 'SELECT OPERATOR';
-          }
-        });
+      elAccVal.textContent = model.accuracy;
+      elAccBar.style.width = model.accuracyPct + '%';
 
-        card.classList.add('active');
-        const btn = card.querySelector('button');
-        if (btn) {
-          btn.className = 'arcade-btn arcade-btn-gold arcade-btn-sm';
-          btn.textContent = 'SELECTED';
-        }
+      elDexVal.textContent = model.dextrety;
+      elDexBar.style.width = model.dextretyPct + '%';
 
-        playChime([550, 750, 1100]);
-      });
-    });
-
-    // Victory vs Draw Preview Buttons
-    const btnVictory = document.getElementById('toggle-victory-demo');
-    const btnDraw = document.getElementById('toggle-draw-demo');
-    const cardVictory = document.getElementById('card-victory-view');
-    const cardDraw = document.getElementById('card-draw-view');
-
-    btnVictory.addEventListener('click', () => {
-      cardVictory.style.display = 'flex';
-      cardDraw.style.display = 'none';
-      playChime([400, 600, 800, 1200]);
-    });
-
-    btnDraw.addEventListener('click', () => {
-      cardVictory.style.display = 'none';
-      cardDraw.style.display = 'flex';
-      playArcadeTone(200, 'sawtooth', 0.25, 0.18);
-    });
-
-    // Global Click Tone on All Buttons
-    document.querySelectorAll('.arcade-btn').forEach(btn => {
-      btn.addEventListener('pointerdown', () => {
-        if (btn.classList.contains('arcade-btn-magenta')) {
-          playArcadeTone(320, 'square', 0.08, 0.12);
-        } else if (btn.classList.contains('arcade-btn-lime')) {
-          playArcadeTone(680, 'triangle', 0.08, 0.14);
-        } else if (btn.classList.contains('arcade-btn-cyan')) {
-          playArcadeTone(520, 'sine', 0.08, 0.14);
+      // Update active card outline
+      document.querySelectorAll('.robot-slot-card').forEach((card, idx) => {
+        if (idx === selectedIndex) {
+          card.classList.add('active');
         } else {
-          playArcadeTone(440, 'triangle', 0.08, 0.14);
+          card.classList.remove('active');
         }
+      });
+    }
+
+    function renderSlots() {
+      // Re-populate left cards
+      const cards = document.querySelectorAll('.robot-slot-card');
+      cards.forEach((card, idx) => {
+        const item = currentDataset[idx];
+        if (item) {
+          card.querySelector('.slot-name').textContent = item.code;
+          card.querySelector('.slot-class').textContent = item.class;
+        }
+      });
+      applyModelData(currentDataset[selectedIndex]);
+    }
+
+    // Left card click
+    document.querySelectorAll('.robot-slot-card').forEach((card, idx) => {
+      card.addEventListener('click', () => {
+        selectedIndex = idx;
+        applyModelData(currentDataset[selectedIndex]);
+        playChirp(600, 950);
       });
     });
 
-    // Animated Countdown Simulation in HUD Screen
-    let simTimer = 8.4;
-    setInterval(() => {
-      simTimer -= 0.1;
-      if (simTimer <= 0) simTimer = 10.0;
-      const el = document.getElementById('sim-clock-val');
-      if (el) el.textContent = simTimer.toFixed(1);
-    }, 100);
+    // Cycle buttons [<] and [>]
+    document.getElementById('btn-cycle-left').addEventListener('click', () => {
+      selectedIndex = (selectedIndex - 1 + currentDataset.length) % currentDataset.length;
+      applyModelData(currentDataset[selectedIndex]);
+      playTechBeep(520, 'sine', 0.05);
+    });
+
+    document.getElementById('btn-cycle-right').addEventListener('click', () => {
+      selectedIndex = (selectedIndex + 1) % currentDataset.length;
+      applyModelData(currentDataset[selectedIndex]);
+      playTechBeep(680, 'sine', 0.05);
+    });
+
+    // Weapon cycling
+    const weapons = [
+      { name: 'TACTICAL BLASTER RIFLE' },
+      { name: 'HEAVY LASER CANNON' },
+      { name: 'PLASMA SCATTERGUN' }
+    ];
+    let weaponIdx = 0;
+    document.getElementById('btn-weapon-prev').addEventListener('click', () => {
+      weaponIdx = (weaponIdx - 1 + weapons.length) % weapons.length;
+      playTechBeep(450, 'triangle', 0.06);
+    });
+    document.getElementById('btn-weapon-next').addEventListener('click', () => {
+      weaponIdx = (weaponIdx + 1) % weapons.length;
+      playTechBeep(720, 'triangle', 0.06);
+    });
+
+    // Mode Toggle (Mecha vs Party)
+    const btnMecha = document.getElementById('btn-mode-mecha');
+    const btnParty = document.getElementById('btn-mode-party');
+    const colTitle = document.getElementById('column-title-text');
+
+    btnMecha.addEventListener('click', () => {
+      btnMecha.classList.add('active');
+      btnParty.classList.remove('active');
+      currentDataset = MECHA_ROSTER;
+      colTitle.textContent = 'Your Robots:';
+      selectedIndex = 0;
+      renderSlots();
+      playChirp(800, 1200);
+    });
+
+    btnParty.addEventListener('click', () => {
+      btnParty.classList.add('active');
+      btnMecha.classList.remove('active');
+      currentDataset = PARTY_ROSTER;
+      colTitle.textContent = 'Your Operators:';
+      selectedIndex = 0;
+      renderSlots();
+      playChirp(800, 1200);
+    });
+
+    // Top Tabs
+    document.querySelectorAll('.nav-tab-item').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.nav-tab-item').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        playTechBeep(750, 'sine', 0.05);
+      });
+    });
+
+    // START Button Click
+    const btnStart = document.getElementById('btn-start-action');
+    btnStart.addEventListener('click', () => {
+      playTechBeep(400, 'square', 0.1, 0.2);
+      setTimeout(() => playTechBeep(880, 'sine', 0.25, 0.3), 80);
+      btnStart.style.borderColor = 'var(--accent-lime)';
+      btnStart.style.boxShadow = '0 0 35px var(--accent-lime-glow)';
+      setTimeout(() => {
+        btnStart.style.borderColor = '';
+        btnStart.style.boxShadow = '';
+      }, 400);
+    });
+
+    // Controller bumper shortcuts (Q/E or 1/2)
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'q' || e.key === 'Q' || e.key === 'ArrowLeft') {
+        document.getElementById('btn-cycle-left').click();
+      } else if (e.key === 'e' || e.key === 'E' || e.key === 'ArrowRight') {
+        document.getElementById('btn-cycle-right').click();
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        btnStart.click();
+      }
+    });
   </script>
 </body>
 </html>
