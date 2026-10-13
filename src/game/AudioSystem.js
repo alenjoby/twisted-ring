@@ -42,6 +42,7 @@ const AJP_SONG_FILES = CHARACTER_VICTORY_SONGS.ajp;
 
 const AUDIO_SAMPLES = {
   bell: '/audio/bell.mp3',
+  bell_triple: '/audio/bell_triple.mp3',
   count_3: '/audio/count_3.mp3',
   count_2: '/audio/count_2.mp3',
   count_1: '/audio/count_1.mp3',
@@ -150,24 +151,16 @@ class AudioSystem {
     if (!this.enabled) return;
     this.init();
     if (triple) {
-      this.playSample('bell', 0.85);
-      setTimeout(() => this.playSample('bell', 0.85), 140);
-      setTimeout(() => this.playSample('bell', 0.9), 280);
+      this.playSample('bell_triple', 0.95);
     } else {
-      this.playSample('bell', 0.8);
+      this.playSample('bell', 0.85);
     }
   }
 
-  playCountdownTick(countOrFinal = false) {
+  // Beginning of match countdown (when all players ready up / match begins): 3 -> 2 -> 1 -> ENGAGE! + Wrestling Bell
+  playMatchCountdown(countNum = 0) {
     if (!this.enabled) return;
     this.init();
-
-    let countNum = null;
-    if (typeof countOrFinal === 'number') {
-      countNum = countOrFinal;
-    } else if (countOrFinal === true) {
-      countNum = 0;
-    }
 
     if (countNum === 3) {
       this.playSample('count_3', 1.0);
@@ -181,26 +174,28 @@ class AudioSystem {
     } else if (countNum === 0) {
       this.playSample('count_engage', 1.0);
       this.playBell(true);
-    } else {
-      this.playSample('ui_click', 0.5);
     }
+  }
 
-    // Procedural synthesizer layer backup
-    try {
-      const isFinal = (countNum === 0 || countOrFinal === true);
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
+  // End of each chance / round timer countdown: NO voice narration (zero 3-2-1 voice)!
+  playChanceTimerTick(sec) {
+    if (!this.enabled) return;
+    this.init();
 
-      const freq = isFinal ? 880 : 440;
-      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-      gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + (isFinal ? 0.35 : 0.15));
+    // In the final 3 seconds of a chance, play a subtle tactical tension click only
+    if (sec <= 3 && sec > 0) {
+      this.playSample('ui_click', 0.35);
+    }
+  }
 
-      osc.start();
-      osc.stop(this.ctx.currentTime + (isFinal ? 0.35 : 0.15));
-    } catch (e) {}
+  playCountdownTick(countOrFinal = false) {
+    let countNum = null;
+    if (typeof countOrFinal === 'number') {
+      countNum = countOrFinal;
+    } else if (countOrFinal === true) {
+      countNum = 0;
+    }
+    this.playMatchCountdown(countNum !== null ? countNum : 0);
   }
 
   playLaserShot() {

@@ -1556,7 +1556,7 @@ function startRound(broadcast = true, syncEpoch = null) {
       // Tick only when the displayed second changes (interval runs every 250ms)
       if (sec !== lastTickSec) {
         lastTickSec = sec;
-        audioSystem.playCountdownTick(sec);
+        audioSystem.playChanceTimerTick(sec);
       }
 
       // Accelerating sub-bass heartbeat in final 3 seconds (Feature 5)
@@ -2633,18 +2633,18 @@ function checkAllPlayersReady(playersList) {
     clockPhaseLabel.innerText = 'LAUNCH IMMINENT';
     clockGuidanceText.innerText = `${modeLabel} // STARTING IN ${launchCount}S`;
     showBanner(`${modeLabel} // STARTING IN ${launchCount}S`, 1100);
-    audioSystem.playCountdownTick(launchCount);
+    audioSystem.playMatchCountdown(launchCount);
 
     readyCountdownInterval = setInterval(() => {
       launchCount--;
       if (launchCount > 0) {
         clockGuidanceText.innerText = `${modeLabel} // STARTING IN ${launchCount}S`;
         showBanner(`STARTING IN ${launchCount}S`, 950);
-        audioSystem.playCountdownTick(launchCount);
+        audioSystem.playMatchCountdown(launchCount);
       } else {
         clearInterval(readyCountdownInterval);
         readyCountdownInterval = null;
-        audioSystem.playCountdownTick(0);
+        audioSystem.playMatchCountdown(0);
         document.getElementById('lobby-modal')?.classList.remove('active');
         closeFriendsHub();
         updateDemoBotsButtonUI();
