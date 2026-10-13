@@ -1648,6 +1648,9 @@ function executeReveal() {
   });
 
   audioSystem.playLaserShot();
+  if (currentMatchModifier === 'bouncy_lasers') {
+    setTimeout(() => audioSystem.playLaserRicochet(), 140);
+  }
   audioSystem.playAnnouncerCue('engage');
 
   // 2. Authoritative host referee evaluates hits with 520ms grace window for peer lock packets
@@ -2072,6 +2075,8 @@ function applyRoundVerdict(verdict) {
       if (roundWinner) {
         roundWinner.playAction(verdict.roundDanceKey || pickRandomVictoryDance(), 0.2);
         audioSystem.playVictoryFanfare();
+        audioSystem.playCrowdCheer();
+        audioSystem.playCrowdApplause();
         clockPhaseLabel.innerText = `ROUND ${currentSeriesRound}/${totalSeriesRounds} COMPLETE`;
         clockGuidanceText.innerText = `${roundWinner.name.toUpperCase()} WON ROUND (+${winPoints} PTS) // ${leaderText}`;
         showBanner(`ROUND ${currentSeriesRound}/${totalSeriesRounds}: ${roundWinner.name.toUpperCase()} (+${winPoints} PTS) // ${leaderText}`, 3400);
@@ -2081,6 +2086,7 @@ function applyRoundVerdict(verdict) {
         clockGuidanceText.innerText = `CIRCLE COLLAPSED // ADVANCING TO ROUND ${nextSR} // ${leaderText}`;
         showBanner(`ROUND ${currentSeriesRound}/${totalSeriesRounds} STALEMATE // CIRCLE COLLAPSED! ADVANCING TO ROUND ${nextSR}`, 3400);
       } else {
+        audioSystem.playDrawGong();
         clockPhaseLabel.innerText = `ROUND ${currentSeriesRound}/${totalSeriesRounds} DRAW`;
         clockGuidanceText.innerText = `NO SURVIVORS // ${leaderText}`;
         showBanner(`ROUND ${currentSeriesRound}/${totalSeriesRounds} DRAW // ${leaderText}`, 3400);
@@ -3902,6 +3908,15 @@ function initPWAAndAutoUpdate() {
 
   checkForVersionUpdate();
 }
+
+// Global UI Click Sound Feedback
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('button, .hud-btn, .btn, .nav-tab, .char-card, .btn-primary, .btn-outline, .room-type-btn');
+  if (btn) {
+    audioSystem.init();
+    audioSystem.playClick();
+  }
+});
 
 initPWAAndAutoUpdate();
 
