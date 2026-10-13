@@ -126,6 +126,13 @@ export const CHARACTER_DATA = {
     url: '/CHARACTERS/KuchuPuchu.fbx',
     danceKey: 'dance_breakdance',
     danceName: 'GNOME BREAKDANCE'
+  },
+  'thankan_chettan': {
+    id: 'thankan_chettan',
+    name: 'THANKAN CHETTAN',
+    url: '/CHARACTERS/Thankan-Chettan.fbx',
+    danceKey: 'dance_breakdance',
+    danceName: 'CHETTAN POWER DANCE'
   }
 };
 
@@ -178,6 +185,7 @@ class AssetManager {
       { key: 'char_knight', url: '/CHARACTERS/Knight D Pelegrini.fbx', type: 'character', charId: 'knight' },
       { key: 'char_peasant_girl', url: '/CHARACTERS/Peasant Girl.fbx', type: 'character', charId: 'peasant_girl' },
       { key: 'char_kuchupuchu', url: '/CHARACTERS/KuchuPuchu.fbx', type: 'character', charId: 'kuchupuchu' },
+      { key: 'char_thankan_chettan', url: '/CHARACTERS/Thankan-Chettan.fbx', type: 'character', charId: 'thankan_chettan' },
       // Basic Locomotion Pack Animations (shared across all 5 characters including Doggesh Bhair)
       { key: 'idle', url: '/ANIMATIONS/Basic Locomotion Pack/idle.fbx', type: 'clip', inPlace: true },
       { key: 'walk', url: '/ANIMATIONS/Basic Locomotion Pack/walking.fbx', type: 'clip', inPlace: true },

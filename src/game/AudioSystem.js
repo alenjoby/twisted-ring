@@ -1,3 +1,16 @@
+const SECRET_THANKAN_NAMES = [
+  'aroo',
+  'kannappa',
+  'shaanthu',
+  'adhikka',
+  'ejin bt'
+];
+
+const THANKAN_EXPLICIT_VOICES = [
+  '/CHARACTER-SONG/THANKAN_CHETTAN_SECRET_1.mp3',
+  '/CHARACTER-SONG/THANKAN_CHETTAN_SECRET_2.mp3'
+];
+
 const CHARACTER_VICTORY_SONGS = {
   ajp: [
     '/CHARACTER-SONG/AJP SONG 1.mp3',
@@ -20,6 +33,9 @@ const CHARACTER_VICTORY_SONGS = {
   ],
   peasant_girl: [
     '/CHARACTER-SONG/PEASANT GIRL SONG.wav'
+  ],
+  thankan_chettan: [
+    '/CHARACTER-SONG/THANKAN_CHETTAN_NORMAL.wav'
   ]
 };
 
@@ -592,6 +608,22 @@ class AudioSystem {
         return;
       }
 
+      // 7. Thankan Chettan (Heavy boss bass flex & combat impact)
+      if (characterId === 'thankan_chettan') {
+        const sub = this.ctx.createOscillator();
+        const subG = this.ctx.createGain();
+        sub.type = 'sawtooth';
+        sub.connect(subG);
+        subG.connect(this.ctx.destination);
+        sub.frequency.setValueAtTime(110, t);
+        sub.frequency.exponentialRampToValueAtTime(45, t + 0.35);
+        subG.gain.setValueAtTime(0.3, t);
+        subG.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+        sub.start(t);
+        sub.stop(t + 0.35);
+        return;
+      }
+
       // Generic Emote Fallback
       const freqs = emoteType === 'TAUNT' ? [520, 390]
         : emoteType === 'DANCE' ? [440, 554.37, 659.25]
@@ -830,9 +862,34 @@ class AudioSystem {
     return nextSong;
   }
 
-  playCharacterCelebration(characterId = 'ajp') {
+  playCharacterCelebration(characterId = 'ajp', playerName = '', isLocalPlayer = false) {
     if (!this.enabled) return;
     this.stopCelebration();
+
+    // Strict Protected Easter Egg for Thankan Chettan:
+    // This audio is explicit and MUST NEVER play for anyone except when the player's name
+    // strictly matches the secret whitelist ('aroo', 'kannappa', 'shaanthu', 'adhikka', 'ejin bt').
+    if (characterId === 'thankan_chettan') {
+      const cleanName = (playerName || '').trim().toLowerCase();
+      const isSecretWinner = SECRET_THANKAN_NAMES.some(sn => cleanName === sn);
+
+      if (isSecretWinner) {
+        try {
+          const randIdx = Math.floor(Math.random() * THANKAN_EXPLICIT_VOICES.length);
+          const songUrl = THANKAN_EXPLICIT_VOICES[randIdx];
+          const audio = new Audio(songUrl);
+          audio.volume = 0.95;
+          audio.loop = false;
+          this.currentAjpAudio = audio;
+          audio.play().catch(e => {
+            console.warn('[AudioSystem] Secret victory audio deferred:', e);
+          });
+          return;
+        } catch (e) {
+          console.warn('[AudioSystem] Error playing secret victory audio:', e);
+        }
+      }
+    }
 
     const pool = CHARACTER_VICTORY_SONGS[characterId] || CHARACTER_VICTORY_SONGS.ajp;
     if (!pool || pool.length === 0) {

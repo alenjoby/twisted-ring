@@ -2075,7 +2075,7 @@ function applyRoundVerdict(verdict) {
       if (roundWinner) {
         const roundCharId = roundWinner.characterId || (roundWinner.isLocal ? selectedCharacterId : 'ajp');
         roundWinner.playAction(verdict.roundDanceKey || pickRandomVictoryDance(), 0.2);
-        audioSystem.playCharacterCelebration(roundCharId);
+        audioSystem.playCharacterCelebration(roundCharId, roundWinner.name, roundWinner.isLocal);
         audioSystem.playCrowdCheer();
         audioSystem.playCrowdApplause();
         clockPhaseLabel.innerText = `ROUND ${currentSeriesRound}/${totalSeriesRounds} COMPLETE`;
@@ -2324,7 +2324,7 @@ function presentWinner(winner, danceKeyOverride = null, drawShowcase = null) {
 
   // Play Victory Celebration: Play the champion's signature character dance song
   const champCharId = winner.characterId || (winner.isLocal ? selectedCharacterId : 'ajp');
-  audioSystem.playCharacterCelebration(champCharId);
+  audioSystem.playCharacterCelebration(champCharId, winner.name, winner.isLocal);
   audioSystem.playCrowdCheer();
   audioSystem.playCrowdApplause();
   const danceKey = (danceKeyOverride && VICTORY_DANCE_KEYS.includes(danceKeyOverride))
