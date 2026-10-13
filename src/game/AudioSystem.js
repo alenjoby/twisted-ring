@@ -1,9 +1,29 @@
-const AJP_SONG_FILES = [
-  '/CHARACTER-SONG/AJP SONG 1.mp3',
-  '/CHARACTER-SONG/AJP SONG 2.mp3',
-  '/CHARACTER-SONG/AJP SONG 3.mp3',
-  '/CHARACTER-SONG/AJP SONG 4.mp3'
-];
+const CHARACTER_VICTORY_SONGS = {
+  ajp: [
+    '/CHARACTER-SONG/AJP SONG 1.mp3',
+    '/CHARACTER-SONG/AJP SONG 2.mp3',
+    '/CHARACTER-SONG/AJP SONG 3.mp3',
+    '/CHARACTER-SONG/AJP SONG 4.mp3'
+  ],
+  kuchupuchu: [
+    '/CHARACTER-SONG/KUCHU PUCHU SONG 1.mp3'
+  ],
+  dog: [
+    '/CHARACTER-SONG/DOG SONG.wav',
+    '/CHARACTER-SONG/DOG SONG 2.wav'
+  ],
+  big_vegas: [
+    '/CHARACTER-SONG/BIG VEGAS SONG.wav'
+  ],
+  knight: [
+    '/CHARACTER-SONG/KNIGHT SONG.wav'
+  ],
+  peasant_girl: [
+    '/CHARACTER-SONG/PEASANT GIRL SONG.wav'
+  ]
+};
+
+const AJP_SONG_FILES = CHARACTER_VICTORY_SONGS.ajp;
 
 const AUDIO_SAMPLES = {
   bell: '/audio/bell.mp3',
@@ -810,25 +830,37 @@ class AudioSystem {
     return nextSong;
   }
 
-  playAjpCelebration() {
+  playCharacterCelebration(characterId = 'ajp') {
     if (!this.enabled) return;
-    this.stopAjpCelebration();
+    this.stopCelebration();
+
+    const pool = CHARACTER_VICTORY_SONGS[characterId] || CHARACTER_VICTORY_SONGS.ajp;
+    if (!pool || pool.length === 0) {
+      this.playVictoryFanfare();
+      return;
+    }
 
     try {
-      const url = this.getNextAjpSongUrl();
-      const audio = new Audio(url);
+      let songUrl;
+      if (characterId === 'ajp') {
+        songUrl = this.getNextAjpSongUrl();
+      } else {
+        const randIdx = Math.floor(Math.random() * pool.length);
+        songUrl = pool[randIdx];
+      }
+      const audio = new Audio(songUrl);
       audio.volume = 0.85;
       audio.loop = false;
       this.currentAjpAudio = audio;
       audio.play().catch(e => {
-        console.warn('[AudioSystem] AJP song play deferred:', e);
+        console.warn('[AudioSystem] Victory song play deferred:', e);
       });
     } catch (e) {
-      console.warn('[AudioSystem] Error playing AJP song:', e);
+      console.warn('[AudioSystem] Error playing victory song:', e);
     }
   }
 
-  stopAjpCelebration() {
+  stopCelebration() {
     if (this.currentAjpAudio) {
       try {
         const audio = this.currentAjpAudio;
@@ -850,6 +882,14 @@ class AudioSystem {
       }
       this.currentAjpAudio = null;
     }
+  }
+
+  playAjpCelebration() {
+    this.playCharacterCelebration('ajp');
+  }
+
+  stopAjpCelebration() {
+    this.stopCelebration();
   }
 }
 
